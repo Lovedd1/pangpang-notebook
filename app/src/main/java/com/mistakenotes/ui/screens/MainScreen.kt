@@ -2,22 +2,29 @@ package com.mistakenotes.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
-import com.mistakenotes.ui.components.HandwritingView
 import com.mistakenotes.ui.theme.*
 
 @Composable
 fun MainScreen() {
-    var viewRef by remember { mutableStateOf<HandwritingView?>(null) }
-    var pathCount by remember { mutableIntStateOf(0) }
+    var currentScreen by remember { mutableStateOf("home") }
+
+    when (currentScreen) {
+        "import" -> ImportScreen(
+            onNavigateBack = { currentScreen = "home" },
+            onSaveSuccess = { currentScreen = "home" }
+        )
+        else -> HomeScreen(onNavigateToImport = { currentScreen = "import" })
+    }
+}
+
+@Composable
+fun HomeScreen(onNavigateToImport: () -> Unit) {
+    var viewRef by remember { mutableStateOf<com.mistakenotes.ui.components.HandwritingView?>(null) }
 
     Column(
         modifier = Modifier
@@ -45,12 +52,17 @@ fun MainScreen() {
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .background(InkStoneSurface, androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                .then(
+                    Modifier.background(
+                        color = InkStoneSurface,
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+                    )
+                )
         ) {
-            AndroidView(
+            androidx.compose.ui.viewinterop.AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { context ->
-                    HandwritingView(context).apply {
+                    com.mistakenotes.ui.components.HandwritingView(context).apply {
                         setBackgroundColor(android.graphics.Color.parseColor("#242424"))
                         strokeColor = android.graphics.Color.parseColor("#E8E4DC")
                         strokeWidth = 4f
@@ -68,29 +80,39 @@ fun MainScreen() {
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = "已绘制 $pathCount 条路径",
+                text = "手写画布已就绪",
                 color = InkStoneTextDim,
                 fontSize = 12.sp
             )
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                androidx.compose.material3.TextButton(
-                    onClick = { viewRef?.undo() }
-                ) {
+                TextButton(onClick = { viewRef?.undo() }) {
                     Text("撤销", color = InkStoneAccent)
                 }
-                androidx.compose.material3.TextButton(
-                    onClick = {
-                        viewRef?.clear()
-                        pathCount = 0
-                    }
-                ) {
+                TextButton(onClick = { viewRef?.clear() }) {
                     Text("清空", color = InkStoneError)
                 }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // 导航按钮
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Button(
+                onClick = onNavigateToImport,
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = InkStoneAccent
+                )
+            ) {
+                Text("进入录入页面", color = InkStoneBg)
             }
         }
     }

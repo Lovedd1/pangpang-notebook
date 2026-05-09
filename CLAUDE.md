@@ -20,6 +20,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **核心依赖**
 
 - Jetpack Compose：UI 框架
+- material-icons-extended：图标
 - Room：本地数据库
 - Hilt：依赖注入
 - Coil：图片加载
@@ -60,6 +61,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 使用 `onTouchEvent` + 二阶贝塞尔曲线实现流畅书写
 - 支持撤销（undo）和清空（clear）
 
+### 错题录入
+- `ui/screens/ImportScreen.kt` — 录入新题页面
+- 支持拍照/相册选择题目图片
+- 题目类型选择（选择题/大题）
+- 科目选择、知识点标签多选
+- 正确答案和解析输入
+
 ## 项目结构
 
 ```
@@ -83,7 +91,8 @@ app/src/main/java/com/mistakenotes/
     ├── components/
     │   └── HandwritingView.kt    # 手写画布（原生 View）
     └── screens/
-        └── MainScreen.kt         # 主页面（手写测试）
+        ├── MainScreen.kt         # 主页面（首页+导航）
+        └── ImportScreen.kt       # 错题录入页面
 ```
 
 ## 构建与运行

@@ -30,6 +30,10 @@ android {
 
     kotlinOptions {
         jvmTarget = "11"
+        freeCompilerArgs += listOf(
+            "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
+            "-opt-in=androidx.compose.foundation.layout.ExperimentalLayoutApi"
+        )
     }
 
     packaging {
@@ -54,6 +58,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-extended")
 
     // Navigation
     implementation("androidx.navigation:navigation-compose:2.7.6")
