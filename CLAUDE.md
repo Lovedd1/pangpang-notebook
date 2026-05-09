@@ -21,7 +21,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - Jetpack Compose：UI 框架
 - material-icons-extended：图标
-- Room：本地数据库
+- Room：本地数据库（KSP 编译器）
 - Hilt：依赖注入
 - Coil：图片加载
 - Navigation Compose：页面导航
@@ -58,22 +58,32 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### 手写画布
 - `ui/components/HandwritingView.kt` — 原生 Android View，低延迟手写
-- 使用 `onTouchEvent` + 二阶贝塞尔曲线实现流畅书写
+- **双笔模式**：触控笔（金色）和手指（浅色）分开处理，互不干扰
+- **Catmull-Rom 样条曲线**：直线笔直，曲线流畅
+- **距离采样**：每 2 像素采样一次，避免抖动
 - 支持撤销（undo）和清空（clear）
 
 ### 错题录入
-- `ui/screens/ImportScreen.kt` — 录入新题页面
+- `ui/screens/ImportScreen.kt` + `ImportViewModel.kt`
 - 支持拍照/相册选择题目图片
 - 题目类型选择（选择题/大题）
 - 科目选择、知识点标签多选
 - 正确答案和解析输入
+- 数据保存到 Room 数据库
 
 ### 复习流程
-- `ui/screens/ReviewScreen.kt` — 复习流程页面
+- `ui/screens/ReviewScreen.kt` + `ReviewViewModel.kt`
 - 复习列表：统计卡片（待复习/逾期/已完成）+ 开始按钮
 - 答题界面：题目显示 + 手写答题/选择题 + 提交
 - 选择题自动判断对错，大题手动标记
 - 进度条显示当前进度
+- 复习记录保存到 Room 数据库
+
+### 数据库
+- Room + KSP 编译器
+- `AppDatabase.kt`、`Dao.kt`、`Converters.kt`
+- `MistakeRepository.kt` 数据仓库
+- `Mistake`、`Review`、`Subject` 实体
 
 ## 项目结构
 
@@ -86,6 +96,7 @@ app/src/main/java/com/mistakenotes/
 ├── data/
 │   ├── local/
 │   │   ├── AppDatabase.kt       # Room 数据库
+│   │   ├── Converters.kt        # 类型转换器
 │   │   └── Dao.kt              # Dao 接口
 │   └── repository/
 │       └── MistakeRepository.kt # 数据仓库
@@ -96,11 +107,13 @@ app/src/main/java/com/mistakenotes/
 └── ui/
     ├── theme/                   # Compose 主题（砚台风格）
     ├── components/
-    │   └── HandwritingView.kt    # 手写画布（原生 View）
+    │   └── HandwritingView.kt    # 手写画布（原生 View，双笔模式）
     └── screens/
         ├── MainScreen.kt         # 主页面（首页+导航）
         ├── ImportScreen.kt       # 错题录入页面
-        └── ReviewScreen.kt       # 复习流程页面
+        ├── ImportViewModel.kt   # 录入 ViewModel
+        ├── ReviewScreen.kt       # 复习流程页面
+        └── ReviewViewModel.kt   # 复习 ViewModel
 ```
 
 ## 构建与运行
@@ -116,3 +129,4 @@ app/src/main/java/com/mistakenotes/
 - 手写功能需要低延迟，**必须使用原生 View**（不要用 Compose Canvas）
 - UI 风格必须遵循砚台设计（深色主题 + 金色强调）
 - 错题库支持用户自建库，UI 需要适配此功能
+- 数据库使用 Room + KSP，需配置 KSP 编译器

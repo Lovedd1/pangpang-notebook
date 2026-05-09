@@ -28,11 +28,14 @@ object AppModule {
     }
 
     @Provides
+    @Singleton
     fun provideMistakeDao(db: AppDatabase): MistakeDao = db.mistakeDao()
 
     @Provides
+    @Singleton
     fun provideReviewDao(db: AppDatabase): ReviewDao = db.reviewDao()
 
     @Provides
+    @Singleton
     fun provideSubjectDao(db: AppDatabase): SubjectDao = db.subjectDao()
 }

@@ -18,119 +18,101 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.mistakenotes.ui.theme.*
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.mistakenotes.domain.model.Mistake
+import com.mistakenotes.domain.model.QuestionType
 import com.mistakenotes.ui.components.HandwritingView
-
-data class ReviewItem(
-    val id: Long,
-    val title: String,
-    val subject: String,
-    val tags: List<String>,
-    val round: Int,
-    val status: String,
-    val questionType: String
-)
+import com.mistakenotes.ui.theme.*
 
 @Composable
 fun ReviewScreen(
-    onNavigateBack: () -> Unit = {}
+    onNavigateBack: () -> Unit = {},
+    viewModel: ReviewViewModel = hiltViewModel()
 ) {
-    var currentPhase by remember { mutableStateOf("list") }
-    var currentIndex by remember { mutableIntStateOf(0) }
-    var selectedAnswer by remember { mutableStateOf<String?>(null) }
-    var showResult by remember { mutableStateOf(false) }
+    val uiState by viewModel.uiState.collectAsState()
     var handwritingView by remember { mutableStateOf<HandwritingView?>(null) }
 
-    val reviewList = remember {
-        listOf(
-            ReviewItem(1, "二次函数最值问题", "数学", listOf("二次函数"), 1, "overdue", "大题"),
-            ReviewItem(2, "导数综合应用", "数学", listOf("导数"), 1, "due", "选择题"),
-            ReviewItem(3, "三角函数化简", "数学", listOf("三角函数"), 2, "due", "大题"),
-            ReviewItem(4, "概率分布计算", "数学", listOf("概率统计"), 1, "due", "选择题"),
-            ReviewItem(5, "数列专项练习", "数学", listOf("数列"), 3, "done", "大题")
-        )
-    }
-
-    when (currentPhase) {
-        "list" -> {
-            ReviewListContent(
-                reviewList = reviewList,
-                onStartReview = {
-                    currentIndex = 0
-                    selectedAnswer = null
-                    showResult = false
-                    handwritingView?.clear()
-                    currentPhase = "question"
-                },
-                onNavigateBack = onNavigateBack
-            )
+    when {
+        uiState.isLoading -> {
+            Box(modifier = Modifier.fillMaxSize().background(InkStoneBg), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = InkStoneAccent)
+            }
         }
-        "question" -> {
-            val current = reviewList.getOrNull(currentIndex)
-            if (current != null) {
-                QuestionContent(
-                    question = current,
-                    currentIndex = currentIndex,
-                    totalCount = reviewList.size,
-                    selectedAnswer = selectedAnswer,
-                    showResult = showResult,
-                    onSelectAnswer = { answer -> selectedAnswer = answer },
-                    onSubmit = { showResult = true },
-                    onMarkCorrect = {
-                        currentIndex++
-                        selectedAnswer = null
-                        showResult = false
-                        handwritingView?.clear()
-                        if (currentIndex >= reviewList.size) {
-                            currentPhase = "list"
-                            currentIndex = 0
-                        }
-                    },
-                    onMarkWrong = {
-                        currentIndex++
-                        selectedAnswer = null
-                        showResult = false
-                        handwritingView?.clear()
-                        if (currentIndex >= reviewList.size) {
-                            currentPhase = "list"
-                            currentIndex = 0
-                        }
-                    },
-                    onSkip = {
-                        currentIndex++
-                        selectedAnswer = null
-                        showResult = false
-                        handwritingView?.clear()
-                        if (currentIndex >= reviewList.size) {
-                            currentPhase = "list"
-                            currentIndex = 0
-                        }
-                    },
-                    onBack = {
-                        if (showResult) {
-                            showResult = false
-                        } else {
-                            currentPhase = "list"
-                        }
-                    },
-                    onViewRefReady = { view -> handwritingView = view }
-                )
+        uiState.mistakes.isEmpty() -> {
+            EmptyReviewContent(onNavigateBack = onNavigateBack)
+        }
+        else -> {
+            var currentPhase by remember { mutableStateOf("list") }
+            val currentMistake = uiState.mistakes.getOrNull(uiState.currentIndex)
+
+            when (currentPhase) {
+                "list" -> {
+                    ReviewListContent(
+                        reviewList = uiState.mistakes,
+                        onStartReview = {
+                            viewModel.setCurrentIndex(0)
+                            currentPhase = "question"
+                        },
+                        onNavigateBack = onNavigateBack
+                    )
+                }
+                "question" -> {
+                    if (currentMistake != null) {
+                        QuestionContent(
+                            question = currentMistake,
+                            currentIndex = uiState.currentIndex,
+                            totalCount = uiState.mistakes.size,
+                            selectedAnswer = uiState.selectedAnswer,
+                            showResult = uiState.showResult,
+                            onSelectAnswer = { viewModel.setSelectedAnswer(it) },
+                            onSubmit = { viewModel.submitAnswer() },
+                            onMarkCorrect = { viewModel.markAnswer(true) },
+                            onMarkWrong = { viewModel.markAnswer(false) },
+                            onSkip = { viewModel.skipQuestion() },
+                            onBack = {
+                                if (uiState.showResult) {
+                                    viewModel.setShowResult(false)
+                                } else {
+                                    currentPhase = "list"
+                                }
+                            },
+                            onViewRefReady = { handwritingView = it }
+                        )
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
+fun EmptyReviewContent(onNavigateBack: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize().background(InkStoneBg).padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(text = "暂无待复习题目", color = InkStoneText, fontSize = 20.sp)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(text = "先去录入一些错题吧", color = InkStoneTextDim, fontSize = 14.sp)
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(
+            onClick = onNavigateBack,
+            colors = ButtonDefaults.buttonColors(containerColor = InkStoneAccent)
+        ) {
+            Text("返回", color = InkStoneBg)
+        }
+    }
+}
+
+@Composable
 fun ReviewListContent(
-    reviewList: List<ReviewItem>,
+    reviewList: List<Mistake>,
     onStartReview: () -> Unit,
     onNavigateBack: () -> Unit
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(InkStoneBg)
-            .padding(24.dp)
+        modifier = Modifier.fillMaxSize().background(InkStoneBg).padding(24.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -140,12 +122,7 @@ fun ReviewListContent(
             IconButton(onClick = onNavigateBack) {
                 Icon(Icons.Default.ArrowBack, "返回", tint = InkStoneText)
             }
-            Text(
-                text = "今日复习",
-                color = InkStoneText,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Medium
-            )
+            Text(text = "今日复习", color = InkStoneText, fontSize = 20.sp, fontWeight = FontWeight.Medium)
             Spacer(modifier = Modifier.width(48.dp))
         }
 
@@ -155,32 +132,16 @@ fun ReviewListContent(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            StatCard(
-                value = reviewList.count { it.status == "due" || it.status == "overdue" }.toString(),
-                label = "待复习",
-                modifier = Modifier.weight(1f)
-            )
-            StatCard(
-                value = reviewList.count { it.status == "overdue" }.toString(),
-                label = "逾期",
-                modifier = Modifier.weight(1f),
-                isWarning = true
-            )
-            StatCard(
-                value = reviewList.count { it.status == "done" }.toString(),
-                label = "已完成",
-                modifier = Modifier.weight(1f),
-                isSuccess = true
-            )
+            StatCard(value = reviewList.size.toString(), label = "待复习", modifier = Modifier.weight(1f))
+            StatCard(value = "0", label = "逾期", modifier = Modifier.weight(1f), isWarning = true)
+            StatCard(value = "0", label = "已完成", modifier = Modifier.weight(1f), isSuccess = true)
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
             onClick = onStartReview,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp),
+            modifier = Modifier.fillMaxWidth().height(52.dp),
             colors = ButtonDefaults.buttonColors(containerColor = InkStoneAccent),
             shape = RoundedCornerShape(12.dp)
         ) {
@@ -193,8 +154,8 @@ fun ReviewListContent(
         Spacer(modifier = Modifier.height(12.dp))
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            itemsIndexed(reviewList) { _, item ->
-                ReviewListItem(item = item)
+            itemsIndexed(reviewList) { index, item ->
+                ReviewListItem(item = item, round = 1, status = "due")
             }
         }
     }
@@ -228,13 +189,13 @@ fun StatCard(
 }
 
 @Composable
-fun ReviewListItem(item: ReviewItem) {
-    val statusColor = when (item.status) {
+fun ReviewListItem(item: Mistake, round: Int, status: String) {
+    val statusColor = when (status) {
         "overdue" -> InkStoneError
         "done" -> InkStoneSuccess
         else -> InkStoneAccent
     }
-    val statusText = when (item.status) {
+    val statusText = when (status) {
         "overdue" -> "逾期"
         "done" -> "完成"
         else -> "今日"
@@ -246,19 +207,15 @@ fun ReviewListItem(item: ReviewItem) {
         shape = RoundedCornerShape(12.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(InkStoneAccent, RoundedCornerShape(10.dp)),
+                modifier = Modifier.size(48.dp).background(InkStoneAccent, RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Column {
-                    Text(text = "${item.round * 7}", color = InkStoneBg, fontSize = 18.sp, fontWeight = FontWeight.Medium)
+                    Text(text = "${round * 7}", color = InkStoneBg, fontSize = 18.sp, fontWeight = FontWeight.Medium)
                     Text(text = "天", color = InkStoneBg, fontSize = 10.sp)
                 }
             }
@@ -266,30 +223,20 @@ fun ReviewListItem(item: ReviewItem) {
             Spacer(modifier = Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = item.title, color = InkStoneText, fontSize = 15.sp)
+                Text(text = item.questionImagePath.substringAfterLast("/"), color = InkStoneText, fontSize = 15.sp)
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(text = item.subject, color = InkStoneTextDim, fontSize = 12.sp)
-                    item.tags.forEach { tag ->
+                    item.tags.split(",").filter { it.isNotBlank() }.forEach { tag ->
                         Surface(color = InkStoneAccentSoft, shape = RoundedCornerShape(4.dp)) {
-                            Text(
-                                text = tag,
-                                color = InkStoneAccent,
-                                fontSize = 10.sp,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
+                            Text(text = tag, color = InkStoneAccent, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
                         }
                     }
                 }
             }
 
             Surface(color = statusColor.copy(alpha = 0.15f), shape = RoundedCornerShape(8.dp)) {
-                Text(
-                    text = statusText,
-                    color = statusColor,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                )
+                Text(text = statusText, color = statusColor, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
             }
         }
     }
@@ -297,7 +244,7 @@ fun ReviewListItem(item: ReviewItem) {
 
 @Composable
 fun QuestionContent(
-    question: ReviewItem,
+    question: Mistake,
     currentIndex: Int,
     totalCount: Int,
     selectedAnswer: String?,
@@ -311,14 +258,10 @@ fun QuestionContent(
     onViewRefReady: (HandwritingView) -> Unit
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(InkStoneBg)
+        modifier = Modifier.fillMaxSize().background(InkStoneBg)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
@@ -335,10 +278,7 @@ fun QuestionContent(
         }
 
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .padding(horizontal = 24.dp),
+            modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 24.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Surface(
@@ -350,14 +290,11 @@ fun QuestionContent(
                     Text(text = "题目", color = InkStoneTextDim, fontSize = 12.sp)
                     Spacer(modifier = Modifier.height(12.dp))
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .background(InkStoneBg, RoundedCornerShape(12.dp)),
+                        modifier = Modifier.fillMaxWidth().weight(1f).background(InkStoneBg, RoundedCornerShape(12.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(text = question.title, color = InkStoneText, fontSize = 16.sp)
+                            Text(text = question.correctAnswer, color = InkStoneText, fontSize = 16.sp)
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(text = "（题目图片）", color = InkStoneTextDim, fontSize = 12.sp)
                         }
@@ -374,7 +311,7 @@ fun QuestionContent(
                     Text(text = "你的作答", color = InkStoneTextDim, fontSize = 12.sp)
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    if (question.questionType == "选择题") {
+                    if (question.questionType == QuestionType.CHOICE) {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             listOf("A", "B", "C", "D").forEach { option ->
                                 val isSelected = selectedAnswer == option
@@ -383,21 +320,14 @@ fun QuestionContent(
                                     color = if (isSelected) InkStoneAccent else InkStoneBg,
                                     shape = RoundedCornerShape(10.dp)
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(16.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = option,
-                                            color = if (isSelected) InkStoneBg else InkStoneText,
-                                            fontSize = 16.sp
-                                        )
+                                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Text(text = option, color = if (isSelected) InkStoneBg else InkStoneText, fontSize = 16.sp)
                                         if (showResult) {
                                             Spacer(modifier = Modifier.width(12.dp))
                                             Icon(
-                                                imageVector = if (option == "B") Icons.Default.Check else Icons.Default.Close,
+                                                imageVector = if (option == question.correctAnswer) Icons.Default.Check else Icons.Default.Close,
                                                 contentDescription = null,
-                                                tint = if (option == "B") InkStoneSuccess else InkStoneError,
+                                                tint = if (option == question.correctAnswer) InkStoneSuccess else InkStoneError,
                                                 modifier = Modifier.size(20.dp)
                                             )
                                         }
@@ -407,19 +337,16 @@ fun QuestionContent(
                         }
                     } else {
                         Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f)
-                                .background(InkStoneBg, RoundedCornerShape(12.dp))
+                            modifier = Modifier.fillMaxWidth().weight(1f).background(InkStoneBg, RoundedCornerShape(12.dp))
                         ) {
                             androidx.compose.ui.viewinterop.AndroidView(
                                 modifier = Modifier.fillMaxSize(),
                                 factory = { context ->
                                     HandwritingView(context).apply {
                                         setBackgroundColor(android.graphics.Color.parseColor("#242424"))
-                                        strokeColor = android.graphics.Color.parseColor("#E8E4DC")
-                                        strokeWidth = 4f
-                                    }.also { view -> onViewRefReady(view) }
+                                        fingerColor = android.graphics.Color.parseColor("#E8E4DC")
+                                        fingerStrokeWidth = 4f
+                                    }.also { onViewRefReady(it) }
                                 }
                             )
                         }
@@ -432,7 +359,7 @@ fun QuestionContent(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            if (question.questionType == "选择题") {
+                            if (question.questionType == QuestionType.CHOICE) {
                                 Button(
                                     onClick = onSubmit,
                                     modifier = Modifier.weight(1f),

@@ -3,7 +3,6 @@ package com.mistakenotes.ui.screens
 import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -31,32 +30,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.mistakenotes.domain.model.QuestionType
 import com.mistakenotes.ui.theme.*
 
 @Composable
 fun ImportScreen(
     onNavigateBack: () -> Unit = {},
-    onSaveSuccess: () -> Unit = {}
+    onSaveSuccess: () -> Unit = {},
+    viewModel: ImportViewModel = hiltViewModel()
 ) {
-    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
-    var questionType by remember { mutableStateOf("选择题") }
-    var correctAnswer by remember { mutableStateOf("") }
-    var selectedSubject by remember { mutableStateOf("数学") }
-    var selectedTags by remember { mutableStateOf(setOf<String>()) }
-    var explanation by remember { mutableStateOf("") }
-
-    val availableTags = listOf(
-        "二次函数", "导数", "三角函数", "概率统计",
-        "数列", "几何证明", "不等式", "函数图像"
-    )
-
+    val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        selectedImageUri = uri
+        viewModel.setImageUri(uri)
     }
 
     val cameraLauncher = rememberLauncherForActivityResult(
@@ -73,6 +64,13 @@ fun ImportScreen(
         }
     }
 
+    LaunchedEffect(uiState.saveSuccess) {
+        if (uiState.saveSuccess) {
+            onSaveSuccess()
+            viewModel.resetState()
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -80,7 +78,6 @@ fun ImportScreen(
             .padding(24.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        // 标题栏
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -93,17 +90,12 @@ fun ImportScreen(
                 fontWeight = FontWeight.Medium
             )
             IconButton(onClick = onNavigateBack) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "关闭",
-                    tint = InkStoneTextDim
-                )
+                Icon(Icons.Default.Close, "关闭", tint = InkStoneTextDim)
             }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // 图片上传区域
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -114,17 +106,15 @@ fun ImportScreen(
                 .clickable { imagePickerLauncher.launch("image/*") },
             contentAlignment = Alignment.Center
         ) {
-            if (selectedImageUri != null) {
+            if (uiState.imageUri != null) {
                 AsyncImage(
-                    model = selectedImageUri,
+                    model = uiState.imageUri,
                     contentDescription = "题目图片",
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Fit
                 )
             } else {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
                         imageVector = Icons.Default.Image,
                         contentDescription = null,
@@ -132,18 +122,13 @@ fun ImportScreen(
                         modifier = Modifier.size(48.dp)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "点击上传题目图片",
-                        color = InkStoneTextDim,
-                        fontSize = 14.sp
-                    )
+                    Text(text = "点击上传题目图片", color = InkStoneTextDim, fontSize = 14.sp)
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 拍照按钮
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -159,15 +144,9 @@ fun ImportScreen(
                     }
                 },
                 modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = InkStoneAccent
-                )
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = InkStoneAccent)
             ) {
-                Icon(
-                    imageVector = Icons.Default.CameraAlt,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
+                Icon(Icons.Default.CameraAlt, null, Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("拍照")
             }
@@ -175,15 +154,9 @@ fun ImportScreen(
             Button(
                 onClick = { imagePickerLauncher.launch("image/*") },
                 modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = InkStoneAccent
-                )
+                colors = ButtonDefaults.buttonColors(containerColor = InkStoneAccent)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Image,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
+                Icon(Icons.Default.Image, null, Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("相册")
             }
@@ -191,22 +164,17 @@ fun ImportScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // 题目类型
-        Text(
-            text = "题目类型",
-            color = InkStoneTextDim,
-            fontSize = 12.sp
-        )
+        Text(text = "题目类型", color = InkStoneTextDim, fontSize = 12.sp)
         Spacer(modifier = Modifier.height(8.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             FilterChip(
-                selected = questionType == "选择题",
-                onClick = { questionType = "选择题" },
+                selected = uiState.questionType == QuestionType.CHOICE,
+                onClick = { viewModel.setQuestionType(QuestionType.CHOICE) },
                 label = { Text("选择题") },
-                leadingIcon = if (questionType == "选择题") {
+                leadingIcon = if (uiState.questionType == QuestionType.CHOICE) {
                     { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
                 } else null,
                 colors = FilterChipDefaults.filterChipColors(
@@ -216,10 +184,10 @@ fun ImportScreen(
                 modifier = Modifier.weight(1f)
             )
             FilterChip(
-                selected = questionType == "大题",
-                onClick = { questionType = "大题" },
+                selected = uiState.questionType == QuestionType.ESSAY,
+                onClick = { viewModel.setQuestionType(QuestionType.ESSAY) },
                 label = { Text("大题") },
-                leadingIcon = if (questionType == "大题") {
+                leadingIcon = if (uiState.questionType == QuestionType.ESSAY) {
                     { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
                 } else null,
                 colors = FilterChipDefaults.filterChipColors(
@@ -232,16 +200,14 @@ fun ImportScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // 正确答案
         Text(
-            text = if (questionType == "选择题") "正确答案（选项）" else "正确答案（关键词）",
-            color = InkStoneTextDim,
-            fontSize = 12.sp
+            text = if (uiState.questionType == QuestionType.CHOICE) "正确答案（选项）" else "正确答案（关键词）",
+            color = InkStoneTextDim, fontSize = 12.sp
         )
         Spacer(modifier = Modifier.height(8.dp))
         OutlinedTextField(
-            value = correctAnswer,
-            onValueChange = { correctAnswer = it },
+            value = uiState.correctAnswer,
+            onValueChange = { viewModel.setCorrectAnswer(it) },
             placeholder = { Text("如：C 或 化简求值", color = InkStoneTextDim) },
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
@@ -256,23 +222,16 @@ fun ImportScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // 科目选择
-        Text(
-            text = "科目",
-            color = InkStoneTextDim,
-            fontSize = 12.sp
-        )
+        Text(text = "科目", color = InkStoneTextDim, fontSize = 12.sp)
         Spacer(modifier = Modifier.height(8.dp))
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             val subjects = listOf("数学", "英语", "物理", "化学", "生物")
             items(subjects) { subject ->
                 FilterChip(
-                    selected = selectedSubject == subject,
-                    onClick = { selectedSubject = subject },
+                    selected = uiState.subject == subject,
+                    onClick = { viewModel.setSubject(subject) },
                     label = { Text(subject) },
-                    leadingIcon = if (selectedSubject == subject) {
+                    leadingIcon = if (uiState.subject == subject) {
                         { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
                     } else null,
                     colors = FilterChipDefaults.filterChipColors(
@@ -285,29 +244,17 @@ fun ImportScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // 知识点标签
-        Text(
-            text = "知识点标签（可多选）",
-            color = InkStoneTextDim,
-            fontSize = 12.sp
-        )
+        Text(text = "知识点标签（可多选）", color = InkStoneTextDim, fontSize = 12.sp)
         Spacer(modifier = Modifier.height(8.dp))
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            val availableTags = listOf("二次函数", "导数", "三角函数", "概率统计", "数列", "几何证明", "不等式", "函数图像")
             availableTags.forEach { tag ->
-                val isSelected = selectedTags.contains(tag)
+                val isSelected = uiState.selectedTags.contains(tag)
                 Surface(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .clickable {
-                            selectedTags = if (isSelected) {
-                                selectedTags - tag
-                            } else {
-                                selectedTags + tag
-                            }
-                        },
+                    modifier = Modifier.clip(RoundedCornerShape(20.dp)).clickable { viewModel.toggleTag(tag) },
                     color = if (isSelected) InkStoneAccent else InkStoneSurface,
                     shape = RoundedCornerShape(20.dp)
                 ) {
@@ -316,19 +263,10 @@ fun ImportScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         if (isSelected) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = InkStoneBg
-                            )
+                            Icon(Icons.Default.Check, null, Modifier.size(14.dp), tint = InkStoneBg)
                             Spacer(modifier = Modifier.width(6.dp))
                         }
-                        Text(
-                            text = tag,
-                            color = if (isSelected) InkStoneBg else InkStoneText,
-                            fontSize = 13.sp
-                        )
+                        Text(text = tag, color = if (isSelected) InkStoneBg else InkStoneText, fontSize = 13.sp)
                     }
                 }
             }
@@ -336,20 +274,13 @@ fun ImportScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // 解析
-        Text(
-            text = "解析（可选）",
-            color = InkStoneTextDim,
-            fontSize = 12.sp
-        )
+        Text(text = "解析（可选）", color = InkStoneTextDim, fontSize = 12.sp)
         Spacer(modifier = Modifier.height(8.dp))
         OutlinedTextField(
-            value = explanation,
-            onValueChange = { explanation = it },
+            value = uiState.explanation,
+            onValueChange = { viewModel.setExplanation(it) },
             placeholder = { Text("输入题目解析...", color = InkStoneTextDim) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(100.dp),
+            modifier = Modifier.fillMaxWidth().height(100.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = InkStoneAccent,
                 unfocusedBorderColor = InkStoneBorder,
@@ -361,25 +292,26 @@ fun ImportScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // 保存按钮
         Button(
             onClick = {
-                // TODO: 保存逻辑
-                onSaveSuccess()
+                // 保存时使用图片路径（实际应该先保存图片到本地）
+                viewModel.saveMistake(uiState.imageUri?.toString() ?: "")
             },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = InkStoneAccent
-            ),
-            shape = RoundedCornerShape(12.dp)
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = InkStoneAccent),
+            shape = RoundedCornerShape(12.dp),
+            enabled = !uiState.isSaving && uiState.imageUri != null && uiState.correctAnswer.isNotBlank()
         ) {
-            Text(
-                text = "保存并开始复习计划",
-                fontSize = 16.sp,
-                color = InkStoneBg
-            )
+            if (uiState.isSaving) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = InkStoneBg)
+            } else {
+                Text("保存并开始复习计划", fontSize = 16.sp, color = InkStoneBg)
+            }
+        }
+
+        uiState.errorMessage?.let { error ->
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = error, color = InkStoneError, fontSize = 12.sp)
         }
 
         Spacer(modifier = Modifier.height(24.dp))

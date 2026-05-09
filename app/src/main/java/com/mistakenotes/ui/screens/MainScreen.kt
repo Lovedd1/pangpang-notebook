@@ -71,8 +71,8 @@ fun HomeScreen(
                 factory = { context ->
                     com.mistakenotes.ui.components.HandwritingView(context).apply {
                         setBackgroundColor(android.graphics.Color.parseColor("#242424"))
-                        strokeColor = android.graphics.Color.parseColor("#E8E4DC")
-                        strokeWidth = 4f
+                        fingerColor = android.graphics.Color.parseColor("#E8E4DC")
+                        fingerStrokeWidth = 4f
                     }.also { view ->
                         viewRef = view
                     }
