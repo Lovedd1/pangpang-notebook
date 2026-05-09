@@ -18,12 +18,21 @@ fun MainScreen() {
             onNavigateBack = { currentScreen = "home" },
             onSaveSuccess = { currentScreen = "home" }
         )
-        else -> HomeScreen(onNavigateToImport = { currentScreen = "import" })
+        "review" -> ReviewScreen(
+            onNavigateBack = { currentScreen = "home" }
+        )
+        else -> HomeScreen(
+            onNavigateToImport = { currentScreen = "import" },
+            onNavigateToReview = { currentScreen = "review" }
+        )
     }
 }
 
 @Composable
-fun HomeScreen(onNavigateToImport: () -> Unit) {
+fun HomeScreen(
+    onNavigateToImport: () -> Unit,
+    onNavigateToReview: () -> Unit
+) {
     var viewRef by remember { mutableStateOf<com.mistakenotes.ui.components.HandwritingView?>(null) }
 
     Column(
@@ -33,7 +42,7 @@ fun HomeScreen(onNavigateToImport: () -> Unit) {
             .padding(24.dp)
     ) {
         Text(
-            text = "砚台 · 手写测试",
+            text = "砚台 · 错题笔记",
             color = InkStoneAccent,
             fontSize = 20.sp
         )
@@ -52,11 +61,9 @@ fun HomeScreen(onNavigateToImport: () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .then(
-                    Modifier.background(
-                        color = InkStoneSurface,
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
-                    )
+                .background(
+                    color = InkStoneSurface,
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
                 )
         ) {
             androidx.compose.ui.viewinterop.AndroidView(
@@ -70,9 +77,7 @@ fun HomeScreen(onNavigateToImport: () -> Unit) {
                         viewRef = view
                     }
                 },
-                update = { view ->
-                    // 更新逻辑
-                }
+                update = { view -> }
             )
         }
 
@@ -112,7 +117,16 @@ fun HomeScreen(onNavigateToImport: () -> Unit) {
                     containerColor = InkStoneAccent
                 )
             ) {
-                Text("进入录入页面", color = InkStoneBg)
+                Text("录入新题", color = InkStoneBg)
+            }
+            Button(
+                onClick = onNavigateToReview,
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = InkStoneSurface
+                )
+            ) {
+                Text("进入复习", color = InkStoneText)
             }
         }
     }

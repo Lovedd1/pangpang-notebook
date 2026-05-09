@@ -68,6 +68,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 科目选择、知识点标签多选
 - 正确答案和解析输入
 
+### 复习流程
+- `ui/screens/ReviewScreen.kt` — 复习流程页面
+- 复习列表：统计卡片（待复习/逾期/已完成）+ 开始按钮
+- 答题界面：题目显示 + 手写答题/选择题 + 提交
+- 选择题自动判断对错，大题手动标记
+- 进度条显示当前进度
+
 ## 项目结构
 
 ```
@@ -92,7 +99,8 @@ app/src/main/java/com/mistakenotes/
     │   └── HandwritingView.kt    # 手写画布（原生 View）
     └── screens/
         ├── MainScreen.kt         # 主页面（首页+导航）
-        └── ImportScreen.kt       # 错题录入页面
+        ├── ImportScreen.kt       # 错题录入页面
+        └── ReviewScreen.kt       # 复习流程页面
 ```
 
 ## 构建与运行
