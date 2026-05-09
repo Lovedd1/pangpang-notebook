@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>错题笔记 - 墨韵版</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #F5F1EB;
+            --bg-secondary: #FAF8F5;
+            --text-primary: #2C2C2C;
+            --text-secondary: #6B6B6B;
+            --accent: #C4A77D;
+            --accent-light: #E8DCC8;
+            --border: #DDD5C8;
+            --shadow: rgba(0,0,0,0.06);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 40px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 48px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        h1 {
+            font-family: 'Noto Serif SC', serif;
+            font-size: 28px;
+            font-weight: 600;
+            letter-spacing: 2px;
+        }
+
+        .subtitle {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 40px;
+        }
+
+        .sidebar {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 12px var(--shadow);
+        }
+
+        .section-title {
+            font-family: 'Noto Serif SC', serif;
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            padding-left: 12px;
+            border-left: 2px solid var(--accent);
+        }
+
+        .subject-list {
+            list-style: none;
+        }
+
+        .subject-item {
+            padding: 12px 16px;
+            margin-bottom: 4px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .subject-item:hover {
+            background: var(--accent-light);
+        }
+
+        .subject-item.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .subject-item .count {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+
+        .tags {
+            margin-top: 32px;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 6px 12px;
+            margin: 4px;
+            background: var(--bg-primary);
+            border-radius: 16px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tag:hover {
+            background: var(--accent-light);
+        }
+
+        .tag.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .content {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 32px;
+            box-shadow: 0 2px 12px var(--shadow);
+        }
+
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .content-title {
+            font-family: 'Noto Serif SC', serif;
+            font-size: 20px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+
+        .mistake-list {
+            list-style: none;
+        }
+
+        .mistake-item {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+            margin-bottom: 16px;
+            background: var(--bg-primary);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mistake-item:hover {
+            transform: translateX(4px);
+            box-shadow: 0 4px 16px var(--shadow);
+        }
+
+        .mistake-thumb {
+            width: 120px;
+            height: 80px;
+            background: #E8E4DC;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        .mistake-info {
+            flex: 1;
+        }
+
+        .mistake-title {
+            font-size: 15px;
+            margin-bottom: 8px;
+        }
+
+        .mistake-meta {
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .mistake-meta span {
+            padding: 4px 8px;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+        }
+
+        .review-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+        }
+
+        .review-due {
+            background: #FDE8E8;
+            color: #D44040;
+        }
+
+        .review-done {
+            background: #E8F5E8;
+            color: #4A9F4A;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 40px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state .icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>错题笔记</h1>
+                <div class="subtitle">墨韵 · 温故知新</div>
+            </div>
+            <button class="btn">+ 新增收录</button>
+        </header>
+
+        <div class="main-layout">
+            <aside class="sidebar">
+                <div class="section-title">科目</div>
+                <ul class="subject-list">
+                    <li class="subject-item active">数学 <span class="count">24</span></li>
+                    <li class="subject-item">英语 <span class="count">18</span></li>
+                    <li class="subject-item">物理 <span class="count">12</span></li>
+                    <li class="subject-item">化学 <span class="count">8</span></li>
+                    <li class="subject-item">生物 <span class="count">5</span></li>
+                </ul>
+
+                <div class="tags">
+                    <div class="section-title">知识点标签</div>
+                    <span class="tag active">二次函数</span>
+                    <span class="tag">三角函数</span>
+                    <span class="tag">导数</span>
+                    <span class="tag">几何证明</span>
+                    <span class="tag">概率统计</span>
+                    <span class="tag">数列</span>
+                    <span class="tag">不等式</span>
+                </div>
+            </aside>
+
+            <main class="content">
+                <div class="content-header">
+                    <h2 class="content-title">今日复习 · 共 6 道</h2>
+                    <button class="btn">开始复习</button>
+                </div>
+
+                <ul class="mistake-list">
+                    <li class="mistake-item">
+                        <div class="mistake-thumb">题目图片</div>
+                        <div class="mistake-info">
+                            <div class="mistake-title">2024高考数学卷 · 第23题</div>
+                            <div class="mistake-meta">
+                                <span>二次函数</span>
+                                <span>第2轮复习</span>
+                                <span class="review-badge review-due">今日待复习</span>
+                            </div>
+                        </div>
+                    </li>
+                    <li class="mistake-item">
+                        <div class="mistake-thumb">题目图片</div>
+                        <div class="mistake-info">
+                            <div class="mistake-title">期末模拟卷 · 第5题</div>
+                            <div class="mistake-meta">
+                                <span>导数</span>
+                                <span>第1轮复习</span>
+                                <span class="review-badge review-due">今日待复习</span>
+                            </div>
+                        </div>
+                    </li>
+                    <li class="mistake-item">
+                        <div class="mistake-thumb">题目图片</div>
+                        <div class="mistake-info">
+                            <div class="mistake-title">三角函数专项 · 第12题</div>
+                            <div class="mistake-meta">
+                                <span>三角函数</span>
+                                <span>第3轮复习</span>
+                                <span class="review-badge review-done">已完成</span>
+                            </div>
+                        </div>
+                    </li>
+                </ul>
+            </main>
+        </div>
+    </div>
+</body>
+</html>

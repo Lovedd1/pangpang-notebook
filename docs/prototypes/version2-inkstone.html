@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>错题笔记 - 砚台版</title>
+    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+XiaoWei&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #1A1A1A;
+            --surface: #242424;
+            --surface-hover: #2E2E2E;
+            --text: #E8E4DC;
+            --text-dim: #8A8A8A;
+            --accent: #D4A574;
+            --accent-dark: #B8956A;
+            --border: #3A3A3A;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 40px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 48px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        h1 {
+            font-family: 'ZCOOL XiaoWei', serif;
+            font-size: 36px;
+            color: var(--accent);
+            letter-spacing: 4px;
+        }
+
+        .subtitle {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 8px;
+            letter-spacing: 2px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 40px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 300;
+            color: var(--accent);
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 4px;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .panel {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 28px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .panel-title::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 16px;
+            background: var(--accent);
+            margin-right: 10px;
+            vertical-align: middle;
+            border-radius: 2px;
+        }
+
+        .btn-outline {
+            padding: 8px 16px;
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-outline:hover {
+            background: var(--accent);
+            color: var(--bg);
+        }
+
+        .review-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .review-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            background: var(--bg);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .review-item:hover {
+            background: var(--surface-hover);
+            transform: translateX(4px);
+        }
+
+        .review-day {
+            width: 48px;
+            height: 48px;
+            background: var(--accent);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--bg);
+        }
+
+        .review-day .num {
+            font-size: 20px;
+            font-weight: 500;
+            line-height: 1;
+        }
+
+        .review-day .label {
+            font-size: 9px;
+            margin-top: 2px;
+        }
+
+        .review-info {
+            flex: 1;
+        }
+
+        .review-title {
+            font-size: 14px;
+            margin-bottom: 6px;
+        }
+
+        .review-meta {
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
+        .review-status {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+        }
+
+        .status-today {
+            background: rgba(212, 165, 116, 0.2);
+            color: var(--accent);
+        }
+
+        .status-done {
+            background: rgba(74, 159, 74, 0.2);
+            color: #6ABF6A;
+        }
+
+        .status-overdue {
+            background: rgba(212, 64, 64, 0.2);
+            color: #D44040;
+        }
+
+        .tags-panel {
+            grid-column: span 2;
+        }
+
+        .tags-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .tag {
+            padding: 8px 16px;
+            background: var(--bg);
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tag:hover {
+            background: var(--surface-hover);
+        }
+
+        .tag.active {
+            background: var(--accent);
+            color: var(--bg);
+        }
+
+        .tag .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent);
+        }
+
+        .tag.active .dot {
+            background: var(--bg);
+        }
+
+        .tag .count {
+            font-size: 11px;
+            opacity: 0.6;
+            margin-left: 4px;
+        }
+
+        .progress-panel {
+            grid-column: span 2;
+        }
+
+        .progress-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+
+        .progress-card {
+            padding: 20px;
+            background: var(--bg);
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .progress-card .value {
+            font-size: 28px;
+            font-weight: 300;
+            color: var(--accent);
+        }
+
+        .progress-card .label {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-top: 8px;
+        }
+
+        .progress-card.highlight {
+            border: 1px solid var(--accent);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>错题笔记</h1>
+                <div class="subtitle">砚台 · 墨染纸香</div>
+            </div>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value">67</div>
+                    <div class="stat-label">总题数</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">12</div>
+                    <div class="stat-label">今日待复习</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">89%</div>
+                    <div class="stat-label">总正确率</div>
+                </div>
+            </div>
+        </header>
+
+        <div class="main-grid">
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">今日复习</div>
+                    <button class="btn-outline">查看全部</button>
+                </div>
+                <div class="review-list">
+                    <div class="review-item">
+                        <div class="review-day">
+                            <span class="num">7</span>
+                            <span class="label">天</span>
+                        </div>
+                        <div class="review-info">
+                            <div class="review-title">二次函数最值问题</div>
+                            <div class="review-meta">数学 · 第一轮 · 导入于 5月1日</div>
+                        </div>
+                        <span class="review-status status-today">今日</span>
+                    </div>
+                    <div class="review-item">
+                        <div class="review-day">
+                            <span class="num">14</span>
+                            <span class="label">天</span>
+                        </div>
+                        <div class="review-info">
+                            <div class="review-title">导数综合应用</div>
+                            <div class="review-meta">数学 · 第二轮 · 导入于 4月24日</div>
+                        </div>
+                        <span class="review-status status-overdue">逾期</span>
+                    </div>
+                    <div class="review-item">
+                        <div class="review-day">
+                            <span class="num">21</span>
+                            <span class="label">天</span>
+                        </div>
+                        <div class="review-info">
+                            <div class="review-title">三角函数化简</div>
+                            <div class="review-meta">数学 · 第三轮 · 导入于 4月17日</div>
+                        </div>
+                        <span class="review-status status-done">完成</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">知识点分布</div>
+                </div>
+                <div class="tags-grid">
+                    <div class="tag active">
+                        <span class="dot"></span>
+                        二次函数 <span class="count">12</span>
+                    </div>
+                    <div class="tag">
+                        <span class="dot"></span>
+                        导数 <span class="count">8</span>
+                    </div>
+                    <div class="tag">
+                        <span class="dot"></span>
+                        三角函数 <span class="count">7</span>
+                    </div>
+                    <div class="tag">
+                        <span class="dot"></span>
+                        概率统计 <span class="count">6</span>
+                    </div>
+                    <div class="tag">
+                        <span class="dot"></span>
+                        数列 <span class="count">5</span>
+                    </div>
+                    <div class="tag">
+                        <span class="dot"></span>
+                        几何证明 <span class="count">4</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel progress-panel">
+                <div class="panel-header">
+                    <div class="panel-title">复习进度</div>
+                </div>
+                <div class="progress-grid">
+                    <div class="progress-card">
+                        <div class="value">23</div>
+                        <div class="label">错1次</div>
+                    </div>
+                    <div class="progress-card">
+                        <div class="value">8</div>
+                        <div class="label">错2次</div>
+                    </div>
+                    <div class="progress-card">
+                        <div class="value">3</div>
+                        <div class="label">错3次+</div>
+                    </div>
+                    <div class="progress-card highlight">
+                        <div class="value">89%</div>
+                        <div class="label">知识点正确率</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

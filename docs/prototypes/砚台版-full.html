@@ -1,0 +1,1939 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>错题笔记 - 砚台版</title>
+    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+XiaoWei&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #1A1A1A;
+            --surface: #242424;
+            --surface-hover: #2E2E2E;
+            --surface-active: #363636;
+            --text: #E8E4DC;
+            --text-dim: #8A8A8A;
+            --accent: #D4A574;
+            --accent-dark: #B8956A;
+            --accent-soft: rgba(212, 165, 116, 0.15);
+            --border: #3A3A3A;
+            --success: #6ABF6A;
+            --error: #D44040;
+            --warning: #E0A458;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* 侧边导航 */
+        .sidebar {
+            width: 240px;
+            background: var(--surface);
+            padding: 24px 0;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border);
+            position: fixed;
+            height: 100vh;
+            transition: width 0.3s ease, transform 0.3s ease;
+            z-index: 50;
+        }
+
+        .sidebar.collapsed {
+            width: 0;
+            padding: 0;
+            overflow: hidden;
+            transform: translateX(-100%);
+        }
+
+        .sidebar-toggle {
+            position: fixed;
+            left: 16px;
+            top: 16px;
+            width: 40px;
+            height: 40px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 60;
+            transition: left 0.3s ease;
+            color: var(--text);
+            font-size: 18px;
+        }
+
+        .sidebar-toggle:hover {
+            background: var(--surface-hover);
+        }
+
+        .sidebar.collapsed + .sidebar-toggle,
+        body.sidebar-collapsed .sidebar-toggle {
+            left: 16px;
+        }
+
+        .logo {
+            padding: 0 24px 32px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 24px;
+        }
+
+        .logo h1 {
+            font-family: 'ZCOOL XiaoWei', serif;
+            font-size: 28px;
+            color: var(--accent);
+            letter-spacing: 3px;
+        }
+
+        .logo-sub {
+            font-size: 10px;
+            color: var(--text-dim);
+            margin-top: 4px;
+            letter-spacing: 2px;
+        }
+
+        .nav-list {
+            list-style: none;
+            flex: 1;
+        }
+
+        .nav-item {
+            padding: 14px 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+            white-space: nowrap;
+        }
+
+        .nav-item:hover {
+            background: var(--surface-hover);
+        }
+
+        .nav-item.active {
+            background: var(--accent-soft);
+            border-left-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .nav-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .nav-item.active .nav-icon {
+            color: var(--accent);
+        }
+
+        .nav-badge {
+            margin-left: auto;
+            padding: 2px 8px;
+            background: var(--accent);
+            color: var(--bg);
+            border-radius: 10px;
+            font-size: 11px;
+        }
+
+        /* 主内容区 */
+        .main {
+            flex: 1;
+            margin-left: 240px;
+            padding: 32px 40px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        body.sidebar-collapsed .main {
+            margin-left: 0;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 500;
+        }
+
+        .page-title::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 24px;
+            background: var(--accent);
+            margin-right: 12px;
+            vertical-align: middle;
+            border-radius: 2px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg);
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-dark);
+            transform: translateY(-2px);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+        }
+
+        .btn-outline:hover {
+            background: var(--accent);
+            color: var(--bg);
+        }
+
+        .btn-danger {
+            background: var(--error);
+            color: white;
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: 300;
+            color: var(--accent);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-top: 8px;
+        }
+
+        .stat-card.highlight {
+            border: 1px solid var(--accent);
+        }
+
+        /* 面板 */
+        .panel {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 28px;
+            margin-bottom: 24px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .panel-title::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 16px;
+            background: var(--accent);
+            margin-right: 10px;
+            vertical-align: middle;
+            border-radius: 2px;
+        }
+
+        /* 复习列表 */
+        .review-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .review-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 20px;
+            background: var(--bg);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .review-item:hover {
+            background: var(--surface-hover);
+            transform: translateX(4px);
+        }
+
+        .review-round {
+            width: 56px;
+            height: 56px;
+            background: var(--accent);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--bg);
+        }
+
+        .review-round .num {
+            font-size: 22px;
+            font-weight: 500;
+            line-height: 1;
+        }
+
+        .review-round .label {
+            font-size: 10px;
+            margin-top: 2px;
+        }
+
+        .review-info {
+            flex: 1;
+        }
+
+        .review-title {
+            font-size: 15px;
+            margin-bottom: 6px;
+        }
+
+        .review-meta {
+            font-size: 12px;
+            color: var(--text-dim);
+            display: flex;
+            gap: 16px;
+        }
+
+        .review-status {
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 12px;
+        }
+
+        .status-due {
+            background: var(--accent-soft);
+            color: var(--accent);
+        }
+
+        .status-overdue {
+            background: rgba(212, 64, 64, 0.2);
+            color: var(--error);
+        }
+
+        .status-done {
+            background: rgba(74, 159, 74, 0.2);
+            color: var(--success);
+        }
+
+        /* 标签网格 */
+        .tags-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .tag {
+            padding: 10px 18px;
+            background: var(--bg);
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tag:hover {
+            background: var(--surface-hover);
+        }
+
+        .tag.active {
+            background: var(--accent);
+            color: var(--bg);
+        }
+
+        .tag .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+        }
+
+        .tag.active .dot {
+            background: var(--bg);
+        }
+
+        .tag .count {
+            font-size: 11px;
+            opacity: 0.6;
+        }
+
+        /* 科目列表 */
+        .subject-tree {
+            list-style: none;
+        }
+
+        .subject-item {
+            display: flex;
+            align-items: center;
+            padding: 16px 20px;
+            margin: 4px 0;
+            background: var(--bg);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .subject-item:hover {
+            background: var(--surface-hover);
+        }
+
+        .subject-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--accent-soft);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 16px;
+            font-size: 18px;
+        }
+
+        .subject-name {
+            flex: 1;
+            font-size: 15px;
+        }
+
+        .subject-count {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        .subject-arrow {
+            color: var(--text-dim);
+            margin-left: 12px;
+        }
+
+        /* 进度卡片 */
+        .progress-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+
+        .progress-card {
+            padding: 24px;
+            background: var(--bg);
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .progress-card .value {
+            font-size: 32px;
+            font-weight: 300;
+            color: var(--accent);
+        }
+
+        .progress-card .label {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-top: 8px;
+        }
+
+        .progress-card.highlight {
+            border: 1px solid var(--accent);
+        }
+
+        /* 柱状图 */
+        .bar-chart {
+            display: flex;
+            align-items: flex-end;
+            gap: 24px;
+            height: 200px;
+            padding: 20px 0;
+        }
+
+        .bar-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+        }
+
+        .bar-wrapper {
+            flex: 1;
+            width: 100%;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        .bar {
+            width: 40px;
+            background: var(--accent);
+            border-radius: 4px 4px 0 0;
+            transition: all 0.3s;
+        }
+
+        .bar:hover {
+            background: var(--accent-dark);
+        }
+
+        .bar-label {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-top: 12px;
+            text-align: center;
+        }
+
+        .bar-value {
+            font-size: 12px;
+            color: var(--accent);
+            margin-bottom: 8px;
+        }
+
+        /* 错题网格 */
+        .mistake-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .mistake-card {
+            background: var(--bg);
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mistake-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        }
+
+        .mistake-image {
+            height: 140px;
+            background: var(--surface);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-dim);
+            font-size: 12px;
+        }
+
+        .mistake-content {
+            padding: 16px;
+        }
+
+        .mistake-title {
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .mistake-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
+        .mistake-tag {
+            padding: 3px 8px;
+            background: var(--accent-soft);
+            color: var(--accent);
+            border-radius: 4px;
+        }
+
+        /* 错题库侧边栏 */
+        .mistakes-layout {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 24px;
+        }
+
+        .library-sidebar {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .library-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .library-title {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        .library-add {
+            width: 28px;
+            height: 28px;
+            background: var(--accent);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+            color: var(--bg);
+        }
+
+        .library-add:hover {
+            background: var(--accent-dark);
+        }
+
+        .library-list {
+            list-style: none;
+        }
+
+        .library-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            margin: 4px 0;
+            background: var(--bg);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .library-item:hover {
+            background: var(--surface-hover);
+        }
+
+        .library-item.active {
+            background: var(--accent-soft);
+            border: 1px solid var(--accent);
+        }
+
+        .library-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .library-name {
+            flex: 1;
+            font-size: 13px;
+        }
+
+        .library-count {
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
+        .library-delete {
+            width: 20px;
+            height: 20px;
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            font-size: 12px;
+            display: none;
+        }
+
+        .library-item:hover .library-delete {
+            display: block;
+        }
+
+        .library-delete:hover {
+            color: var(--error);
+        }
+
+        /* 复习界面 */
+        .review-screen {
+            display: none;
+        }
+
+        .review-screen.active {
+            display: block;
+        }
+
+        .question-area {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            height: calc(100vh - 200px);
+        }
+
+        .question-image {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .question-image .label {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 16px;
+        }
+
+        .question-image .image-placeholder {
+            flex: 1;
+            background: var(--bg);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-dim);
+        }
+
+        .answer-area {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .answer-area .label {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 16px;
+        }
+
+        .handwriting-canvas {
+            flex: 1;
+            background: var(--bg);
+            border-radius: 12px;
+            border: 2px dashed var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-dim);
+            font-size: 14px;
+        }
+
+        .choice-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .choice-option {
+            padding: 16px;
+            background: var(--bg);
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            font-size: 16px;
+        }
+
+        .choice-option:hover {
+            border-color: var(--accent);
+        }
+
+        .choice-option.selected {
+            border-color: var(--accent);
+            background: var(--accent-soft);
+        }
+
+        .review-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border);
+        }
+
+        /* 录入界面 */
+        .import-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-label {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 48px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .upload-zone:hover {
+            border-color: var(--accent);
+            background: var(--accent-soft);
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            color: var(--text-dim);
+            margin-bottom: 16px;
+        }
+
+        .upload-text {
+            color: var(--text-dim);
+            font-size: 14px;
+        }
+
+        /* 设置页面 */
+        .settings-list {
+            list-style: none;
+        }
+
+        .settings-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .settings-item:last-child {
+            border-bottom: none;
+        }
+
+        .settings-info {
+            flex: 1;
+        }
+
+        .settings-title {
+            font-size: 15px;
+            margin-bottom: 4px;
+        }
+
+        .settings-desc {
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        .toggle {
+            width: 48px;
+            height: 26px;
+            background: var(--border);
+            border-radius: 13px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s;
+        }
+
+        .toggle.active {
+            background: var(--accent);
+        }
+
+        .toggle::after {
+            content: '';
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: all 0.2s;
+        }
+
+        .toggle.active::after {
+            left: 24px;
+        }
+
+        /* 分析详情弹窗 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 600px;
+            width: 90%;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-title {
+            font-size: 18px;
+        }
+
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            background: var(--bg);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .ai-result {
+            background: var(--bg);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .ai-result-title {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-bottom: 12px;
+        }
+
+        .ai-result-content {
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        .result-correct {
+            color: var(--success);
+        }
+
+        .result-wrong {
+            color: var(--error);
+        }
+
+        /* 页面隐藏 */
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        /* 确认按钮组 */
+        .confirm-btns {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #5a9a5a;
+        }
+
+        .btn-skip {
+            background: transparent;
+            border: 1px solid var(--text-dim);
+            color: var(--text-dim);
+        }
+
+        .btn-skip:hover {
+            border-color: var(--text);
+            color: var(--text);
+        }
+    </style>
+</head>
+<body>
+    <!-- 侧边导航 -->
+    <button class="sidebar-toggle" onclick="toggleSidebar()">◂</button>
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <h1>砚台</h1>
+            <div class="logo-sub">错题笔记</div>
+        </div>
+        <ul class="nav-list">
+            <li class="nav-item active" data-page="dashboard">
+                <span class="nav-icon">◈</span>
+                <span>首页</span>
+                <span class="nav-badge">12</span>
+            </li>
+            <li class="nav-item" data-page="review">
+                <span class="nav-icon">◎</span>
+                <span>今日复习</span>
+            </li>
+            <li class="nav-item" data-page="mistakes">
+                <span class="nav-icon">✎</span>
+                <span>错题库</span>
+            </li>
+            <li class="nav-item" data-page="import">
+                <span class="nav-icon">＋</span>
+                <span>录入新题</span>
+            </li>
+            <li class="nav-item" data-page="stats">
+                <span class="nav-icon">▤</span>
+                <span>统计分析</span>
+            </li>
+            <li class="nav-item" data-page="subjects">
+                <span class="nav-icon">☰</span>
+                <span>科目管理</span>
+            </li>
+            <li class="nav-item" data-page="settings">
+                <span class="nav-icon">⚙</span>
+                <span>设置</span>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- 首页 -->
+    <div class="main page active" id="page-dashboard">
+        <div class="page-header">
+            <h2 class="page-title">今日概览</h2>
+            <button class="btn btn-primary" onclick="showPage('review')">开始复习</button>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">67</div>
+                <div class="stat-label">总题数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">12</div>
+                <div class="stat-label">今日待复习</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">3</div>
+                <div class="stat-label">逾期题目</div>
+            </div>
+            <div class="stat-card highlight">
+                <div class="stat-value">89%</div>
+                <div class="stat-label">总正确率</div>
+            </div>
+        </div>
+
+        <div class="two-col">
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">今日复习</div>
+                    <button class="btn btn-outline" onclick="showPage('review')">查看全部</button>
+                </div>
+                <div class="review-list">
+                    <div class="review-item" onclick="showPage('review')">
+                        <div class="review-round">
+                            <span class="num">7</span>
+                            <span class="label">天</span>
+                        </div>
+                        <div class="review-info">
+                            <div class="review-title">二次函数最值问题</div>
+                            <div class="review-meta">
+                                <span>数学</span>
+                                <span>第一轮</span>
+                                <span>导入于 5月1日</span>
+                            </div>
+                        </div>
+                        <span class="review-status status-due">今日</span>
+                    </div>
+                    <div class="review-item" onclick="showPage('review')">
+                        <div class="review-round">
+                            <span class="num">14</span>
+                            <span class="label">天</span>
+                        </div>
+                        <div class="review-info">
+                            <div class="review-title">导数综合应用</div>
+                            <div class="review-meta">
+                                <span>数学</span>
+                                <span>第二轮</span>
+                                <span>导入于 4月24日</span>
+                            </div>
+                        </div>
+                        <span class="review-status status-overdue">逾期</span>
+                    </div>
+                    <div class="review-item" onclick="showPage('review')">
+                        <div class="review-round">
+                            <span class="num">21</span>
+                            <span class="label">天</span>
+                        </div>
+                        <div class="review-info">
+                            <div class="review-title">三角函数化简</div>
+                            <div class="review-meta">
+                                <span>数学</span>
+                                <span>第三轮</span>
+                                <span>导入于 4月17日</span>
+                            </div>
+                        </div>
+                        <span class="review-status status-done">完成</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">知识点分布</div>
+                </div>
+                <div class="tags-grid">
+                    <div class="tag active">
+                        <span class="dot"></span>
+                        二次函数 <span class="count">12</span>
+                    </div>
+                    <div class="tag">
+                        <span class="dot"></span>
+                        导数 <span class="count">8</span>
+                    </div>
+                    <div class="tag">
+                        <span class="dot"></span>
+                        三角函数 <span class="count">7</span>
+                    </div>
+                    <div class="tag">
+                        <span class="dot"></span>
+                        概率统计 <span class="count">6</span>
+                    </div>
+                    <div class="tag">
+                        <span class="dot"></span>
+                        数列 <span class="count">5</span>
+                    </div>
+                    <div class="tag">
+                        <span class="dot"></span>
+                        几何证明 <span class="count">4</span>
+                    </div>
+                    <div class="tag">
+                        <span class="dot"></span>
+                        不等式 <span class="count">3</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title">复习进度统计</div>
+            </div>
+            <div class="progress-grid">
+                <div class="progress-card">
+                    <div class="value">23</div>
+                    <div class="label">错1次</div>
+                </div>
+                <div class="progress-card">
+                    <div class="value">8</div>
+                    <div class="label">错2次</div>
+                </div>
+                <div class="progress-card">
+                    <div class="value">3</div>
+                    <div class="label">错3次+</div>
+                </div>
+                <div class="progress-card highlight">
+                    <div class="value">89%</div>
+                    <div class="label">知识点正确率</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 复习页面 -->
+    <div class="main page" id="page-review">
+        <div class="page-header">
+            <h2 class="page-title">今日复习 · 共 12 道</h2>
+            <button class="btn btn-outline" onclick="showPage('dashboard')">返回</button>
+        </div>
+
+        <div class="question-area">
+            <div class="question-image">
+                <div class="label">题目图片</div>
+                <div class="image-placeholder">
+                    [题目图片展示区域]<br>
+                    二次函数求最值问题<br>
+                    已知函数 f(x) = ax² + bx + c...
+                </div>
+            </div>
+            <div class="answer-area">
+                <div class="label">你的作答（手写区域）</div>
+                <div class="handwriting-canvas">
+                    请在此处手写作答
+                </div>
+
+                <div class="choice-options" style="display: none;">
+                    <div class="choice-option">A. 2</div>
+                    <div class="choice-option">B. 4</div>
+                    <div class="choice-option selected">C. 6</div>
+                    <div class="choice-option">D. 8</div>
+                </div>
+
+                <div class="confirm-btns">
+                    <button class="btn btn-success" onclick="showResult()">提交答案</button>
+                    <button class="btn btn-skip">跳过此题</button>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top: 24px; text-align: center;">
+            <span style="color: var(--text-dim);">1 / 12</span>
+            <div style="display: inline-block; width: 200px; height: 4px; background: var(--border); border-radius: 2px; margin-left: 16px; vertical-align: middle;">
+                <div style="width: 8.3%; height: 100%; background: var(--accent); border-radius: 2px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 错题库 -->
+    <div class="main page" id="page-mistakes">
+        <div class="page-header">
+            <h2 class="page-title">错题库</h2>
+            <button class="btn btn-primary" onclick="showPage('import')">+ 新增收录</button>
+        </div>
+
+        <div class="mistakes-layout">
+            <div class="library-sidebar">
+                <div class="library-header">
+                    <div class="library-title">我的库</div>
+                    <div class="library-add" onclick="showNewLibraryModal()">+</div>
+                </div>
+                <ul class="library-list" id="library-list">
+                    <!-- JS 渲染 -->
+                </ul>
+            </div>
+
+            <div class="mistakes-content">
+                <div class="panel" style="margin-bottom: 24px; padding: 16px 24px;">
+                    <div style="display: flex; gap: 16px; align-items: center;">
+                        <input type="text" placeholder="搜索错题..." class="form-input" style="width: 300px;">
+                        <select class="form-select" style="width: 150px;">
+                            <option>全部科目</option>
+                            <option>数学</option>
+                            <option>英语</option>
+                            <option>物理</option>
+                        </select>
+                        <select class="form-select" style="width: 150px;">
+                            <option>全部标签</option>
+                            <option>二次函数</option>
+                            <option>导数</option>
+                            <option>三角函数</option>
+                        </select>
+                        <select class="form-select" style="width: 150px;">
+                            <option>按时间排序</option>
+                            <option>按科目排序</option>
+                            <option>按错误次数</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mistake-grid">
+                    <div class="mistake-card">
+                        <div class="mistake-image">题目图片</div>
+                        <div class="mistake-content">
+                            <div class="mistake-title">2024高考数学卷 · 第23题</div>
+                            <div class="mistake-meta">
+                                <span class="mistake-tag">二次函数</span>
+                                <span>错2次</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mistake-card">
+                        <div class="mistake-image">题目图片</div>
+                        <div class="mistake-content">
+                            <div class="mistake-title">期末模拟卷 · 第5题</div>
+                            <div class="mistake-meta">
+                                <span class="mistake-tag">导数</span>
+                                <span>错1次</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mistake-card">
+                        <div class="mistake-image">题目图片</div>
+                        <div class="mistake-content">
+                            <div class="mistake-title">三角函数专项 · 第12题</div>
+                            <div class="mistake-meta">
+                                <span class="mistake-tag">三角函数</span>
+                                <span>错3次+</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mistake-card">
+                        <div class="mistake-image">题目图片</div>
+                        <div class="mistake-content">
+                            <div class="mistake-title">概率专项练习 · 第8题</div>
+                            <div class="mistake-meta">
+                                <span class="mistake-tag">概率统计</span>
+                                <span>错1次</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mistake-card">
+                        <div class="mistake-image">题目图片</div>
+                        <div class="mistake-content">
+                            <div class="mistake-title">数列专题 · 第15题</div>
+                            <div class="mistake-meta">
+                                <span class="mistake-tag">数列</span>
+                                <span>错0次</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mistake-card">
+                        <div class="mistake-image">题目图片</div>
+                        <div class="mistake-content">
+                            <div class="mistake-title">几何证明 · 第3题</div>
+                            <div class="mistake-meta">
+                                <span class="mistake-tag">几何证明</span>
+                                <span>错2次</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 录入新题 -->
+    <div class="main page" id="page-import">
+        <div class="page-header">
+            <h2 class="page-title">录入新题</h2>
+            <button class="btn btn-outline" onclick="showPage('mistakes')">取消</button>
+        </div>
+
+        <div class="panel">
+            <div class="import-form">
+                <div>
+                    <div class="upload-zone">
+                        <div class="upload-icon">📷</div>
+                        <div class="upload-text">点击上传题目图片<br>或拍照导入</div>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 24px;">
+                        <label class="form-label">题目类型</label>
+                        <select class="form-select">
+                            <option>选择题</option>
+                            <option>大题/解答题</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">正确答案（选择题填写选项，大题填写关键词）</label>
+                        <input type="text" class="form-input" placeholder="如：C 或 化简求值">
+                    </div>
+                </div>
+
+                <div>
+                    <div class="form-group">
+                        <label class="form-label">科目</label>
+                        <select class="form-select">
+                            <option>数学</option>
+                            <option>英语</option>
+                            <option>物理</option>
+                            <option>化学</option>
+                            <option>生物</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">知识点标签（可多选）</label>
+                        <div class="tags-grid">
+                            <div class="tag active">
+                                <span class="dot"></span>
+                                二次函数
+                            </div>
+                            <div class="tag">
+                                <span class="dot"></span>
+                                导数
+                            </div>
+                            <div class="tag">
+                                <span class="dot"></span>
+                                三角函数
+                            </div>
+                            <div class="tag">
+                                <span class="dot"></span>
+                                概率统计
+                            </div>
+                            <div class="tag">
+                                <span class="dot"></span>
+                                数列
+                            </div>
+                            <div class="tag">
+                                <span class="dot"></span>
+                                几何证明
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">解析（可选）</label>
+                        <textarea class="form-input" rows="4" placeholder="输入题目解析..."></textarea>
+                    </div>
+
+                    <button class="btn btn-primary" style="width: 100%; margin-top: 16px;">保存并开始复习计划</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 统计分析 -->
+    <div class="main page" id="page-stats">
+        <div class="page-header">
+            <h2 class="page-title">统计分析</h2>
+        </div>
+
+        <div class="stats-grid" style="margin-bottom: 24px;">
+            <div class="stat-card">
+                <div class="stat-value">67</div>
+                <div class="stat-label">总题数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">89%</div>
+                <div class="stat-label">总正确率</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">34</div>
+                <div class="stat-label">总复习次数</div>
+            </div>
+            <div class="stat-card highlight">
+                <div class="stat-value">78</div>
+                <div class="stat-label">知识点覆盖</div>
+            </div>
+        </div>
+
+        <div class="two-col">
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">错误次数分布</div>
+                </div>
+                <div class="bar-chart">
+                    <div class="bar-item">
+                        <div class="bar-value">23</div>
+                        <div class="bar-wrapper">
+                            <div class="bar" style="height: 60%;"></div>
+                        </div>
+                        <div class="bar-label">错1次</div>
+                    </div>
+                    <div class="bar-item">
+                        <div class="bar-value">8</div>
+                        <div class="bar-wrapper">
+                            <div class="bar" style="height: 30%;"></div>
+                        </div>
+                        <div class="bar-label">错2次</div>
+                    </div>
+                    <div class="bar-item">
+                        <div class="bar-value">3</div>
+                        <div class="bar-wrapper">
+                            <div class="bar" style="height: 15%;"></div>
+                        </div>
+                        <div class="bar-label">错3次+</div>
+                    </div>
+                    <div class="bar-item">
+                        <div class="bar-value">33</div>
+                        <div class="bar-wrapper">
+                            <div class="bar" style="height: 80%;"></div>
+                        </div>
+                        <div class="bar-label">未出错</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">各知识点正确率</div>
+                </div>
+                <div class="bar-chart">
+                    <div class="bar-item">
+                        <div class="bar-value">92%</div>
+                        <div class="bar-wrapper">
+                            <div class="bar" style="height: 92%;"></div>
+                        </div>
+                        <div class="bar-label">二次函数</div>
+                    </div>
+                    <div class="bar-item">
+                        <div class="bar-value">85%</div>
+                        <div class="bar-wrapper">
+                            <div class="bar" style="height: 85%;"></div>
+                        </div>
+                        <div class="bar-label">导数</div>
+                    </div>
+                    <div class="bar-item">
+                        <div class="bar-value">78%</div>
+                        <div class="bar-wrapper">
+                            <div class="bar" style="height: 78%;"></div>
+                        </div>
+                        <div class="bar-label">三角函数</div>
+                    </div>
+                    <div class="bar-item">
+                        <div class="bar-value">65%</div>
+                        <div class="bar-wrapper">
+                            <div class="bar" style="height: 65%;"></div>
+                        </div>
+                        <div class="bar-label">概率统计</div>
+                    </div>
+                    <div class="bar-item">
+                        <div class="bar-value">88%</div>
+                        <div class="bar-wrapper">
+                            <div class="bar" style="height: 88%;"></div>
+                        </div>
+                        <div class="bar-label">数列</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title">高频错题 TOP 5</div>
+            </div>
+            <div class="review-list">
+                <div class="review-item">
+                    <div class="review-round" style="background: var(--error);">
+                        <span class="num">3</span>
+                        <span class="label">次错</span>
+                    </div>
+                    <div class="review-info">
+                        <div class="review-title">三角函数化简技巧</div>
+                        <div class="review-meta">
+                            <span>数学</span>
+                            <span>三角函数</span>
+                            <span>导入于 4月20日</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-outline" style="padding: 6px 12px; font-size: 12px;">查看详情</button>
+                </div>
+                <div class="review-item">
+                    <div class="review-round" style="background: var(--warning);">
+                        <span class="num">2</span>
+                        <span class="label">次错</span>
+                    </div>
+                    <div class="review-info">
+                        <div class="review-title">几何证明综合</div>
+                        <div class="review-meta">
+                            <span>数学</span>
+                            <span>几何证明</span>
+                            <span>导入于 4月18日</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-outline" style="padding: 6px 12px; font-size: 12px;">查看详情</button>
+                </div>
+                <div class="review-item">
+                    <div class="review-round" style="background: var(--warning);">
+                        <span class="num">2</span>
+                        <span class="label">次错</span>
+                    </div>
+                    <div class="review-info">
+                        <div class="review-title">概率分布计算</div>
+                        <div class="review-meta">
+                            <span>数学</span>
+                            <span>概率统计</span>
+                            <span>导入于 4月15日</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-outline" style="padding: 6px 12px; font-size: 12px;">查看详情</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 科目管理 -->
+    <div class="main page" id="page-subjects">
+        <div class="page-header">
+            <h2 class="page-title">科目管理</h2>
+            <button class="btn btn-primary">+ 新增科目</button>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title">科目列表</div>
+            </div>
+            <ul class="subject-tree">
+                <li class="subject-item">
+                    <div class="subject-icon">📐</div>
+                    <div class="subject-name">数学</div>
+                    <div class="subject-count">24 题</div>
+                    <span class="subject-arrow">›</span>
+                </li>
+                <li class="subject-item">
+                    <div class="subject-icon">📝</div>
+                    <div class="subject-name">英语</div>
+                    <div class="subject-count">18 题</div>
+                    <span class="subject-arrow">›</span>
+                </li>
+                <li class="subject-item">
+                    <div class="subject-icon">⚛</div>
+                    <div class="subject-name">物理</div>
+                    <div class="subject-count">12 题</div>
+                    <span class="subject-arrow">›</span>
+                </li>
+                <li class="subject-item">
+                    <div class="subject-icon">🧪</div>
+                    <div class="subject-name">化学</div>
+                    <div class="subject-count">8 题</div>
+                    <span class="subject-arrow">›</span>
+                </li>
+                <li class="subject-item">
+                    <div class="subject-icon">🧬</div>
+                    <div class="subject-name">生物</div>
+                    <div class="subject-count">5 题</div>
+                    <span class="subject-arrow">›</span>
+                </li>
+            </ul>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title">知识点标签</div>
+                <button class="btn btn-outline">+ 新增标签</button>
+            </div>
+            <div class="tags-grid">
+                <div class="tag active">
+                    <span class="dot"></span>
+                    二次函数 <span class="count">12</span>
+                </div>
+                <div class="tag">
+                    <span class="dot"></span>
+                    导数 <span class="count">8</span>
+                </div>
+                <div class="tag">
+                    <span class="dot"></span>
+                    三角函数 <span class="count">7</span>
+                </div>
+                <div class="tag">
+                    <span class="dot"></span>
+                    概率统计 <span class="count">6</span>
+                </div>
+                <div class="tag">
+                    <span class="dot"></span>
+                    数列 <span class="count">5</span>
+                </div>
+                <div class="tag">
+                    <span class="dot"></span>
+                    几何证明 <span class="count">4</span>
+                </div>
+                <div class="tag">
+                    <span class="dot"></span>
+                    不等式 <span class="count">3</span>
+                </div>
+                <div class="tag">
+                    <span class="dot"></span>
+                    函数图像 <span class="count">2</span>
+                </div>
+                <div class="tag">
+                    <span class="dot"></span>
+                    极限定理 <span class="count">1</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设置 -->
+    <div class="main page" id="page-settings">
+        <div class="page-header">
+            <h2 class="page-title">设置</h2>
+        </div>
+
+        <div class="panel">
+            <ul class="settings-list">
+                <li class="settings-item">
+                    <div class="settings-info">
+                        <div class="settings-title">AI 答题对比</div>
+                        <div class="settings-desc">大题手写答案与正确答案对比分析</div>
+                    </div>
+                    <div class="toggle active"></div>
+                </li>
+                <li class="settings-item">
+                    <div class="settings-info">
+                        <div class="settings-title">自动识别题目文字</div>
+                        <div class="settings-desc">上传图片时自动识别题目文字</div>
+                    </div>
+                    <div class="toggle active"></div>
+                </li>
+                <li class="settings-item">
+                    <div class="settings-info">
+                        <div class="settings-title">复习提醒</div>
+                        <div class="settings-desc">每日提醒复习当天待复习题目</div>
+                    </div>
+                    <div class="toggle"></div>
+                </li>
+            </ul>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title">数据备份</div>
+            </div>
+            <ul class="settings-list">
+                <li class="settings-item">
+                    <div class="settings-info">
+                        <div class="settings-title">导出到百度网盘</div>
+                        <div class="settings-desc">手动备份所有数据</div>
+                    </div>
+                    <button class="btn btn-outline">导出</button>
+                </li>
+                <li class="settings-item">
+                    <div class="settings-info">
+                        <div class="settings-title">导出到夸克网盘</div>
+                        <div class="settings-desc">手动备份所有数据</div>
+                    </div>
+                    <button class="btn btn-outline">导出</button>
+                </li>
+                <li class="settings-item">
+                    <div class="settings-info">
+                        <div class="settings-title">最后一次备份</div>
+                        <div class="settings-desc">2026年5月8日 15:30</div>
+                    </div>
+                    <button class="btn btn-danger">删除所有数据</button>
+                </li>
+            </ul>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title">关于</div>
+            </div>
+            <ul class="settings-list">
+                <li class="settings-item">
+                    <div class="settings-info">
+                        <div class="settings-title">版本</div>
+                        <div class="settings-desc">v0.1.0</div>
+                    </div>
+                </li>
+                <li class="settings-item">
+                    <div class="settings-info">
+                        <div class="settings-title">开发者</div>
+                        <div class="settings-desc">自用 · 无商业用途</div>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- AI 分析结果弹窗 -->
+    <div class="modal-overlay" id="result-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">AI 分析结果</div>
+                <div class="modal-close" onclick="closeModal()">✕</div>
+            </div>
+            <div class="ai-result">
+                <div class="ai-result-title">对比分析</div>
+                <div class="ai-result-content">
+                    <p><span class="result-correct">✓ 正确部分：</span>求导步骤正确，运算准确</p>
+                    <p><span class="result-correct">✓ 正确部分：</span>写出导数公式</p>
+                    <p><span class="result-wrong">✗ 错误部分：</span>未考虑定义域，最终答案遗漏区间端点</p>
+                    <p><span class="result-wrong">✗ 错误部分：</span>最值判定方法有误</p>
+                </div>
+            </div>
+            <div style="text-align: center;">
+                <p style="margin-bottom: 16px; color: var(--text-dim);">你认为本次作答：</p>
+                <button class="btn btn-success" style="margin-right: 12px;" onclick="markCorrect()">✓ 做对了</button>
+                <button class="btn btn-danger" onclick="markWrong()">✗ 做错了</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 侧边栏折叠
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+            document.body.classList.toggle('sidebar-collapsed');
+            const toggleBtn = document.querySelector('.sidebar-toggle');
+            toggleBtn.textContent = sidebar.classList.contains('collapsed') ? '▸' : '◂';
+        }
+
+        // 页面导航
+        function showPage(pageId) {
+            // 隐藏所有页面
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            // 显示目标页面
+            document.getElementById('page-' + pageId).classList.add('active');
+            // 更新导航
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.querySelector('[data-page="' + pageId + '"]').classList.add('active');
+        }
+
+        // 导航点击
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const page = item.getAttribute('data-page');
+                showPage(page);
+            });
+        });
+
+        // 选项点击
+        document.querySelectorAll('.choice-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                document.querySelectorAll('.choice-option').forEach(o => o.classList.remove('selected'));
+                opt.classList.add('selected');
+            });
+        });
+
+        // 显示结果弹窗
+        function showResult() {
+            document.getElementById('result-modal').classList.add('active');
+        }
+
+        // 关闭弹窗
+        function closeModal() {
+            document.getElementById('result-modal').classList.remove('active');
+        }
+
+        // 标记正确/错误
+        function markCorrect() {
+            closeModal();
+            alert('已记录为正确，继续下一题');
+        }
+
+        function markWrong() {
+            closeModal();
+            alert('已记录为错误，继续下一题');
+        }
+
+        // 标签点击
+        document.querySelectorAll('.tag').forEach(tag => {
+            tag.addEventListener('click', () => {
+                tag.classList.toggle('active');
+            });
+        });
+
+        // 开关
+        document.querySelectorAll('.toggle').forEach(toggle => {
+            toggle.addEventListener('click', () => {
+                toggle.classList.toggle('active');
+            });
+        });
+
+        // 错题库 - 自建库功能
+        let libraries = [
+            { id: 1, name: '高考真题', count: 23, color: '#D4A574' },
+            { id: 2, name: '模拟试卷', count: 18, color: '#6ABF6A' },
+            { id: 3, name: '专项练习', count: 15, color: '#E0A458' }
+        ];
+
+        function showLibrary(libId) {
+            alert('切换到库: ' + libId);
+        }
+
+        function showNewLibraryModal() {
+            const name = prompt('请输入新库名称:');
+            if (name && name.trim()) {
+                const newLib = {
+                    id: libraries.length + 1,
+                    name: name.trim(),
+                    count: 0,
+                    color: '#' + Math.floor(Math.random()*16777215).toString(16)
+                };
+                libraries.push(newLib);
+                renderLibraries();
+            }
+        }
+
+        function deleteLibrary(libId) {
+            if (confirm('确定要删除这个库吗？')) {
+                libraries = libraries.filter(l => l.id !== libId);
+                renderLibraries();
+            }
+        }
+
+        function renderLibraries() {
+            const container = document.getElementById('library-list');
+            container.innerHTML = libraries.map(lib => `
+                <div class="library-item" onclick="showLibrary(${lib.id})">
+                    <div class="library-color" style="background: ${lib.color}"></div>
+                    <div class="library-name">${lib.name}</div>
+                    <div class="library-count">${lib.count} 题</div>
+                    <button class="library-delete" onclick="event.stopPropagation(); deleteLibrary(${lib.id})">✕</button>
+                </div>
+            `).join('');
+        }
+
+        // 初始化渲染
+        renderLibraries();
+    </script>
+</body>
+</html>
