@@ -78,6 +78,15 @@ dependencies {
     // Coil for image loading
     implementation("io.coil-kt:coil-compose:2.5.0")
 
+    // ExifInterface for image rotation
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
+
     // DataStore for preferences
     implementation("androidx.datastore:datastore-preferences:1.0.0")
+
+    // ML Kit Text Recognition (离线 OCR)
+    implementation("com.google.mlkit:text-recognition:16.0.1")
+
+    // Tesseract OCR (中文语言包)
+    implementation("com.rmtheis:tess-two:9.1.0")
 }

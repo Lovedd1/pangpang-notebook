@@ -27,9 +27,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Navigation Compose：页面导航
 - DataStore：偏好设置
 
-**AI 接入**
+**文字识别**
 
-- DeepSeek / Minimax API：图片文字识别、大题答案对比
+- ~~DeepSeek API~~（已移除）
+- ~~MiniMax API~~（已移除）
+- ~~Google ML Kit~~（已移除，中文识别效果差）
+- **Tesseract OCR**：本地 OCR，使用 chi_sim 中文语言包
+  - 离线可用，无需网络
+  - 中文识别效果好于 ML Kit
+  - 语言包位置：`app/src/main/assets/chi_sim.traineddata`
+  - 自动识别：选择图片后自动触发识别
 
 **备份**
 
@@ -68,11 +75,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **内容裁剪**：超出可见区域的内容自动隐藏，不显示在背景色外
 
 ### 错题录入
-- `ui/screens/ImportScreen.kt` + `ImportViewModel.kt`
+- `ui/screens/ImportScreen.kt` + `ui/screens/ImportViewModel.kt`
+- `data/remote/TesseractOcrService.kt` — Tesseract OCR 服务（中文语言包）
 - 支持拍照/相册选择题目图片
+- **拍照后裁剪确认**：拍照后弹出对话框，可选择"裁剪"或"直接使用"
+- **系统图库编辑**：裁剪使用系统图库（ACTION_EDIT），不同设备支持情况不同
 - 题目类型选择（选择题/大题）
 - 科目选择、知识点标签多选
-- 正确答案和解析输入
+- 正确答案手动输入（识别结果仅显示题目，不自动填充答案）
+- **本地文字识别**：选择图片后自动触发 Tesseract OCR 识别（离线）
 - 数据保存到 Room 数据库
 
 ### 复习流程

@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -44,16 +45,87 @@ fun ImportScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
+    var tempPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    var showCropConfirmDialog by remember { mutableStateOf(false) }
+
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        viewModel.setImageUri(uri)
+        uri?.let { viewModel.setImageUri(it) }
     }
 
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicturePreview()
     ) { bitmap ->
-        // TODO: 处理拍照结果
+        bitmap?.let {
+            // 保存临时照片
+            val uri = viewModel.saveBitmapToFile(it)
+            if (uri != null) {
+                tempPhotoUri = uri
+                showCropConfirmDialog = true
+            }
+        }
+    }
+
+    val cropLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        showCropConfirmDialog = false
+        tempPhotoUri = null
+        // 编辑完成，刷新图片（ ACTION_EDIT 会直接修改原文件）
+        viewModel.refreshCroppedImage()
+    }
+
+    // 拍照后裁剪确认对话框
+    if (showCropConfirmDialog && tempPhotoUri != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showCropConfirmDialog = false
+                tempPhotoUri?.let { viewModel.setImageUri(it) }
+            },
+            title = { Text("裁剪图片") },
+            text = {
+                Column {
+                    Text("是否裁剪后再使用？")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    AsyncImage(
+                        model = tempPhotoUri,
+                        contentDescription = "预览",
+                        modifier = Modifier.fillMaxWidth().height(200.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showCropConfirmDialog = false
+                    tempPhotoUri?.let { uri ->
+                        // 使用系统图库编辑（小米支持）
+                        val intent = android.content.Intent(android.content.Intent.ACTION_EDIT).apply {
+                            setDataAndType(uri, "image/*")
+                            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            addFlags(android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                        }
+                        try {
+                            cropLauncher.launch(intent)
+                        } catch (e: Exception) {
+                            // 编辑功能不可用，直接使用原图
+                            viewModel.setImageUri(uri)
+                        }
+                    }
+                }) {
+                    Text("裁剪")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showCropConfirmDialog = false
+                    tempPhotoUri?.let { viewModel.setImageUri(it) }
+                }) {
+                    Text("直接使用")
+                }
+            }
+        )
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -159,6 +231,101 @@ fun ImportScreen(
                 Icon(Icons.Default.Image, null, Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("相册")
+            }
+        }
+
+        // 裁剪按钮（当有图片时显示，且不在裁剪确认对话框流程中）
+        if (uiState.imageUri != null && tempPhotoUri == null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = {
+                    uiState.imageUri?.let { uri ->
+                        // 尝试使用系统图库编辑
+                        val intent = android.content.Intent(android.content.Intent.ACTION_EDIT).apply {
+                            setDataAndType(uri, "image/*")
+                            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            addFlags(android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                        }
+                        try {
+                            cropLauncher.launch(intent)
+                        } catch (e: Exception) {
+                            // 编辑功能不可用
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = InkStoneAccent)
+            ) {
+                Icon(Icons.Default.Crop, null, Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("裁剪")
+            }
+        }
+
+        // 自动文字识别（当有图片且未识别过时自动触发）
+        LaunchedEffect(uiState.imageUri) {
+            if (uiState.imageUri != null && !uiState.recognizedTextVisible && !uiState.isRecognizing) {
+                viewModel.recognizeText()
+            }
+        }
+
+        // 文字识别状态
+        if (uiState.imageUri != null && uiState.isRecognizing) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = InkStoneSurface)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("文字识别中...", color = InkStoneText, fontSize = 14.sp)
+                }
+            }
+        }
+
+        // 显示识别题目
+        if (uiState.recognizedTextVisible && uiState.recognizedQuestion.isNotBlank()) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = InkStoneSurface)
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "识别题目",
+                            color = InkStoneAccent,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        IconButton(
+                            onClick = { viewModel.dismissRecognizedText() },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                "关闭",
+                                tint = InkStoneTextDim,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = uiState.recognizedQuestion,
+                        color = InkStoneText,
+                        fontSize = 13.sp
+                    )
+                }
             }
         }
 
@@ -303,7 +470,7 @@ fun ImportScreen(
             enabled = !uiState.isSaving && uiState.imageUri != null && uiState.correctAnswer.isNotBlank()
         ) {
             if (uiState.isSaving) {
-                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = InkStoneBg)
+                Text("保存中...", fontSize = 16.sp, color = InkStoneBg)
             } else {
                 Text("保存并开始复习计划", fontSize = 16.sp, color = InkStoneBg)
             }
