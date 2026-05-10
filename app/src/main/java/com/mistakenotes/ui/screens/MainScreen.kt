@@ -34,6 +34,14 @@ fun HomeScreen(
     onNavigateToReview: () -> Unit
 ) {
     var viewRef by remember { mutableStateOf<com.mistakenotes.ui.components.HandwritingView?>(null) }
+    var isPenMode by remember { mutableStateOf(true) }
+
+    // 当 viewRef 准备好时，同步初始状态
+    LaunchedEffect(viewRef) {
+        viewRef?.let {
+            isPenMode = it.isPenMode
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -82,6 +90,29 @@ fun HomeScreen(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+
+        // 模式切换按钮
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Button(
+                onClick = {
+                    viewRef?.togglePenMode()
+                    isPenMode = !isPenMode
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isPenMode) InkStoneAccent else InkStoneSurface
+                )
+            ) {
+                Text(
+                    text = if (isPenMode) "笔写模式" else "手写模式",
+                    color = if (isPenMode) InkStoneBg else InkStoneText
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),

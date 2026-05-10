@@ -20,6 +20,15 @@ class HandwritingView @JvmOverloads constructor(
     defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
 
+    // 写入模式：true = 笔写模式（触控笔可写，手指不可写），false = 手写模式（手指可写，触控笔不可写）
+    var isPenMode: Boolean = true
+
+    // 切换写入模式
+    fun togglePenMode() {
+        isPenMode = !isPenMode
+        invalidate()
+    }
+
     // 触控笔路径（单独管理）
     private val stylusPaths = mutableListOf<PathData>()
     private var currentStylusPoints = mutableListOf<PointF>()
@@ -103,11 +112,17 @@ class HandwritingView @JvmOverloads constructor(
 
             when (toolType) {
                 MotionEvent.TOOL_TYPE_STYLUS -> {
-                    handleStylusEvent(event.actionMasked, x, y)
+                    // 笔写模式时触控笔可写，手写模式时触控笔不可写
+                    if (isPenMode) {
+                        handleStylusEvent(event.actionMasked, x, y)
+                    }
                 }
                 MotionEvent.TOOL_TYPE_FINGER,
                 MotionEvent.TOOL_TYPE_MOUSE -> {
-                    handleFingerEvent(event.actionMasked, x, y)
+                    // 手写模式时手指可写，笔写模式时手指不可写
+                    if (!isPenMode) {
+                        handleFingerEvent(event.actionMasked, x, y)
+                    }
                 }
             }
         }

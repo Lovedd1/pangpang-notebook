@@ -58,7 +58,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### 手写画布
 - `ui/components/HandwritingView.kt` — 原生 Android View，低延迟手写
-- **双笔模式**：触控笔（金色）和手指（浅色）分开处理，互不干扰
+- **模式切换**：笔写模式（触控笔金色）/ 手写模式（手指浅色），通过按钮切换
 - **Catmull-Rom 样条曲线**：直线笔直，曲线流畅
 - **距离采样**：每 2 像素采样一次，避免抖动
 - 支持撤销（undo）和清空（clear）
