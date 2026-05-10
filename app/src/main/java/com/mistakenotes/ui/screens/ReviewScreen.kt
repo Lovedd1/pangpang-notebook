@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -27,10 +28,16 @@ import com.mistakenotes.ui.theme.*
 @Composable
 fun ReviewScreen(
     onNavigateBack: () -> Unit = {},
+    refreshTrigger: Int = 0,
     viewModel: ReviewViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var handwritingView by remember { mutableStateOf<HandwritingView?>(null) }
+
+    // 当 refreshTrigger 变化时，重新加载数据
+    LaunchedEffect(refreshTrigger) {
+        viewModel.loadMistakes()
+    }
 
     when {
         uiState.isLoading -> {
@@ -53,7 +60,14 @@ fun ReviewScreen(
                             viewModel.setCurrentIndex(0)
                             currentPhase = "question"
                         },
-                        onNavigateBack = onNavigateBack
+                        onNavigateBack = onNavigateBack,
+                        onItemClick = { index ->
+                            viewModel.setCurrentIndex(index)
+                            currentPhase = "question"
+                        },
+                        onSkipTodayInList = { mistakeId ->
+                            viewModel.skipTodayReview(mistakeId)
+                        }
                     )
                 }
                 "question" -> {
@@ -62,9 +76,9 @@ fun ReviewScreen(
                             question = currentMistake,
                             currentIndex = uiState.currentIndex,
                             totalCount = uiState.mistakes.size,
-                            selectedAnswer = uiState.selectedAnswer,
+                            selectedAnswers = uiState.selectedAnswers,
                             showResult = uiState.showResult,
-                            onSelectAnswer = { viewModel.setSelectedAnswer(it) },
+                            onToggleAnswer = { viewModel.toggleAnswer(it) },
                             onSubmit = { viewModel.submitAnswer() },
                             onMarkCorrect = { viewModel.markAnswer(true) },
                             onMarkWrong = { viewModel.markAnswer(false) },
@@ -109,7 +123,9 @@ fun EmptyReviewContent(onNavigateBack: () -> Unit) {
 fun ReviewListContent(
     reviewList: List<Mistake>,
     onStartReview: () -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onItemClick: (Int) -> Unit,
+    onSkipTodayInList: (Long) -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxSize().background(InkStoneBg).padding(24.dp)
@@ -155,7 +171,13 @@ fun ReviewListContent(
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             itemsIndexed(reviewList) { index, item ->
-                ReviewListItem(item = item, round = 1, status = "due")
+                ReviewListItem(
+                    item = item,
+                    round = 1,
+                    status = "due",
+                    onClick = { onItemClick(index) },
+                    onSkipToday = { onSkipTodayInList(item.id) }
+                )
             }
         }
     }
@@ -189,7 +211,7 @@ fun StatCard(
 }
 
 @Composable
-fun ReviewListItem(item: Mistake, round: Int, status: String) {
+fun ReviewListItem(item: Mistake, round: Int, status: String, onClick: () -> Unit, onSkipToday: () -> Unit) {
     val statusColor = when (status) {
         "overdue" -> InkStoneError
         "done" -> InkStoneSuccess
@@ -202,7 +224,7 @@ fun ReviewListItem(item: Mistake, round: Int, status: String) {
     }
 
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         color = InkStoneSurface,
         shape = RoundedCornerShape(12.dp)
     ) {
@@ -223,7 +245,7 @@ fun ReviewListItem(item: Mistake, round: Int, status: String) {
             Spacer(modifier = Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = item.questionImagePath.substringAfterLast("/"), color = InkStoneText, fontSize = 15.sp)
+                Text(text = item.title.ifBlank { item.questionImagePath.substringAfterLast("/") }, color = InkStoneText, fontSize = 15.sp)
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(text = item.subject, color = InkStoneTextDim, fontSize = 12.sp)
@@ -238,6 +260,17 @@ fun ReviewListItem(item: Mistake, round: Int, status: String) {
             Surface(color = statusColor.copy(alpha = 0.15f), shape = RoundedCornerShape(8.dp)) {
                 Text(text = statusText, color = statusColor, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
             }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            IconButton(onClick = onSkipToday, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    imageVector = Icons.Default.SkipNext,
+                    contentDescription = "跳过今日",
+                    tint = InkStoneTextDim,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }
@@ -247,9 +280,9 @@ fun QuestionContent(
     question: Mistake,
     currentIndex: Int,
     totalCount: Int,
-    selectedAnswer: String?,
+    selectedAnswers: Set<String>,
     showResult: Boolean,
-    onSelectAnswer: (String) -> Unit,
+    onToggleAnswer: (String) -> Unit,
     onSubmit: () -> Unit,
     onMarkCorrect: () -> Unit,
     onMarkWrong: () -> Unit,
@@ -294,7 +327,7 @@ fun QuestionContent(
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(text = question.correctAnswer, color = InkStoneText, fontSize = 16.sp)
+                            Text(text = question.recognizedQuestion.ifBlank { "（无识别题目）" }, color = InkStoneText, fontSize = 16.sp)
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(text = "（题目图片）", color = InkStoneTextDim, fontSize = 12.sp)
                         }
@@ -311,12 +344,16 @@ fun QuestionContent(
                     Text(text = "你的作答", color = InkStoneTextDim, fontSize = 12.sp)
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    if (question.questionType == QuestionType.CHOICE) {
+                    val isChoice = question.questionType == QuestionType.SINGLE_CHOICE || question.questionType == QuestionType.MULTI_CHOICE
+                    if (isChoice) {
+                        val isMulti = question.questionType == QuestionType.MULTI_CHOICE
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             listOf("A", "B", "C", "D").forEach { option ->
-                                val isSelected = selectedAnswer == option
+                                val isSelected = selectedAnswers.contains(option)
                                 Surface(
-                                    modifier = Modifier.fillMaxWidth().clickable { onSelectAnswer(option) },
+                                    modifier = Modifier.fillMaxWidth().clickable {
+                                        onToggleAnswer(option)
+                                    },
                                     color = if (isSelected) InkStoneAccent else InkStoneBg,
                                     shape = RoundedCornerShape(10.dp)
                                 ) {
@@ -324,10 +361,12 @@ fun QuestionContent(
                                         Text(text = option, color = if (isSelected) InkStoneBg else InkStoneText, fontSize = 16.sp)
                                         if (showResult) {
                                             Spacer(modifier = Modifier.width(12.dp))
+                                            val correctSet = question.correctAnswer.split(",").toSet()
+                                            val isCorrect = correctSet.contains(option)
                                             Icon(
-                                                imageVector = if (option == question.correctAnswer) Icons.Default.Check else Icons.Default.Close,
+                                                imageVector = if (isCorrect) Icons.Default.Check else Icons.Default.Close,
                                                 contentDescription = null,
-                                                tint = if (option == question.correctAnswer) InkStoneSuccess else InkStoneError,
+                                                tint = if (isCorrect) InkStoneSuccess else InkStoneError,
                                                 modifier = Modifier.size(20.dp)
                                             )
                                         }
@@ -359,11 +398,12 @@ fun QuestionContent(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            if (question.questionType == QuestionType.CHOICE) {
+                            if (isChoice) {
+                                val isMulti = question.questionType == QuestionType.MULTI_CHOICE
                                 Button(
                                     onClick = onSubmit,
                                     modifier = Modifier.weight(1f),
-                                    enabled = selectedAnswer != null,
+                                    enabled = if (isMulti) selectedAnswers.size >= 2 else selectedAnswers.isNotEmpty(),
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = InkStoneAccent,
                                         disabledContainerColor = InkStoneBorder

@@ -16,7 +16,7 @@ data class ReviewUiState(
     val isLoading: Boolean = true,
     val mistakes: List<Mistake> = emptyList(),
     val currentIndex: Int = 0,
-    val selectedAnswer: String? = null,
+    val selectedAnswers: Set<String> = emptySet(),  // 选择题答案（单选/多选都用这个）
     val showResult: Boolean = false,
     val currentRound: ReviewRound = ReviewRound.FIRST,
     val errorMessage: String? = null
@@ -52,12 +52,27 @@ class ReviewViewModel @Inject constructor(
         }
     }
 
+    fun refreshMistakes() {
+        loadMistakes()
+    }
+
     fun setCurrentIndex(index: Int) {
         _uiState.value = _uiState.value.copy(currentIndex = index)
     }
 
-    fun setSelectedAnswer(answer: String?) {
-        _uiState.value = _uiState.value.copy(selectedAnswer = answer)
+    fun toggleAnswer(answer: String) {
+        val current = _uiState.value.selectedAnswers
+        val isMulti = _uiState.value.mistakes.getOrNull(_uiState.value.currentIndex)?.questionType == QuestionType.MULTI_CHOICE
+
+        _uiState.value = _uiState.value.copy(
+            selectedAnswers = if (isMulti) {
+                // 多选：toggle
+                if (current.contains(answer)) current - answer else current + answer
+            } else {
+                // 单选：只保留一个
+                if (current.contains(answer)) emptySet() else setOf(answer)
+            }
+        )
     }
 
     fun setShowResult(show: Boolean) {
@@ -84,7 +99,7 @@ class ReviewViewModel @Inject constructor(
             if (state.currentIndex < state.mistakes.size - 1) {
                 _uiState.value = state.copy(
                     currentIndex = state.currentIndex + 1,
-                    selectedAnswer = null,
+                    selectedAnswers = emptySet(),
                     showResult = false
                 )
             } else {
@@ -107,16 +122,29 @@ class ReviewViewModel @Inject constructor(
                 isSkipped = true
             )
 
+            // 标记跳过今日，但不删除题目
+            repository.skipTodayReview(currentMistake.id)
+
             if (state.currentIndex < state.mistakes.size - 1) {
                 _uiState.value = state.copy(
                     currentIndex = state.currentIndex + 1,
-                    selectedAnswer = null,
+                    selectedAnswers = emptySet(),
                     showResult = false
                 )
             } else {
                 loadMistakes()
                 _uiState.value = _uiState.value.copy(currentIndex = 0)
             }
+        }
+    }
+
+    fun skipTodayReview(mistakeId: Long) {
+        viewModelScope.launch {
+            repository.skipTodayReview(mistakeId)
+            // 重新加载列表，将本题移除
+            val state = _uiState.value
+            val newList = state.mistakes.filterNot { it.id == mistakeId }
+            _uiState.value = state.copy(mistakes = newList)
         }
     }
 }

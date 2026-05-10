@@ -80,17 +80,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 支持拍照/相册选择题目图片
 - **拍照后裁剪确认**：拍照后弹出对话框，可选择"裁剪"或"直接使用"
 - **系统图库编辑**：裁剪使用系统图库（ACTION_EDIT），不同设备支持情况不同
-- 题目类型选择（选择题/大题）
+- **题目标题**：用户可输入标题，用于区分列表中的题目
+- 题目类型：**单选题**（A/B/C/D 选项按钮）/ **多选题**（2-4个正确答案）/ **大题**
 - 科目选择、知识点标签多选
-- 正确答案手动输入（识别结果仅显示题目，不自动填充答案）
+- **识别题目可编辑**：识别后显示在卡片中，可手动修改
 - **本地文字识别**：选择图片后自动触发 Tesseract OCR 识别（离线）
 - 数据保存到 Room 数据库
 
 ### 复习流程
 - `ui/screens/ReviewScreen.kt` + `ReviewViewModel.kt`
-- 复习列表：统计卡片（待复习/逾期/已完成）+ 开始按钮
-- 答题界面：题目显示 + 手写答题/选择题 + 提交
-- 选择题自动判断对错，大题手动标记
+- 复习列表：统计卡片（待复习/逾期/已完成）+ 点击列表项直接进入答题
+- **跳过今日**：在复习列表中点击跳过图标，不影响后续轮次
+- 答题界面：
+  - **题目显示**：显示 OCR 识别的题目文字（`recognizedQuestion`）
+  - 选择题（A/B/C/D 选项卡，单选/多选统一 UI）
+  - 大题：手写区域（与主页 HandwritingView 相同）
+  - 提交后显示对错标识
 - 进度条显示当前进度
 - 复习记录保存到 Room 数据库
 
@@ -99,6 +104,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `AppDatabase.kt`、`Dao.kt`、`Converters.kt`
 - `MistakeRepository.kt` 数据仓库
 - `Mistake`、`Review`、`Subject` 实体
+
+**Mistake 实体字段**：
+- `id`、`title`（题目标题）、`subject`、`tags`、`questionImagePath`
+- `recognizedQuestion`：识别出的题目文本（显示在复习界面）
+- `correctAnswer`：正确答案（单选题为选项字母，多选题为逗号分隔的字母）
+- `explanation`、`questionType`（SINGLE_CHOICE / MULTI_CHOICE / ESSAY）
+- `createdAt`、`wrongCount`、`skipToday`（跳过今日复习标记）
 
 ## 项目结构
 

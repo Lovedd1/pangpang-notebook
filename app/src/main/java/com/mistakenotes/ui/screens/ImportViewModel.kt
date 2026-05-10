@@ -25,9 +25,11 @@ import javax.inject.Inject
 
 data class ImportUiState(
     val imageUri: Uri? = null,
-    val questionType: QuestionType = QuestionType.CHOICE,
-    val recognizedQuestion: String = "",   // 识别出的题目（只读显示）
-    val correctAnswer: String = "",        // 正确答案（手动输入）
+    val questionType: QuestionType = QuestionType.SINGLE_CHOICE,
+    val title: String = "",           // 题目标题
+    val recognizedQuestion: String = "",   // 识别出的题目（可编辑）
+    val correctAnswer: String = "",        // 单选题正确答案 / 大题关键词
+    val selectedAnswers: Set<String> = emptySet(),  // 多选题已选答案（A,B,C,D）
     val subject: String = "数学",
     val selectedTags: Set<String> = emptySet(),
     val explanation: String = "",
@@ -61,11 +63,33 @@ class ImportViewModel @Inject constructor(
     }
 
     fun setQuestionType(type: QuestionType) {
-        _uiState.value = _uiState.value.copy(questionType = type)
+        _uiState.value = _uiState.value.copy(
+            questionType = type,
+            selectedAnswers = emptySet()  // 切换类型时清空多选题答案
+        )
+    }
+
+    fun setTitle(title: String) {
+        _uiState.value = _uiState.value.copy(title = title)
+    }
+
+    fun setRecognizedQuestion(text: String) {
+        _uiState.value = _uiState.value.copy(recognizedQuestion = text)
     }
 
     fun setCorrectAnswer(answer: String) {
         _uiState.value = _uiState.value.copy(correctAnswer = answer)
+    }
+
+    fun toggleAnswer(answer: String) {
+        val current = _uiState.value.selectedAnswers
+        _uiState.value = _uiState.value.copy(
+            selectedAnswers = if (current.contains(answer)) {
+                current - answer
+            } else {
+                current + answer
+            }
+        )
     }
 
     fun setSubject(subject: String) {
@@ -255,11 +279,19 @@ class ImportViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isSaving = true, errorMessage = null)
             try {
                 val state = _uiState.value
+                // 多选题的答案是 selectedAnswers 用逗号连接
+                val answer = if (state.questionType == QuestionType.MULTI_CHOICE) {
+                    state.selectedAnswers.joinToString(",")
+                } else {
+                    state.correctAnswer
+                }
                 val mistake = Mistake(
+                    title = state.title,
                     subject = state.subject,
                     tags = state.selectedTags.joinToString(","),
                     questionImagePath = imagePath,
-                    correctAnswer = state.correctAnswer,
+                    recognizedQuestion = state.recognizedQuestion,
+                    correctAnswer = answer,
                     explanation = state.explanation,
                     questionType = state.questionType
                 )

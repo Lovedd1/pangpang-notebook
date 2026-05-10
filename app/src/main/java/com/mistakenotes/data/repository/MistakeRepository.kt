@@ -40,6 +40,13 @@ class MistakeRepository @Inject constructor(
         }
     }
 
+    // 跳过今日复习（不影响后续轮次）
+    suspend fun skipTodayReview(mistakeId: Long) {
+        mistakeDao.getMistakeById(mistakeId)?.let { mistake ->
+            mistakeDao.updateMistake(mistake.copy(skipToday = true))
+        }
+    }
+
     // 科目管理
     suspend fun getAllSubjects(): List<Subject> = subjectDao.getAllSubjects()
     suspend fun insertSubject(subject: Subject) = subjectDao.insertSubject(subject)

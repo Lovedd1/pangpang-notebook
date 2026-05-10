@@ -16,14 +16,23 @@ import com.mistakenotes.ui.components.PaperColor
 @Composable
 fun MainScreen() {
     var currentScreen by remember { mutableStateOf("home") }
+    var refreshReview by remember { mutableStateOf(0) }
+
+    LaunchedEffect(refreshReview) {
+        // 当 refreshReview 变化时，ReviewScreen 会自动刷新
+    }
 
     when (currentScreen) {
         "import" -> ImportScreen(
             onNavigateBack = { currentScreen = "home" },
-            onSaveSuccess = { currentScreen = "home" }
+            onSaveSuccess = {
+                currentScreen = "home"
+                refreshReview++  // 触发复习列表刷新
+            }
         )
         "review" -> ReviewScreen(
-            onNavigateBack = { currentScreen = "home" }
+            onNavigateBack = { currentScreen = "home" },
+            refreshTrigger = refreshReview
         )
         else -> HomeScreen(
             onNavigateToImport = { currentScreen = "import" },

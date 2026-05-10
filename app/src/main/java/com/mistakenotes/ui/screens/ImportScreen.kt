@@ -288,7 +288,7 @@ fun ImportScreen(
             }
         }
 
-        // 显示识别题目
+        // 显示识别题目（可编辑）
         if (uiState.recognizedTextVisible && uiState.recognizedQuestion.isNotBlank()) {
             Spacer(modifier = Modifier.height(12.dp))
             Card(
@@ -302,7 +302,7 @@ fun ImportScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "识别题目",
+                            text = "识别题目（可编辑）",
                             color = InkStoneAccent,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium
@@ -319,11 +319,19 @@ fun ImportScreen(
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = uiState.recognizedQuestion,
-                        color = InkStoneText,
-                        fontSize = 13.sp
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = uiState.recognizedQuestion,
+                        onValueChange = { viewModel.setRecognizedQuestion(it) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = InkStoneAccent,
+                            unfocusedBorderColor = InkStoneBorder,
+                            focusedTextColor = InkStoneText,
+                            unfocusedTextColor = InkStoneText,
+                            cursorColor = InkStoneAccent
+                        ),
+                        minLines = 2
                     )
                 }
             }
@@ -335,20 +343,31 @@ fun ImportScreen(
         Spacer(modifier = Modifier.height(8.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             FilterChip(
-                selected = uiState.questionType == QuestionType.CHOICE,
-                onClick = { viewModel.setQuestionType(QuestionType.CHOICE) },
-                label = { Text("选择题") },
-                leadingIcon = if (uiState.questionType == QuestionType.CHOICE) {
+                selected = uiState.questionType == QuestionType.SINGLE_CHOICE,
+                onClick = { viewModel.setQuestionType(QuestionType.SINGLE_CHOICE) },
+                label = { Text("单选") },
+                leadingIcon = if (uiState.questionType == QuestionType.SINGLE_CHOICE) {
                     { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
                 } else null,
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = InkStoneAccent,
                     selectedLabelColor = InkStoneBg
-                ),
-                modifier = Modifier.weight(1f)
+                )
+            )
+            FilterChip(
+                selected = uiState.questionType == QuestionType.MULTI_CHOICE,
+                onClick = { viewModel.setQuestionType(QuestionType.MULTI_CHOICE) },
+                label = { Text("多选") },
+                leadingIcon = if (uiState.questionType == QuestionType.MULTI_CHOICE) {
+                    { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
+                } else null,
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = InkStoneAccent,
+                    selectedLabelColor = InkStoneBg
+                )
             )
             FilterChip(
                 selected = uiState.questionType == QuestionType.ESSAY,
@@ -360,22 +379,18 @@ fun ImportScreen(
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = InkStoneAccent,
                     selectedLabelColor = InkStoneBg
-                ),
-                modifier = Modifier.weight(1f)
+                )
             )
         }
 
+        // 题目标题
         Spacer(modifier = Modifier.height(20.dp))
-
-        Text(
-            text = if (uiState.questionType == QuestionType.CHOICE) "正确答案（选项）" else "正确答案（关键词）",
-            color = InkStoneTextDim, fontSize = 12.sp
-        )
+        Text(text = "题目标题", color = InkStoneTextDim, fontSize = 12.sp)
         Spacer(modifier = Modifier.height(8.dp))
         OutlinedTextField(
-            value = uiState.correctAnswer,
-            onValueChange = { viewModel.setCorrectAnswer(it) },
-            placeholder = { Text("如：C 或 化简求值", color = InkStoneTextDim) },
+            value = uiState.title,
+            onValueChange = { viewModel.setTitle(it) },
+            placeholder = { Text("输入题目标题（用于区分列表中的题目）", color = InkStoneTextDim) },
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = InkStoneAccent,
@@ -386,6 +401,61 @@ fun ImportScreen(
             ),
             singleLine = true
         )
+
+        // 单选题和多选题答案选项
+        if (uiState.questionType == QuestionType.SINGLE_CHOICE || uiState.questionType == QuestionType.MULTI_CHOICE) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = if (uiState.questionType == QuestionType.SINGLE_CHOICE) "选择正确答案" else "选择正确答案（2-4个）",
+                color = InkStoneTextDim, fontSize = 12.sp
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                listOf("A", "B", "C", "D").forEach { option ->
+                    val isSelected = if (uiState.questionType == QuestionType.SINGLE_CHOICE) {
+                        uiState.correctAnswer == option
+                    } else {
+                        uiState.selectedAnswers.contains(option)
+                    }
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = {
+                            if (uiState.questionType == QuestionType.SINGLE_CHOICE) {
+                                viewModel.setCorrectAnswer(option)
+                            } else {
+                                viewModel.toggleAnswer(option)
+                            }
+                        },
+                        label = { Text(option) },
+                        leadingIcon = if (isSelected) {
+                            { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
+                        } else null,
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = InkStoneAccent,
+                            selectedLabelColor = InkStoneBg
+                        )
+                    )
+                }
+            }
+            if (uiState.questionType == QuestionType.SINGLE_CHOICE && uiState.correctAnswer.isNotBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "已选：${uiState.correctAnswer}",
+                    color = InkStoneAccent,
+                    fontSize = 12.sp
+                )
+            } else if (uiState.questionType == QuestionType.MULTI_CHOICE && uiState.selectedAnswers.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "已选：${uiState.selectedAnswers.sorted().joinToString(", ")}",
+                    color = InkStoneAccent,
+                    fontSize = 12.sp
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(20.dp))
 
@@ -467,7 +537,11 @@ fun ImportScreen(
             modifier = Modifier.fillMaxWidth().height(52.dp),
             colors = ButtonDefaults.buttonColors(containerColor = InkStoneAccent),
             shape = RoundedCornerShape(12.dp),
-            enabled = !uiState.isSaving && uiState.imageUri != null && uiState.correctAnswer.isNotBlank()
+            enabled = !uiState.isSaving && uiState.imageUri != null && when (uiState.questionType) {
+                QuestionType.SINGLE_CHOICE -> uiState.correctAnswer.isNotBlank()
+                QuestionType.MULTI_CHOICE -> uiState.selectedAnswers.size >= 2
+                QuestionType.ESSAY -> uiState.correctAnswer.isNotBlank()
+            }
         ) {
             if (uiState.isSaving) {
                 Text("保存中...", fontSize = 16.sp, color = InkStoneBg)
