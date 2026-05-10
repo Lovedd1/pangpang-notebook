@@ -355,20 +355,17 @@ fun QuestionContent(
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
-                    Text(text = "你的作答", color = InkStoneTextDim, fontSize = 12.sp)
+                    Text(text = if (isDraftMode) "草稿纸" else "你的作答", color = InkStoneTextDim, fontSize = 12.sp)
                     Spacer(modifier = Modifier.height(12.dp))
+
+                    val isChoice = question.questionType == QuestionType.SINGLE_CHOICE || question.questionType == QuestionType.MULTI_CHOICE
 
                     if (isDraftMode) {
                         // 草稿纸模式 - 显示 HandwritingView
                         Box(
                             modifier = Modifier.fillMaxWidth().weight(1f).background(InkStoneBg, RoundedCornerShape(12.dp))
                         ) {
-                            draftHandwritingView?.let { view ->
-                                androidx.compose.ui.viewinterop.AndroidView(
-                                    modifier = Modifier.fillMaxSize(),
-                                    factory = { view }
-                                )
-                            } ?: androidx.compose.ui.viewinterop.AndroidView(
+                            androidx.compose.ui.viewinterop.AndroidView(
                                 modifier = Modifier.fillMaxSize(),
                                 factory = { context ->
                                     HandwritingView(context).apply {
@@ -381,7 +378,6 @@ fun QuestionContent(
                         }
                     } else {
                         // 答题模式 - 原有的 A/B/C/D 选项或 HandwritingView
-                        val isChoice = question.questionType == QuestionType.SINGLE_CHOICE || question.questionType == QuestionType.MULTI_CHOICE
                         if (isChoice) {
                             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 listOf("A", "B", "C", "D").forEach { option ->
@@ -443,7 +439,7 @@ fun QuestionContent(
                             ) {
                                 Icon(Icons.Default.Edit, null, Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("草稿纸")
+                                Text(if (isDraftMode) "返回答题" else "草稿纸")
                             }
                             if (isChoice) {
                                 val isMulti = question.questionType == QuestionType.MULTI_CHOICE
