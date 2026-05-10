@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -33,6 +34,7 @@ fun ReviewScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var handwritingView by remember { mutableStateOf<HandwritingView?>(null) }
+    var draftHandwritingView by remember { mutableStateOf<HandwritingView?>(null) }
 
     // 当 refreshTrigger 变化时，重新加载数据
     LaunchedEffect(refreshTrigger) {
@@ -78,10 +80,18 @@ fun ReviewScreen(
                             totalCount = uiState.mistakes.size,
                             selectedAnswers = uiState.selectedAnswers,
                             showResult = uiState.showResult,
+                            isDraftMode = uiState.isDraftMode,
+                            onToggleDraftMode = { viewModel.toggleDraftMode() },
                             onToggleAnswer = { viewModel.toggleAnswer(it) },
                             onSubmit = { viewModel.submitAnswer() },
-                            onMarkCorrect = { viewModel.markAnswer(true) },
-                            onMarkWrong = { viewModel.markAnswer(false) },
+                            onMarkCorrect = {
+                                draftHandwritingView?.clear()
+                                viewModel.markAnswer(true)
+                            },
+                            onMarkWrong = {
+                                draftHandwritingView?.clear()
+                                viewModel.markAnswer(false)
+                            },
                             onSkip = { viewModel.skipQuestion() },
                             onBack = {
                                 if (uiState.showResult) {
@@ -90,7 +100,8 @@ fun ReviewScreen(
                                     currentPhase = "list"
                                 }
                             },
-                            onViewRefReady = { handwritingView = it }
+                            onViewRefReady = { handwritingView = it },
+                            onDraftViewRefReady = { draftHandwritingView = it }
                         )
                     }
                 }
@@ -282,13 +293,16 @@ fun QuestionContent(
     totalCount: Int,
     selectedAnswers: Set<String>,
     showResult: Boolean,
+    isDraftMode: Boolean,
+    onToggleDraftMode: () -> Unit,
     onToggleAnswer: (String) -> Unit,
     onSubmit: () -> Unit,
     onMarkCorrect: () -> Unit,
     onMarkWrong: () -> Unit,
     onSkip: () -> Unit,
     onBack: () -> Unit,
-    onViewRefReady: (HandwritingView) -> Unit
+    onViewRefReady: (HandwritingView) -> Unit,
+    onDraftViewRefReady: (HandwritingView) -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxSize().background(InkStoneBg)
@@ -344,50 +358,73 @@ fun QuestionContent(
                     Text(text = "你的作答", color = InkStoneTextDim, fontSize = 12.sp)
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    val isChoice = question.questionType == QuestionType.SINGLE_CHOICE || question.questionType == QuestionType.MULTI_CHOICE
-                    if (isChoice) {
-                        val isMulti = question.questionType == QuestionType.MULTI_CHOICE
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            listOf("A", "B", "C", "D").forEach { option ->
-                                val isSelected = selectedAnswers.contains(option)
-                                Surface(
-                                    modifier = Modifier.fillMaxWidth().clickable {
-                                        onToggleAnswer(option)
-                                    },
-                                    color = if (isSelected) InkStoneAccent else InkStoneBg,
-                                    shape = RoundedCornerShape(10.dp)
-                                ) {
-                                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        Text(text = option, color = if (isSelected) InkStoneBg else InkStoneText, fontSize = 16.sp)
-                                        if (showResult) {
-                                            Spacer(modifier = Modifier.width(12.dp))
-                                            val correctSet = question.correctAnswer.split(",").toSet()
-                                            val isCorrect = correctSet.contains(option)
-                                            Icon(
-                                                imageVector = if (isCorrect) Icons.Default.Check else Icons.Default.Close,
-                                                contentDescription = null,
-                                                tint = if (isCorrect) InkStoneSuccess else InkStoneError,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } else {
+                    if (isDraftMode) {
+                        // 草稿纸模式 - 显示 HandwritingView
                         Box(
                             modifier = Modifier.fillMaxWidth().weight(1f).background(InkStoneBg, RoundedCornerShape(12.dp))
                         ) {
-                            androidx.compose.ui.viewinterop.AndroidView(
+                            draftHandwritingView?.let { view ->
+                                androidx.compose.ui.viewinterop.AndroidView(
+                                    modifier = Modifier.fillMaxSize(),
+                                    factory = { view }
+                                )
+                            } ?: androidx.compose.ui.viewinterop.AndroidView(
                                 modifier = Modifier.fillMaxSize(),
                                 factory = { context ->
                                     HandwritingView(context).apply {
                                         setBackgroundColor(android.graphics.Color.parseColor("#242424"))
                                         fingerColor = android.graphics.Color.parseColor("#E8E4DC")
                                         fingerStrokeWidth = 4f
-                                    }.also { onViewRefReady(it) }
+                                    }.also { onDraftViewRefReady(it) }
                                 }
                             )
+                        }
+                    } else {
+                        // 答题模式 - 原有的 A/B/C/D 选项或 HandwritingView
+                        val isChoice = question.questionType == QuestionType.SINGLE_CHOICE || question.questionType == QuestionType.MULTI_CHOICE
+                        if (isChoice) {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                listOf("A", "B", "C", "D").forEach { option ->
+                                    val isSelected = selectedAnswers.contains(option)
+                                    Surface(
+                                        modifier = Modifier.fillMaxWidth().clickable {
+                                            onToggleAnswer(option)
+                                        },
+                                        color = if (isSelected) InkStoneAccent else InkStoneBg,
+                                        shape = RoundedCornerShape(10.dp)
+                                    ) {
+                                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                            Text(text = option, color = if (isSelected) InkStoneBg else InkStoneText, fontSize = 16.sp)
+                                            if (showResult) {
+                                                Spacer(modifier = Modifier.width(12.dp))
+                                                val correctSet = question.correctAnswer.split(",").toSet()
+                                                val isCorrect = correctSet.contains(option)
+                                                Icon(
+                                                    imageVector = if (isCorrect) Icons.Default.Check else Icons.Default.Close,
+                                                    contentDescription = null,
+                                                    tint = if (isCorrect) InkStoneSuccess else InkStoneError,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier.fillMaxWidth().weight(1f).background(InkStoneBg, RoundedCornerShape(12.dp))
+                            ) {
+                                androidx.compose.ui.viewinterop.AndroidView(
+                                    modifier = Modifier.fillMaxSize(),
+                                    factory = { context ->
+                                        HandwritingView(context).apply {
+                                            setBackgroundColor(android.graphics.Color.parseColor("#242424"))
+                                            fingerColor = android.graphics.Color.parseColor("#E8E4DC")
+                                            fingerStrokeWidth = 4f
+                                        }.also { onViewRefReady(it) }
+                                    }
+                                )
+                            }
                         }
                     }
 
@@ -398,6 +435,16 @@ fun QuestionContent(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
+                            OutlinedButton(
+                                onClick = onToggleDraftMode,
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = InkStoneAccent),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Icon(Icons.Default.Edit, null, Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("草稿纸")
+                            }
                             if (isChoice) {
                                 val isMulti = question.questionType == QuestionType.MULTI_CHOICE
                                 Button(
