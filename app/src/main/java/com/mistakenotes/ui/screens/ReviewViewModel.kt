@@ -19,7 +19,8 @@ data class ReviewUiState(
     val selectedAnswers: Set<String> = emptySet(),  // 选择题答案（单选/多选都用这个）
     val showResult: Boolean = false,
     val currentRound: ReviewRound = ReviewRound.FIRST,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val isDraftMode: Boolean = false  // 是否在草稿纸模式
 )
 
 @HiltViewModel
@@ -100,7 +101,8 @@ class ReviewViewModel @Inject constructor(
                 _uiState.value = state.copy(
                     currentIndex = state.currentIndex + 1,
                     selectedAnswers = emptySet(),
-                    showResult = false
+                    showResult = false,
+                    isDraftMode = false
                 )
             } else {
                 // Review complete - reload
@@ -129,7 +131,8 @@ class ReviewViewModel @Inject constructor(
                 _uiState.value = state.copy(
                     currentIndex = state.currentIndex + 1,
                     selectedAnswers = emptySet(),
-                    showResult = false
+                    showResult = false,
+                    isDraftMode = false
                 )
             } else {
                 loadMistakes()
@@ -146,5 +149,9 @@ class ReviewViewModel @Inject constructor(
             val newList = state.mistakes.filterNot { it.id == mistakeId }
             _uiState.value = state.copy(mistakes = newList)
         }
+    }
+
+    fun toggleDraftMode() {
+        _uiState.value = _uiState.value.copy(isDraftMode = !_uiState.value.isDraftMode)
     }
 }
