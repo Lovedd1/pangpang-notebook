@@ -154,4 +154,9 @@ class ReviewViewModel @Inject constructor(
     fun toggleDraftMode() {
         _uiState.value = _uiState.value.copy(isDraftMode = !_uiState.value.isDraftMode)
     }
+
+    fun clearDraft() {
+        // 由 ReviewScreen 直接调用 HandwritingView.clear()
+        // 此方法用于后续扩展或状态同步
+    }
 }
