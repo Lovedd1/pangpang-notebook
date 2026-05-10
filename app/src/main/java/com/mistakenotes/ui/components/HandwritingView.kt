@@ -3,16 +3,31 @@ package com.mistakenotes.ui.components
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.PointF
 import android.util.AttributeSet
 import android.view.MotionEvent
+import android.view.ScaleGestureDetector
 import android.view.View
 
 data class PathData(
     val path: Path,
     val paint: Paint
 )
+
+enum class CanvasBackground {
+    BLANK,   // 空白
+    GRID,    // 网格
+    LINES    // 横线
+}
+
+enum class PaperColor(val colorInt: Int) {
+    BLACK(Color.parseColor("#242424")),      // 黑色
+    WHITE(Color.parseColor("#FFFFFF")),     // 白色
+    SKIN(Color.parseColor("#F5E6D3"))       // 肉色/米黄
+}
 
 class HandwritingView @JvmOverloads constructor(
     context: Context,
@@ -28,6 +43,21 @@ class HandwritingView @JvmOverloads constructor(
         isPenMode = !isPenMode
         invalidate()
     }
+
+    // 画布背景类型
+    var canvasBackground: CanvasBackground = CanvasBackground.BLANK
+        set(value) {
+            field = value
+            invalidate()
+        }
+
+    // 纸张底色
+    var paperColor: PaperColor = PaperColor.BLACK
+        set(value) {
+            field = value
+            setBackgroundColor(value.colorInt)
+            invalidate()
+        }
 
     // 触控笔路径（单独管理）
     private val stylusPaths = mutableListOf<PathData>()
@@ -63,6 +93,68 @@ class HandwritingView @JvmOverloads constructor(
     // 采样距离阈值（像素），小于此值不采样，避免抖动
     private val sampleDistance = 2f
 
+    // 缩放相关
+    private var scaleFactor = 1f
+    private var translateX = 0f
+    private var translateY = 0f
+    private val minScale = 1f
+    private val maxScale = 5f
+
+    // View 尺寸
+    private var viewWidth = 0f
+    private var viewHeight = 0f
+
+    // 缩放比例回调（用于UI显示）
+    var onScaleChangeListener: ((Float) -> Unit)? = null
+
+    // 单指拖动相关（笔写模式下用手指拖动画布）
+    private var isSingleFingerDragging = false
+    private var singleFingerStartX = 0f
+    private var singleFingerStartY = 0f
+    private var dragStartTranslateX = 0f
+    private var dragStartTranslateY = 0f
+
+    // 双指拖动相关
+    private var lastTouchX = 0f
+    private var lastTouchY = 0f
+    private var isScaling = false
+    private var isDragging = false
+
+    // 双指缩放检测器
+    private val scaleGestureDetector = ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+        override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
+            isScaling = true
+            return true
+        }
+
+        override fun onScale(detector: ScaleGestureDetector): Boolean {
+            val oldScale = scaleFactor
+            scaleFactor *= detector.scaleFactor
+            scaleFactor = scaleFactor.coerceIn(minScale, maxScale)
+
+            // 以缩放中心点为基准调整平移
+            val focusX = detector.focusX
+            val focusY = detector.focusY
+            val scaleChange = scaleFactor / oldScale
+
+            translateX = focusX - (focusX - translateX) * scaleChange
+            translateY = focusY - (focusY - translateY) * scaleChange
+
+            // 限制拖动范围，内容不能完全移出可见区域
+            val maxTranslate = viewWidth * (scaleFactor - 1) / 2
+            translateX = translateX.coerceIn(-maxTranslate, maxTranslate)
+            translateY = translateY.coerceIn(-maxTranslate, maxTranslate)
+
+            onScaleChangeListener?.invoke(scaleFactor)
+            invalidate()
+            return true
+        }
+
+        override fun onScaleEnd(detector: ScaleGestureDetector) {
+            isScaling = false
+        }
+    })
+
     var stylusColor: Int = Color.parseColor("#D4A574")
         set(value) {
             field = value
@@ -87,45 +179,142 @@ class HandwritingView @JvmOverloads constructor(
             fingerPaint.strokeWidth = value
         }
 
-    // 点类
-    private data class PointF(val x: Float, val y: Float)
-
     init {
-        setBackgroundColor(Color.parseColor("#242424"))
+        setBackgroundColor(paperColor.colorInt)
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        viewWidth = w.toFloat()
+        viewHeight = h.toFloat()
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (dualModeEnabled) {
-            handleDualInput(event)
+        // 优先处理缩放手势
+        scaleGestureDetector.onTouchEvent(event)
+
+        // 如果正在缩放，不处理其他
+        if (isScaling) {
             return true
         }
-        return handleSingleInput(event)
-    }
 
-    private fun handleDualInput(event: MotionEvent) {
-        val pointerCount = event.pointerCount
+        // 双指拖动
+        when (event.actionMasked) {
+            MotionEvent.ACTION_POINTER_DOWN -> {
+                if (event.pointerCount == 2) {
+                    isDragging = true
+                    lastTouchX = (event.getX(0) + event.getX(1)) / 2
+                    lastTouchY = (event.getY(0) + event.getY(1)) / 2
+                    currentStylusPoints.clear()
+                    currentFingerPoints.clear()
+                    isSingleFingerDragging = false
+                }
+            }
+            MotionEvent.ACTION_POINTER_UP -> {
+                if (event.pointerCount <= 2) {
+                    isDragging = false
+                }
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                isDragging = false
+                isSingleFingerDragging = false
+            }
+        }
 
-        for (i in 0 until pointerCount) {
-            val toolType = event.getToolType(i)
-            val x = event.getX(i)
-            val y = event.getY(i)
+        // 双指拖动
+        if (isDragging && event.pointerCount == 2) {
+            val x = (event.getX(0) + event.getX(1)) / 2
+            val y = (event.getY(0) + event.getY(1)) / 2
+
+            translateX += x - lastTouchX
+            translateY += y - lastTouchY
+
+            // 限制拖动范围
+            val maxTranslate = viewWidth * (scaleFactor - 1) / 2
+            translateX = translateX.coerceIn(-maxTranslate, maxTranslate)
+            translateY = translateY.coerceIn(-maxTranslate, maxTranslate)
+
+            lastTouchX = x
+            lastTouchY = y
+            invalidate()
+            return true
+        }
+
+        // 单指处理（根据模式决定是书写还是拖动）
+        if (event.pointerCount == 1) {
+            val x = event.x
+            val y = event.y
+
+            val toolType = event.getToolType(0)
 
             when (toolType) {
                 MotionEvent.TOOL_TYPE_STYLUS -> {
-                    // 笔写模式时触控笔可写，手写模式时触控笔不可写
+                    // 触控笔：笔写模式下书写
                     if (isPenMode) {
-                        handleStylusEvent(event.actionMasked, x, y)
+                        handleStylusTouch(event.action, x, y)
                     }
                 }
                 MotionEvent.TOOL_TYPE_FINGER,
                 MotionEvent.TOOL_TYPE_MOUSE -> {
-                    // 手写模式时手指可写，笔写模式时手指不可写
+                    if (isPenMode) {
+                        // 笔写模式下，手指单指用于拖动画布
+                        handleSingleFingerDrag(event.action, x, y)
+                    } else {
+                        // 手写模式下，手指用于书写
+                        handleFingerEvent(event.action, x, y)
+                    }
+                }
+                else -> {
                     if (!isPenMode) {
-                        handleFingerEvent(event.actionMasked, x, y)
+                        handleFingerEvent(event.action, x, y)
                     }
                 }
             }
+            return true
         }
+
+        return true
+    }
+
+    private fun handleSingleFingerDrag(action: Int, x: Float, y: Float) {
+        when (action) {
+            MotionEvent.ACTION_DOWN -> {
+                isSingleFingerDragging = true
+                singleFingerStartX = x
+                singleFingerStartY = y
+                dragStartTranslateX = translateX
+                dragStartTranslateY = translateY
+            }
+            MotionEvent.ACTION_MOVE -> {
+                if (isSingleFingerDragging) {
+                    val newTranslateX = dragStartTranslateX + (x - singleFingerStartX)
+                    val newTranslateY = dragStartTranslateY + (y - singleFingerStartY)
+
+                    // 限制拖动范围
+                    val maxTranslate = viewWidth * (scaleFactor - 1) / 2
+                    translateX = newTranslateX.coerceIn(-maxTranslate, maxTranslate)
+                    translateY = newTranslateY.coerceIn(-maxTranslate, maxTranslate)
+                    invalidate()
+                }
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                isSingleFingerDragging = false
+            }
+        }
+    }
+
+    // 触控笔书写时也要考虑画布变换
+    private fun handleStylusTouch(action: Int, screenX: Float, screenY: Float) {
+        val canvasX = (screenX - translateX) / scaleFactor
+        val canvasY = (screenY - translateY) / scaleFactor
+        handleStylusEvent(action, canvasX, canvasY)
+    }
+
+    // 手指书写时也要考虑画布变换
+    private fun handleFingerTouch(action: Int, screenX: Float, screenY: Float) {
+        val canvasX = (screenX - translateX) / scaleFactor
+        val canvasY = (screenY - translateY) / scaleFactor
+        handleFingerEvent(action, canvasX, canvasY)
     }
 
     private fun handleStylusEvent(action: Int, x: Float, y: Float) {
@@ -135,7 +324,6 @@ class HandwritingView @JvmOverloads constructor(
                 currentStylusPoints.add(PointF(x, y))
             }
             MotionEvent.ACTION_MOVE -> {
-                // 距离采样：避免过于密集的点
                 val last = currentStylusPoints.last()
                 val dx = x - last.x
                 val dy = y - last.y
@@ -181,11 +369,8 @@ class HandwritingView @JvmOverloads constructor(
         invalidate()
     }
 
-    private fun handleSingleInput(event: MotionEvent): Boolean {
-        val x = event.x
-        val y = event.y
-
-        when (event.action) {
+    private fun handleSingleInput(action: Int, x: Float, y: Float): Boolean {
+        when (action) {
             MotionEvent.ACTION_DOWN -> {
                 currentFingerPoints.clear()
                 currentFingerPoints.add(PointF(x, y))
@@ -220,26 +405,21 @@ class HandwritingView @JvmOverloads constructor(
 
         when {
             points.size == 2 -> {
-                // 只有两个点，直接连线
                 path.lineTo(points[1].x, points[1].y)
             }
             points.size == 3 -> {
-                // 三个点，用二次贝塞尔曲线（更精确控制）
                 path.quadTo(
                     points[1].x, points[1].y,
                     points[2].x, points[2].y
                 )
             }
             else -> {
-                // 四个点以上：用 Catmull-Rom 样条插值
                 for (i in 0 until points.size - 1) {
                     val p0 = if (i > 0) points[i - 1] else points[0]
                     val p1 = points[i]
                     val p2 = points[i + 1]
                     val p3 = if (i < points.size - 2) points[i + 2] else points[points.size - 1]
 
-                    // Catmull-Rom 到 二阶贝塞尔 的转换
-                    // 控制点 = 当前点 + (下一个点 - 前一个点) / 6
                     val cp1x = p1.x + (p2.x - p0.x) / 6f
                     val cp1y = p1.y + (p2.y - p0.y) / 6f
                     val cp2x = p2.x - (p3.x - p1.x) / 6f
@@ -253,13 +433,30 @@ class HandwritingView @JvmOverloads constructor(
         return path
     }
 
-    // 构建当前正在绘制的路径（实时预览）
     private fun buildCurrentPath(points: List<PointF>): Path {
         return buildSmoothPath(points)
     }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+
+        // 保存canvas状态（包含当前变换）
+        canvas.save()
+
+        // 裁剪到内容可见区域（在变换之前应用，所以是屏幕坐标）
+        // 内容区域：translateX 到 translateX + viewWidth*scaleFactor
+        val screenLeft = maxOf(0f, translateX)
+        val screenTop = maxOf(0f, translateY)
+        val screenRight = minOf(width.toFloat(), viewWidth * scaleFactor + translateX)
+        val screenBottom = minOf(height.toFloat(), viewHeight * scaleFactor + translateY)
+        canvas.clipRect(screenLeft, screenTop, screenRight, screenBottom)
+
+        // 应用缩放和平移变换
+        canvas.translate(translateX, translateY)
+        canvas.scale(scaleFactor, scaleFactor)
+
+        // 绘制背景（网格或横线）
+        drawCanvasBackground(canvas)
 
         // 绘制手指路径
         fingerPaths.forEach { pathData ->
@@ -279,6 +476,52 @@ class HandwritingView @JvmOverloads constructor(
         // 绘制当前触控笔路径（实时预览）
         if (currentStylusPoints.size >= 2) {
             canvas.drawPath(buildCurrentPath(currentStylusPoints), stylusPaint)
+        }
+
+        canvas.restore()
+    }
+
+    private fun drawCanvasBackground(canvas: Canvas) {
+        // 根据纸张底色选择线条颜色
+        val lineColor = when (paperColor) {
+            PaperColor.BLACK -> Color.parseColor("#3A3A3A")  // 深灰线
+            PaperColor.WHITE -> Color.parseColor("#CCCCCC") // 浅灰线
+            PaperColor.SKIN -> Color.parseColor("#D4C4B0")  // 暖灰线
+        }
+
+        val linePaint = Paint().apply {
+            color = lineColor
+            strokeWidth = 1f
+            style = Paint.Style.STROKE
+        }
+
+        when (canvasBackground) {
+            CanvasBackground.BLANK -> {
+                // 不绘制背景
+            }
+            CanvasBackground.GRID -> {
+                // 绘制网格（20dp 间隔）
+                val gridSize = 40f
+                var x = 0f
+                while (x <= viewWidth) {
+                    canvas.drawLine(x, 0f, x, viewHeight, linePaint)
+                    x += gridSize
+                }
+                var y = 0f
+                while (y <= viewHeight) {
+                    canvas.drawLine(0f, y, viewWidth, y, linePaint)
+                    y += gridSize
+                }
+            }
+            CanvasBackground.LINES -> {
+                // 绘制横线（40dp 间隔）
+                val lineSpacing = 60f
+                var y = lineSpacing
+                while (y <= viewHeight) {
+                    canvas.drawLine(0f, y, viewWidth, y, linePaint)
+                    y += lineSpacing
+                }
+            }
         }
     }
 
@@ -315,6 +558,18 @@ class HandwritingView @JvmOverloads constructor(
         }
         invalidate()
     }
+
+    // 重置缩放和平移到初始状态
+    fun resetTransform() {
+        scaleFactor = 1f
+        translateX = 0f
+        translateY = 0f
+        onScaleChangeListener?.invoke(scaleFactor)
+        invalidate()
+    }
+
+    // 获取当前缩放比例
+    fun getScale(): Float = scaleFactor
 
     fun getStylusPaths(): List<PathData> = stylusPaths.toList()
     fun getFingerPaths(): List<PathData> = fingerPaths.toList()
