@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 错题笔记应用：支持手写的小米 6 Pro 平板应用，用于学习考试类错题的记录、整理和复习。纯本地使用，备份至百度网盘或夸克网盘。
 
 - 设计规格：`docs/superpowers/specs/2026-05-08-mistake-notes-design.md`
+- 草稿纸功能设计：`docs/superpowers/specs/2026-05-10-draft-paper-design.md`
 - 前端原型：`docs/prototypes/砚台版-full.html`
 
 ## 技术栈
@@ -95,6 +96,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - **题目显示**：显示 OCR 识别的题目文字（`recognizedQuestion`）
   - 选择题（A/B/C/D 选项卡，单选/多选统一 UI）
   - 大题：手写区域（与主页 HandwritingView 相同）
+  - **草稿纸**：点击"草稿纸"按钮切换到手写画布，用于计算和思考，笔记保留，提交后自动清除
   - 提交后显示对错标识
 - 进度条显示当前进度
 - 复习记录保存到 Room 数据库
