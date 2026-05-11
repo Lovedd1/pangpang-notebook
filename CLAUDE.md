@@ -107,6 +107,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### 草稿纸功能（复习界面）
 - `DraftModeContent` composable（位于 ReviewScreen.kt）
+- `ui/components/BitmapDraftView.kt` — 基于 Bitmap 的手写视图，支持像素级橡皮擦
+- **核心组件**（`ui/components/drawing/`）：
+  - `CoordTransformer.kt` — 统一坐标变换器
+  - `Stroke.kt` — 笔画数据模型
+  - `StrokeRecorder.kt` — 笔画级撤销记录器（内存降低10x）
 - **工具栏**：
   - 倍率显示（实时更新）
   - 底色选择：黑色、白色、肉色
@@ -115,9 +120,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - 橡皮擦工具（带大小 S/M/L 选择）
   - 清空按钮
 - **A4 纸张**：默认 A4 比例（210mm x 297mm）
-- **橡皮擦**：基于 Path 删除，非像素级擦除
 - **缩放**：双指缩放（笔写模式用触控笔时禁用）
 - **缩放范围**：100% - 500%
+- **笔类型**：钢笔（圆头）/ 圆珠笔（尖头）
+- **笔迹颜色**：金色（#D4A574）
 
 ### 数据库
 - Room + KSP 编译器
@@ -154,7 +160,12 @@ app/src/main/java/com/mistakenotes/
 └── ui/
     ├── theme/                   # Compose 主题（砚台风格）
     ├── components/
-    │   └── HandwritingView.kt    # 手写画布（原生 View，Path 矢量绘制）
+    │   ├── HandwritingView.kt    # 手写画布（原生 View，Path 矢量绘制）
+    │   ├── BitmapDraftView.kt    # 草稿纸画布（Bitmap 绘制，像素级橡皮擦）
+    │   └── drawing/              # 绘制相关组件
+    │       ├── CoordTransformer.kt  # 坐标变换器
+    │       ├── Stroke.kt             # 笔画数据模型
+    │       └── StrokeRecorder.kt     # 笔画记录器
     └── screens/
         ├── MainScreen.kt         # 主页面（首页+导航）
         ├── ImportScreen.kt       # 错题录入页面
