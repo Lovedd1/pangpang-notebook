@@ -9,12 +9,19 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AllInclusive
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoFixHigh
+import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Create
+import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Redo
 import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mistakenotes.domain.model.Mistake
 import com.mistakenotes.domain.model.QuestionType
+import com.mistakenotes.ui.components.BitmapDraftView
 import com.mistakenotes.ui.components.CanvasBackground
 import com.mistakenotes.ui.components.HandwritingView
 import com.mistakenotes.ui.components.PaperColor
@@ -43,7 +51,7 @@ fun ReviewScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var handwritingView by remember { mutableStateOf<HandwritingView?>(null) }
-    var draftHandwritingView by remember { mutableStateOf<HandwritingView?>(null) }
+    var draftHandwritingView by remember { mutableStateOf<BitmapDraftView?>(null) }
 
     // 当 refreshTrigger 变化时，重新加载数据
     LaunchedEffect(refreshTrigger) {
@@ -94,11 +102,11 @@ fun ReviewScreen(
                             onToggleAnswer = { viewModel.toggleAnswer(it) },
                             onSubmit = { viewModel.submitAnswer() },
                             onMarkCorrect = {
-                                draftHandwritingView?.clear()
+                                draftHandwritingView?.clearDirect()
                                 viewModel.markAnswer(true)
                             },
                             onMarkWrong = {
-                                draftHandwritingView?.clear()
+                                draftHandwritingView?.clearDirect()
                                 viewModel.markAnswer(false)
                             },
                             onSkip = { viewModel.skipQuestion() },
@@ -295,203 +303,457 @@ fun ReviewListItem(item: Mistake, round: Int, status: String, onClick: () -> Uni
     }
 }
 
+// 全屏工具栏 - 位于整个屏幕顶部
 @Composable
-fun DraftModeContent(
-    onDraftViewRefReady: (HandwritingView) -> Unit,
+fun DraftToolbar(
+    modifier: Modifier = Modifier,
     paperColor: PaperColor,
     canvasBackground: CanvasBackground,
     isEraserMode: Boolean,
     isPenMode: Boolean,
     eraserRadius: Float,
+    strokeWidthLevel: BitmapDraftView.StrokeWidthLevel,
+    penType: BitmapDraftView.PenType,
+    penColor: Int,
+    isInfiniteCanvas: Boolean,
     onPaperColorChange: (PaperColor) -> Unit,
     onCanvasBgChange: (CanvasBackground) -> Unit,
     onEraserModeToggle: () -> Unit,
     onEraserRadiusChange: (Float) -> Unit,
     onPenModeToggle: () -> Unit,
+    onStrokeWidthChange: (BitmapDraftView.StrokeWidthLevel) -> Unit,
+    onPenTypeChange: (BitmapDraftView.PenType) -> Unit,
+    onPenColorChange: (Int) -> Unit,
+    onInfiniteCanvasToggle: () -> Unit,
+    onUndo: () -> Unit,
+    onRedo: () -> Unit,
     onClear: () -> Unit
 ) {
-    val context = LocalContext.current
-    var currentScale by remember { mutableFloatStateOf(1f) }
-    val handwritingView = remember {
-        HandwritingView(context).apply {
-            setBackgroundColor(android.graphics.Color.parseColor("#242424"))
-            fingerColor = android.graphics.Color.parseColor("#E8E4DC")
-            fingerStrokeWidth = 4f
-            onScaleChangeListener = { scale -> currentScale = scale }
-        }.also { onDraftViewRefReady(it) }
-    }
+    var selectedTool by remember { mutableStateOf("pen") } // pen, eraser, paper
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        // 工具栏
+    Row(
+        modifier = modifier.height(44.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // 左侧主工具栏 (80%)
         Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .weight(0.8f)
+                .fillMaxHeight(),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 倍率显示
+            // 笔按钮
             Surface(
-                color = InkStoneBg,
-                shape = RoundedCornerShape(8.dp)
+                modifier = Modifier
+                    .size(32.dp)
+                    .clickable { selectedTool = "pen" },
+                color = if (!isEraserMode) InkStoneAccent else InkStoneBg,
+                shape = RoundedCornerShape(6.dp)
             ) {
-                Text(
-                    text = "${(currentScale * 100).toInt()}%",
-                    color = InkStoneText,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(4.dp))
-
-            // 底色选择
-            PaperColor.entries.forEach { color ->
-                val isSelected = paperColor == color
-                Box(
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clip(CircleShape)
-                        .background(Color(color.colorInt))
-                        .border(
-                            width = if (isSelected) 2.dp else 1.dp,
-                            color = if (isSelected) InkStoneAccent else InkStoneBorder,
-                            shape = CircleShape
-                        )
-                        .clickable { onPaperColorChange(color) }
-                )
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // 线型选择
-            CanvasBackground.entries.forEach { bg ->
-                val isSelected = canvasBackground == bg
-                Surface(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .clickable { onCanvasBgChange(bg) },
-                    color = if (isSelected) InkStoneAccent else InkStoneBg,
-                    shape = RoundedCornerShape(6.dp)
-                ) {
-                    Text(
-                        text = when (bg) {
-                            CanvasBackground.BLANK -> "空白"
-                            CanvasBackground.GRID -> "网格"
-                            CanvasBackground.LINES -> "横线"
-                        },
-                        color = if (isSelected) InkStoneBg else InkStoneTextDim,
-                        fontSize = 11.sp,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "笔",
+                        tint = if (!isEraserMode) InkStoneBg else InkStoneTextDim,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
-
             // 橡皮擦按钮
+            Surface(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clickable {
+                        selectedTool = "eraser"
+                        if (!isEraserMode) onEraserModeToggle()
+                    },
+                color = if (isEraserMode) InkStoneAccent else InkStoneBg,
+                shape = RoundedCornerShape(6.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.AutoFixHigh,
+                        contentDescription = "橡皮擦",
+                        tint = if (isEraserMode) InkStoneBg else InkStoneTextDim,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            // 分隔线
+            Divider(
+                modifier = Modifier
+                    .width(1.dp)
+                    .height(20.dp),
+                color = InkStoneBorder
+            )
+
+            // 撤销
             IconButton(
-                onClick = onEraserModeToggle,
+                onClick = onUndo,
                 modifier = Modifier.size(32.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = "橡皮擦",
-                    tint = if (isEraserMode) InkStoneAccent else InkStoneTextDim,
-                    modifier = Modifier.size(20.dp)
+                    imageVector = Icons.Default.Undo,
+                    contentDescription = "撤销",
+                    tint = InkStoneTextDim,
+                    modifier = Modifier.size(16.dp)
                 )
             }
 
-            // 笔写/手写模式切换
+            // 重做
+            IconButton(
+                onClick = onRedo,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Redo,
+                    contentDescription = "重做",
+                    tint = InkStoneTextDim,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+
+            // 分隔线
+            Divider(
+                modifier = Modifier
+                    .width(1.dp)
+                    .height(20.dp),
+                color = InkStoneBorder
+            )
+
+            // 纸张按钮
             Surface(
-                modifier = Modifier.clickable { onPenModeToggle() },
-                color = if (isPenMode) InkStoneAccent else InkStoneSurface,
+                modifier = Modifier
+                    .size(32.dp)
+                    .clickable { selectedTool = "paper" },
+                color = if (selectedTool == "paper") InkStoneAccent else InkStoneBg,
                 shape = RoundedCornerShape(6.dp)
             ) {
-                Text(
-                    text = if (isPenMode) "笔写" else "手写",
-                    color = if (isPenMode) InkStoneBg else InkStoneText,
-                    fontSize = 11.sp,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Dashboard,
+                        contentDescription = "纸张",
+                        tint = if (selectedTool == "paper") InkStoneBg else InkStoneTextDim,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
 
-            // 橡皮擦大小
-            if (isEraserMode) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Surface(
-                        modifier = Modifier.size(20.dp).clickable { onEraserRadiusChange(15f) },
-                        color = if (eraserRadius == 15f) InkStoneAccent else InkStoneBg,
-                        shape = RoundedCornerShape(4.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = "S",
-                                color = if (eraserRadius == 15f) InkStoneBg else InkStoneTextDim,
-                                fontSize = 10.sp
-                            )
-                        }
-                    }
-                    Surface(
-                        modifier = Modifier.size(20.dp).clickable { onEraserRadiusChange(30f) },
-                        color = if (eraserRadius == 30f) InkStoneAccent else InkStoneBg,
-                        shape = RoundedCornerShape(4.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = "M",
-                                color = if (eraserRadius == 30f) InkStoneBg else InkStoneTextDim,
-                                fontSize = 10.sp
-                            )
-                        }
-                    }
-                    Surface(
-                        modifier = Modifier.size(20.dp).clickable { onEraserRadiusChange(50f) },
-                        color = if (eraserRadius == 50f) InkStoneAccent else InkStoneBg,
-                        shape = RoundedCornerShape(4.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = "L",
-                                color = if (eraserRadius == 50f) InkStoneBg else InkStoneTextDim,
-                                fontSize = 10.sp
-                            )
-                        }
-                    }
+            // 无限画布
+            Surface(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clickable { onInfiniteCanvasToggle() },
+                color = if (isInfiniteCanvas) InkStoneAccent else InkStoneBg,
+                shape = RoundedCornerShape(6.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.AllInclusive,
+                        contentDescription = "无限画布",
+                        tint = if (isInfiniteCanvas) InkStoneBg else InkStoneTextDim,
+                        modifier = Modifier.size(16.dp)
+                    )
                 }
             }
 
             // 清空按钮
             IconButton(
-                onClick = {
-                    handwritingView.clear()
-                    onClear()
-                },
+                onClick = onClear,
                 modifier = Modifier.size(32.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "清空",
                     tint = InkStoneTextDim,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(16.dp)
                 )
             }
         }
 
-        // HandwritingView
+        // 右侧工具选项面板 (20%)
+        Surface(
+            modifier = Modifier
+                .weight(0.2f)
+                .fillMaxHeight(),
+            color = InkStoneBg,
+            shape = RoundedCornerShape(6.dp)
+        ) {
+            when (selectedTool) {
+                "pen" -> {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // 笔型
+                        Surface(
+                            modifier = Modifier
+                                .size(22.dp)
+                                .clickable { onPenTypeChange(BitmapDraftView.PenType.FOUNTAIN_PEN) },
+                            color = if (penType == BitmapDraftView.PenType.FOUNTAIN_PEN) InkStoneAccent else InkStoneSurface,
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Create,
+                                    contentDescription = "钢笔",
+                                    tint = if (penType == BitmapDraftView.PenType.FOUNTAIN_PEN) InkStoneBg else InkStoneTextDim,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                            }
+                        }
+                        Surface(
+                            modifier = Modifier
+                                .size(22.dp)
+                                .clickable { onPenTypeChange(BitmapDraftView.PenType.BALLPOINT_PEN) },
+                            color = if (penType == BitmapDraftView.PenType.BALLPOINT_PEN) InkStoneAccent else InkStoneSurface,
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "圆珠笔",
+                                    tint = if (penType == BitmapDraftView.PenType.BALLPOINT_PEN) InkStoneBg else InkStoneTextDim,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(2.dp))
+
+                        // 粗细
+                        listOf(
+                            BitmapDraftView.StrokeWidthLevel.THIN to "细",
+                            BitmapDraftView.StrokeWidthLevel.MEDIUM to "中",
+                            BitmapDraftView.StrokeWidthLevel.THICK to "粗"
+                        ).forEach { (level, label) ->
+                            Surface(
+                                modifier = Modifier.size(18.dp).clickable { onStrokeWidthChange(level) },
+                                color = if (strokeWidthLevel == level) InkStoneAccent else InkStoneSurface,
+                                shape = RoundedCornerShape(3.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = label,
+                                        color = if (strokeWidthLevel == level) InkStoneBg else InkStoneTextDim,
+                                        fontSize = 7.sp
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(2.dp))
+
+                        // 颜色
+                        listOf(
+                            android.graphics.Color.parseColor("#D4A574"),
+                            android.graphics.Color.parseColor("#E8E4DC"),
+                            android.graphics.Color.parseColor("#6ABF6A")
+                        ).forEach { color ->
+                            Box(
+                                modifier = Modifier
+                                    .size(14.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(color))
+                                    .border(
+                                        width = if (penColor == color) 1.5.dp else 0.dp,
+                                        color = if (penColor == color) InkStoneAccent else Color.Transparent,
+                                        shape = CircleShape
+                                    )
+                                    .clickable { onPenColorChange(color) }
+                            )
+                        }
+                    }
+                }
+                "eraser" -> {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        listOf(
+                            15f to "S",
+                            30f to "M",
+                            50f to "L"
+                        ).forEach { (radius, label) ->
+                            Surface(
+                                modifier = Modifier
+                                    .size(22.dp)
+                                    .clickable { onEraserRadiusChange(radius) },
+                                color = if (eraserRadius == radius) InkStoneAccent else InkStoneSurface,
+                                shape = RoundedCornerShape(4.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = label,
+                                        color = if (eraserRadius == radius) InkStoneBg else InkStoneTextDim,
+                                        fontSize = 9.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                "paper" -> {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // 线型
+                        Surface(
+                            modifier = Modifier.size(18.dp).clickable { onCanvasBgChange(CanvasBackground.BLANK) },
+                            color = if (canvasBackground == CanvasBackground.BLANK) InkStoneAccent else InkStoneSurface,
+                            shape = RoundedCornerShape(3.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = "空",
+                                    color = if (canvasBackground == CanvasBackground.BLANK) InkStoneBg else InkStoneTextDim,
+                                    fontSize = 7.sp
+                                )
+                            }
+                        }
+                        Surface(
+                            modifier = Modifier.size(18.dp).clickable { onCanvasBgChange(CanvasBackground.GRID) },
+                            color = if (canvasBackground == CanvasBackground.GRID) InkStoneAccent else InkStoneSurface,
+                            shape = RoundedCornerShape(3.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = "格",
+                                    color = if (canvasBackground == CanvasBackground.GRID) InkStoneBg else InkStoneTextDim,
+                                    fontSize = 7.sp
+                                )
+                            }
+                        }
+                        Surface(
+                            modifier = Modifier.size(18.dp).clickable { onCanvasBgChange(CanvasBackground.LINES) },
+                            color = if (canvasBackground == CanvasBackground.LINES) InkStoneAccent else InkStoneSurface,
+                            shape = RoundedCornerShape(3.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = "线",
+                                    color = if (canvasBackground == CanvasBackground.LINES) InkStoneBg else InkStoneTextDim,
+                                    fontSize = 7.sp
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(4.dp))
+
+                        // 底色
+                        PaperColor.entries.forEach { color ->
+                            Box(
+                                modifier = Modifier
+                                    .size(12.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(color.colorInt))
+                                    .border(
+                                        width = if (paperColor == color) 1.dp else 0.dp,
+                                        color = if (paperColor == color) InkStoneAccent else Color.Transparent,
+                                        shape = CircleShape
+                                    )
+                                    .clickable { onPaperColorChange(color) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DraftModeContent(
+    onDraftViewRefReady: (BitmapDraftView) -> Unit,
+    paperColor: PaperColor,
+    canvasBackground: CanvasBackground,
+    isEraserMode: Boolean,
+    isPenMode: Boolean,
+    eraserRadius: Float,
+    strokeWidthLevel: BitmapDraftView.StrokeWidthLevel,
+    penType: BitmapDraftView.PenType,
+    penColor: Int,
+    isInfiniteCanvas: Boolean,
+    onPaperColorChange: (PaperColor) -> Unit,
+    onCanvasBgChange: (CanvasBackground) -> Unit,
+    onEraserModeToggle: () -> Unit,
+    onEraserRadiusChange: (Float) -> Unit,
+    onPenModeToggle: () -> Unit,
+    onStrokeWidthChange: (BitmapDraftView.StrokeWidthLevel) -> Unit,
+    onPenTypeChange: (BitmapDraftView.PenType) -> Unit,
+    onPenColorChange: (Int) -> Unit,
+    onInfiniteCanvasToggle: () -> Unit,
+    onClear: () -> Unit
+) {
+    val context = LocalContext.current
+    var currentScale by remember { mutableFloatStateOf(1f) }
+    var showClearConfirmDialog by remember { mutableStateOf(false) }
+    var selectedTool by remember { mutableStateOf("pen") } // pen, eraser, paper
+    val draftView = remember {
+        BitmapDraftView(context).apply {
+            setBackgroundColor(android.graphics.Color.parseColor("#242424"))
+            onScaleChangeListener = { scale -> currentScale = scale }
+            onClearRequested = { showClearConfirmDialog = true }
+        }.also { onDraftViewRefReady(it) }
+    }
+
+    // 清空确认对话框
+    if (showClearConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearConfirmDialog = false },
+            title = { Text("确认清空") },
+            text = { Text("确定要清空所有内容吗？此操作可以撤销。") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        draftView.confirmClear()
+                        onClear()
+                        showClearConfirmDialog = false
+                    }
+                ) {
+                    Text("清空", color = InkStoneError)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearConfirmDialog = false }) {
+                    Text("取消")
+                }
+            }
+        )
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        // 工具选项面板结束后，BitmapDraftView
         Box(
             modifier = Modifier.fillMaxWidth().weight(1f).background(InkStoneBg, RoundedCornerShape(12.dp))
         ) {
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
-                factory = { handwritingView },
+                factory = { draftView },
                 update = { view ->
                     view.paperColor = paperColor
                     view.canvasBackground = canvasBackground
                     view.isEraserMode = isEraserMode
                     view.isPenMode = isPenMode
                     view.eraserRadius = eraserRadius
+                    view.strokeWidthLevel = strokeWidthLevel
+                    view.penType = penType
+                    view.penColor = penColor
+                    view.isInfiniteCanvasMode = isInfiniteCanvas
                 }
             )
         }
@@ -514,7 +776,7 @@ fun QuestionContent(
     onSkip: () -> Unit,
     onBack: () -> Unit,
     onViewRefReady: (HandwritingView) -> Unit,
-    onDraftViewRefReady: (HandwritingView) -> Unit
+    onDraftViewRefReady: (BitmapDraftView) -> Unit
 ) {
     // 草稿纸状态
     var draftPaperColor by remember { mutableStateOf(PaperColor.BLACK) }
@@ -522,10 +784,16 @@ fun QuestionContent(
     var draftEraserMode by remember { mutableStateOf(false) }
     var draftEraserRadius by remember { mutableFloatStateOf(30f) }
     var draftIsPenMode by remember { mutableStateOf(true) }
+    var draftStrokeWidthLevel by remember { mutableStateOf(BitmapDraftView.StrokeWidthLevel.MEDIUM) }
+    var draftPenType by remember { mutableStateOf(BitmapDraftView.PenType.FOUNTAIN_PEN) }
+    var draftPenColor by remember { mutableIntStateOf(android.graphics.Color.parseColor("#D4A574")) }
+    var draftInfiniteCanvas by remember { mutableStateOf(false) }
+    var draftView by remember { mutableStateOf<BitmapDraftView?>(null) }
 
     Column(
         modifier = Modifier.fillMaxSize().background(InkStoneBg)
     ) {
+        // 顶部标题栏
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -543,6 +811,35 @@ fun QuestionContent(
             )
         }
 
+        // 全屏工具栏（位于整个屏幕顶部，题目和草稿纸之上）
+        DraftToolbar(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            paperColor = draftPaperColor,
+            canvasBackground = draftCanvasBg,
+            isEraserMode = draftEraserMode,
+            isPenMode = draftIsPenMode,
+            eraserRadius = draftEraserRadius,
+            strokeWidthLevel = draftStrokeWidthLevel,
+            penType = draftPenType,
+            penColor = draftPenColor,
+            isInfiniteCanvas = draftInfiniteCanvas,
+            onPaperColorChange = { draftPaperColor = it },
+            onCanvasBgChange = { draftCanvasBg = it },
+            onEraserModeToggle = { draftEraserMode = !draftEraserMode },
+            onEraserRadiusChange = { draftEraserRadius = it },
+            onPenModeToggle = { draftIsPenMode = !draftIsPenMode },
+            onStrokeWidthChange = { draftStrokeWidthLevel = it },
+            onPenTypeChange = { draftPenType = it },
+            onPenColorChange = { draftPenColor = it },
+            onInfiniteCanvasToggle = { draftInfiniteCanvas = !draftInfiniteCanvas },
+            onUndo = { draftView?.undo() },
+            onRedo = { draftView?.redo() },
+            onClear = { draftView?.requestClear() }
+        )
+
+        // 题目和草稿纸区域
         Row(
             modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 24.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -588,11 +885,19 @@ fun QuestionContent(
                             isEraserMode = draftEraserMode,
                             isPenMode = draftIsPenMode,
                             eraserRadius = draftEraserRadius,
+                            strokeWidthLevel = draftStrokeWidthLevel,
+                            penType = draftPenType,
+                            penColor = draftPenColor,
+                            isInfiniteCanvas = draftInfiniteCanvas,
                             onPaperColorChange = { draftPaperColor = it },
                             onCanvasBgChange = { draftCanvasBg = it },
                             onEraserModeToggle = { draftEraserMode = !draftEraserMode },
                             onEraserRadiusChange = { draftEraserRadius = it },
                             onPenModeToggle = { draftIsPenMode = !draftIsPenMode },
+                            onStrokeWidthChange = { draftStrokeWidthLevel = it },
+                            onPenTypeChange = { draftPenType = it },
+                            onPenColorChange = { draftPenColor = it },
+                            onInfiniteCanvasToggle = { draftInfiniteCanvas = !draftInfiniteCanvas },
                             onClear = { }
                         )
                     } else {
@@ -656,7 +961,7 @@ fun QuestionContent(
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = InkStoneAccent),
                                 shape = RoundedCornerShape(10.dp)
                             ) {
-                                Icon(Icons.Default.Edit, null, Modifier.size(18.dp))
+                                Icon(Icons.Default.Brush, null, Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(if (isDraftMode) "返回答题" else "草稿纸")
                             }

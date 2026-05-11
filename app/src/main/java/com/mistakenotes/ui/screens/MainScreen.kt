@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mistakenotes.ui.theme.*
+import com.mistakenotes.ui.components.BitmapDraftView
 import com.mistakenotes.ui.components.CanvasBackground
 import com.mistakenotes.ui.components.PaperColor
 
@@ -46,7 +47,7 @@ fun HomeScreen(
     onNavigateToImport: () -> Unit,
     onNavigateToReview: () -> Unit
 ) {
-    var viewRef by remember { mutableStateOf<com.mistakenotes.ui.components.HandwritingView?>(null) }
+    var viewRef by remember { mutableStateOf<BitmapDraftView?>(null) }
     var isPenMode by remember { mutableStateOf(true) }
     var scaleText by remember { mutableStateOf("100%") }
     var canvasBg by remember { mutableStateOf(CanvasBackground.BLANK) }
@@ -107,10 +108,8 @@ fun HomeScreen(
             androidx.compose.ui.viewinterop.AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { context ->
-                    com.mistakenotes.ui.components.HandwritingView(context).apply {
+                    BitmapDraftView(context).apply {
                         setBackgroundColor(android.graphics.Color.parseColor("#242424"))
-                        fingerColor = android.graphics.Color.parseColor("#E8E4DC")
-                        fingerStrokeWidth = 4f
                     }.also { view ->
                         viewRef = view
                     }
@@ -164,14 +163,10 @@ fun HomeScreen(
             )
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(onClick = { viewRef?.undo() }) {
-                    Text("撤销", color = InkStoneAccent)
-                }
-                TextButton(onClick = { viewRef?.clear() }) {
+                TextButton(onClick = { viewRef?.clearDirect() }) {
                     Text("清空", color = InkStoneError)
                 }
                 TextButton(onClick = {
-                    viewRef?.resetTransform()
                     scaleText = "100%"
                 }) {
                     Text("重置", color = InkStoneTextDim)
