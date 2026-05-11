@@ -90,6 +90,30 @@ class HandwritingView @JvmOverloads constructor(
     // 是否启用双笔模式（默认开启）
     var dualModeEnabled: Boolean = true
 
+    // 橡皮擦模式
+    var isEraserMode: Boolean = false
+        set(value) {
+            field = value
+            invalidate()
+        }
+
+    // 橡皮擦半径（像素）
+    var eraserRadius: Float = 30f
+        set(value) {
+            field = value
+            invalidate()
+        }
+
+    // 切换橡皮擦模式
+    fun toggleEraserMode() {
+        isEraserMode = !isEraserMode
+    }
+
+    // 橡皮擦光标位置（屏幕坐标）
+    private var eraserCursorX: Float = 0f
+    private var eraserCursorY: Float = 0f
+    private var showEraserCursor: Boolean = false
+
     // 采样距离阈值（像素），小于此值不采样，避免抖动
     private val sampleDistance = 2f
 
@@ -99,6 +123,13 @@ class HandwritingView @JvmOverloads constructor(
     private var translateY = 0f
     private val minScale = 1f
     private val maxScale = 5f
+    private var isScaling = false
+
+    // A4 纸张尺寸（毫米）
+    companion object {
+        val A4_WIDTH_MM = 210f
+        val A4_HEIGHT_MM = 297f
+    }
 
     // View 尺寸
     private var viewWidth = 0f
@@ -113,12 +144,6 @@ class HandwritingView @JvmOverloads constructor(
     private var singleFingerStartY = 0f
     private var dragStartTranslateX = 0f
     private var dragStartTranslateY = 0f
-
-    // 双指拖动相关
-    private var lastTouchX = 0f
-    private var lastTouchY = 0f
-    private var isScaling = false
-    private var isDragging = false
 
     // 双指缩放检测器
     private val scaleGestureDetector = ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
@@ -155,6 +180,11 @@ class HandwritingView @JvmOverloads constructor(
         }
     })
 
+    // 双指拖动相关
+    private var lastTouchX = 0f
+    private var lastTouchY = 0f
+    private var isDragging = false
+
     var stylusColor: Int = Color.parseColor("#D4A574")
         set(value) {
             field = value
@@ -189,54 +219,78 @@ class HandwritingView @JvmOverloads constructor(
         viewHeight = h.toFloat()
     }
 
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        // 获取父视图给的可用空间
+        val availableWidth = MeasureSpec.getSize(widthMeasureSpec)
+        val availableHeight = MeasureSpec.getSize(heightMeasureSpec)
+
+        // A4 比例 1:√2 (约 1:1.414)
+        val a4Ratio = A4_HEIGHT_MM / A4_WIDTH_MM // 约 1.414
+
+        // 根据可用空间计算 A4 尺寸（使用宽度作为基准）
+        val a4Width = availableWidth
+        val a4Height = (a4Width * a4Ratio).toInt().coerceAtMost(availableHeight)
+
+        setMeasuredDimension(a4Width, a4Height)
+        viewWidth = a4Width.toFloat()
+        viewHeight = a4Height.toFloat()
+    }
+
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        // 检查是否为触控笔
+        val isStylus = event.pointerCount == 1 && event.getToolType(0) == MotionEvent.TOOL_TYPE_STYLUS
+
+        // 笔写模式下使用触控笔时，禁用缩放
+        if (isPenMode && isStylus) {
+            // 处理书写逻辑
+            if (isEraserMode) {
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        eraserCursorX = event.x
+                        eraserCursorY = event.y
+                        showEraserCursor = true
+                        eraseAt(event.x, event.y, eraserRadius)
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        eraserCursorX = event.x
+                        eraserCursorY = event.y
+                        eraseAt(event.x, event.y, eraserRadius)
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        showEraserCursor = false
+                    }
+                }
+                invalidate()
+                return true
+            }
+            handleStylusEvent(event.action, event.x, event.y)
+            return true
+        }
+
         // 优先处理缩放手势
         scaleGestureDetector.onTouchEvent(event)
 
-        // 如果正在缩放，不处理其他
+        // 如果正在缩放，不处理其他触摸事件
         if (isScaling) {
             return true
         }
 
-        // 双指拖动
+        // 双指时清除正在书写的内容
         when (event.actionMasked) {
             MotionEvent.ACTION_POINTER_DOWN -> {
                 if (event.pointerCount == 2) {
-                    isDragging = true
-                    lastTouchX = (event.getX(0) + event.getX(1)) / 2
-                    lastTouchY = (event.getY(0) + event.getY(1)) / 2
                     currentStylusPoints.clear()
                     currentFingerPoints.clear()
                     isSingleFingerDragging = false
                 }
             }
-            MotionEvent.ACTION_POINTER_UP -> {
-                if (event.pointerCount <= 2) {
-                    isDragging = false
-                }
-            }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                isDragging = false
                 isSingleFingerDragging = false
             }
         }
 
-        // 双指拖动
-        if (isDragging && event.pointerCount == 2) {
-            val x = (event.getX(0) + event.getX(1)) / 2
-            val y = (event.getY(0) + event.getY(1)) / 2
-
-            translateX += x - lastTouchX
-            translateY += y - lastTouchY
-
-            // 限制拖动范围
-            val maxTranslate = viewWidth * (scaleFactor - 1) / 2
-            translateX = translateX.coerceIn(-maxTranslate, maxTranslate)
-            translateY = translateY.coerceIn(-maxTranslate, maxTranslate)
-
-            lastTouchX = x
-            lastTouchY = y
-            invalidate()
+        // 双指时不允许书写（由 ScaleGestureDetector 处理缩放和平移）
+        if (event.pointerCount == 2) {
             return true
         }
 
@@ -246,6 +300,19 @@ class HandwritingView @JvmOverloads constructor(
             val y = event.y
 
             val toolType = event.getToolType(0)
+
+            // 橡皮擦模式下显示光标
+            if (isEraserMode) {
+                eraserCursorX = x
+                eraserCursorY = y
+                showEraserCursor = true
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> eraseAt(x, y, eraserRadius)
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> showEraserCursor = false
+                }
+                invalidate()
+                return true
+            }
 
             when (toolType) {
                 MotionEvent.TOOL_TYPE_STYLUS -> {
@@ -318,18 +385,28 @@ class HandwritingView @JvmOverloads constructor(
     }
 
     private fun handleStylusEvent(action: Int, x: Float, y: Float) {
+        if (isEraserMode) {
+            when (action) {
+                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                    eraseAt(x, y, eraserRadius)
+                }
+            }
+            return
+        }
         when (action) {
             MotionEvent.ACTION_DOWN -> {
                 currentStylusPoints.clear()
                 currentStylusPoints.add(PointF(x, y))
             }
             MotionEvent.ACTION_MOVE -> {
-                val last = currentStylusPoints.last()
-                val dx = x - last.x
-                val dy = y - last.y
-                val dist = kotlin.math.sqrt(dx * dx + dy * dy)
-                if (dist >= sampleDistance) {
-                    currentStylusPoints.add(PointF(x, y))
+                if (currentStylusPoints.isNotEmpty()) {
+                    val last = currentStylusPoints.last()
+                    val dx = x - last.x
+                    val dy = y - last.y
+                    val dist = kotlin.math.sqrt(dx * dx + dy * dy)
+                    if (dist >= sampleDistance) {
+                        currentStylusPoints.add(PointF(x, y))
+                    }
                 }
             }
             MotionEvent.ACTION_UP -> {
@@ -344,18 +421,30 @@ class HandwritingView @JvmOverloads constructor(
     }
 
     private fun handleFingerEvent(action: Int, x: Float, y: Float) {
+        if (isEraserMode) {
+            when (action) {
+                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                    eraseAt(x, y, eraserRadius)
+                }
+            }
+            return
+        }
         when (action) {
             MotionEvent.ACTION_DOWN -> {
                 currentFingerPoints.clear()
                 currentFingerPoints.add(PointF(x, y))
             }
             MotionEvent.ACTION_MOVE -> {
-                val last = currentFingerPoints.last()
-                val dx = x - last.x
-                val dy = y - last.y
-                val dist = kotlin.math.sqrt(dx * dx + dy * dy)
-                if (dist >= sampleDistance) {
+                if (currentFingerPoints.isEmpty()) {
                     currentFingerPoints.add(PointF(x, y))
+                } else {
+                    val last = currentFingerPoints.last()
+                    val dx = x - last.x
+                    val dy = y - last.y
+                    val dist = kotlin.math.sqrt(dx * dx + dy * dy)
+                    if (dist >= sampleDistance) {
+                        currentFingerPoints.add(PointF(x, y))
+                    }
                 }
             }
             MotionEvent.ACTION_UP -> {
@@ -376,12 +465,16 @@ class HandwritingView @JvmOverloads constructor(
                 currentFingerPoints.add(PointF(x, y))
             }
             MotionEvent.ACTION_MOVE -> {
-                val last = currentFingerPoints.last()
-                val dx = x - last.x
-                val dy = y - last.y
-                val dist = kotlin.math.sqrt(dx * dx + dy * dy)
-                if (dist >= sampleDistance) {
+                if (currentFingerPoints.isEmpty()) {
                     currentFingerPoints.add(PointF(x, y))
+                } else {
+                    val last = currentFingerPoints.last()
+                    val dx = x - last.x
+                    val dy = y - last.y
+                    val dist = kotlin.math.sqrt(dx * dx + dy * dy)
+                    if (dist >= sampleDistance) {
+                        currentFingerPoints.add(PointF(x, y))
+                    }
                 }
             }
             MotionEvent.ACTION_UP -> {
@@ -479,6 +572,17 @@ class HandwritingView @JvmOverloads constructor(
         }
 
         canvas.restore()
+
+        // 绘制橡皮擦光标（在画布变换之外，使用屏幕坐标）
+        if (showEraserCursor && isEraserMode) {
+            val cursorPaint = Paint().apply {
+                color = Color.parseColor("#80D4A574") // 半透明金色
+                style = Paint.Style.STROKE
+                strokeWidth = 2f
+                isAntiAlias = true
+            }
+            canvas.drawCircle(eraserCursorX, eraserCursorY, eraserRadius, cursorPaint)
+        }
     }
 
     private fun drawCanvasBackground(canvas: Canvas) {
@@ -570,6 +674,36 @@ class HandwritingView @JvmOverloads constructor(
 
     // 获取当前缩放比例
     fun getScale(): Float = scaleFactor
+
+    // 橡皮擦：检测并删除与指定区域相交的路径段
+    fun eraseAt(x: Float, y: Float, radius: Float = 30f) {
+        val canvasX = (x - translateX) / scaleFactor
+        val canvasY = (y - translateY) / scaleFactor
+
+        // 移除触控笔路径中与橡皮擦区域相交的路径
+        stylusPaths.removeAll { pathData ->
+            pathIntersectsWithCircle(pathData.path, canvasX, canvasY, radius)
+        }
+
+        // 移除手指路径中与橡皮擦区域相交的路径
+        fingerPaths.removeAll { pathData ->
+            pathIntersectsWithCircle(pathData.path, canvasX, canvasY, radius)
+        }
+
+        invalidate()
+    }
+
+    // 检测路径是否与圆形区域相交
+    private fun pathIntersectsWithCircle(path: Path, cx: Float, cy: Float, radius: Float): Boolean {
+        val bounds = android.graphics.RectF()
+        path.computeBounds(bounds, true)
+        // 简单检测：圆心到路径边界框的距离
+        val closestX = cx.coerceIn(bounds.left, bounds.right)
+        val closestY = cy.coerceIn(bounds.top, bounds.bottom)
+        val dx = cx - closestX
+        val dy = cy - closestY
+        return (dx * dx + dy * dy) <= (radius * radius)
+    }
 
     fun getStylusPaths(): List<PathData> = stylusPaths.toList()
     fun getFingerPaths(): List<PathData> = fingerPaths.toList()

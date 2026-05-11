@@ -10,6 +10,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 草稿纸功能设计：`docs/superpowers/specs/2026-05-10-draft-paper-design.md`
 - 前端原型：`docs/prototypes/砚台版-full.html`
 
+## 回答要求
+
+除开发代码以外，回答用中文回答
+
 ## 技术栈
 
 **Android 原生开发（Kotlin + Jetpack Compose）**
@@ -101,6 +105,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 进度条显示当前进度
 - 复习记录保存到 Room 数据库
 
+### 草稿纸功能（复习界面）
+- `DraftModeContent` composable（位于 ReviewScreen.kt）
+- **工具栏**：
+  - 倍率显示（实时更新）
+  - 底色选择：黑色、白色、肉色
+  - 线型选择：空白、网格、横线
+  - 笔写/手写模式切换
+  - 橡皮擦工具（带大小 S/M/L 选择）
+  - 清空按钮
+- **A4 纸张**：默认 A4 比例（210mm x 297mm）
+- **橡皮擦**：基于 Path 删除，非像素级擦除
+- **缩放**：双指缩放（笔写模式用触控笔时禁用）
+- **缩放范围**：100% - 500%
+
 ### 数据库
 - Room + KSP 编译器
 - `AppDatabase.kt`、`Dao.kt`、`Converters.kt`
@@ -136,12 +154,12 @@ app/src/main/java/com/mistakenotes/
 └── ui/
     ├── theme/                   # Compose 主题（砚台风格）
     ├── components/
-    │   └── HandwritingView.kt    # 手写画布（原生 View，双笔模式）
+    │   └── HandwritingView.kt    # 手写画布（原生 View，Path 矢量绘制）
     └── screens/
         ├── MainScreen.kt         # 主页面（首页+导航）
         ├── ImportScreen.kt       # 错题录入页面
         ├── ImportViewModel.kt   # 录入 ViewModel
-        ├── ReviewScreen.kt       # 复习流程页面
+        ├── ReviewScreen.kt       # 复习流程页面（含 DraftModeContent 草稿纸）
         └── ReviewViewModel.kt   # 复习 ViewModel
 ```
 
