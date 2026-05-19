@@ -2,12 +2,19 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 当前优先级最高任务
+
+**草稿纸重构 v2**：基于 infinipaint + DrawBox + WriteBuddy + perfect-freehand 重构手写画布
+
+- 设计文档：`docs/superpowers/specs/2026-05-19-draft-paper-redesign-v2-design.md`
+- 核心功能：无限画布、压力感应笔画、像素级橡皮擦、撤销/重做
+
 ## 项目概述
 
 错题笔记应用：支持手写的小米 6 Pro 平板应用，用于学习考试类错题的记录、整理和复习。纯本地使用，备份至百度网盘或夸克网盘。
 
 - 设计规格：`docs/superpowers/specs/2026-05-08-mistake-notes-design.md`
-- 草稿纸功能设计：`docs/superpowers/specs/2026-05-10-draft-paper-design.md`
+- 草稿纸设计（v2）：`docs/superpowers/specs/2026-05-19-draft-paper-redesign-v2-design.md`
 - 前端原型：`docs/prototypes/砚台版-full.html`
 
 ## 回答要求
@@ -64,20 +71,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - 侧边栏可折叠/展开（左上角切换按钮）
 - 错题库支持自建库（自定义颜色、名称）
-- 复习流程：题目显示 → 手写答题 → 提交 → AI 对比分析 → 手动标记对错
+- 复习流程：题目显示 → 手写答题 → 提交 → 手动标记对错
 
 ## 已实现功能
 
-### 手写画布
-- `ui/components/HandwritingView.kt` — 原生 Android View，低延迟手写
-- **模式切换**：笔写模式（触控笔金色）/ 手写模式（手指浅色），通过按钮切换
-- **缩放/拖动**：双指捏合缩放（100%-500%），单指拖动画布（笔写模式）/ 书写（手写模式）
+### 手写画布（HandwritingView → HandwritingCanvas 重构中）
+- `ui/components/HandwritingView.kt` — 当前实现，原生 Android View，Path 矢量绘制
+- **重构目标**：基于 perfect-freehand 算法 + 无限画布 + 像素级橡皮擦
+- 详见：`docs/superpowers/specs/2026-05-19-draft-paper-redesign-v2-design.md`
+
+### 错题录入
+- **笔写模式**：只用触控笔书写，笔落下时锁定缩放/移动，笔抬起时解锁
+- **笔属性**：颜色（蓝 #1E88E5 / 黑 #000000 / 红 #E53935），粗细（0.1/0.3/0.5mm）
+- **撤销/重做**：快照制 undo/redo（50步），每笔独立可撤销
+- **缩放/拖动**：双指捏合缩放（100%-500%），笔抬起时可操作
 - **纸张底色**：黑色（#242424）/ 白色（#FFFFFF）/ 肉色（#F5E6D3）
 - **纸张线型**：空白 / 网格（40dp间隔）/ 横线（60dp间隔）
 - **Catmull-Rom 样条曲线**：直线笔直，曲线流畅
 - **距离采样**：每 2 像素采样一次，避免抖动
-- 支持撤销（undo）和清空（clear）
-- **内容裁剪**：超出可见区域的内容自动隐藏，不显示在背景色外
+- **内容裁剪**：超出可见区域的内容自动隐藏
 
 ### 错题录入
 - `ui/screens/ImportScreen.kt` + `ui/screens/ImportViewModel.kt`
@@ -96,34 +108,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `ui/screens/ReviewScreen.kt` + `ReviewViewModel.kt`
 - 复习列表：统计卡片（待复习/逾期/已完成）+ 点击列表项直接进入答题
 - **跳过今日**：在复习列表中点击跳过图标，不影响后续轮次
-- 答题界面：
-  - **题目显示**：显示 OCR 识别的题目文字（`recognizedQuestion`）
-  - 选择题（A/B/C/D 选项卡，单选/多选统一 UI）
-  - 大题：手写区域（与主页 HandwritingView 相同）
-  - **草稿纸**：点击"草稿纸"按钮切换到手写画布，用于计算和思考，笔记保留，提交后自动清除
-  - 提交后显示对错标识
-- 进度条显示当前进度
-- 复习记录保存到 Room 数据库
 
-### 草稿纸功能（复习界面）
-- `DraftModeContent` composable（位于 ReviewScreen.kt）
-- `ui/components/BitmapDraftView.kt` — 基于 Bitmap 的手写视图，支持像素级橡皮擦
-- **核心组件**（`ui/components/drawing/`）：
-  - `CoordTransformer.kt` — 统一坐标变换器
-  - `Stroke.kt` — 笔画数据模型
-  - `StrokeRecorder.kt` — 笔画级撤销记录器（内存降低10x）
-- **工具栏**：
-  - 倍率显示（实时更新）
-  - 底色选择：黑色、白色、肉色
-  - 线型选择：空白、网格、横线
-  - 笔写/手写模式切换
-  - 橡皮擦工具（带大小 S/M/L 选择）
-  - 清空按钮
-- **A4 纸张**：默认 A4 比例（210mm x 297mm）
-- **缩放**：双指缩放（笔写模式用触控笔时禁用）
-- **缩放范围**：100% - 500%
-- **笔类型**：钢笔（圆头）/ 圆珠笔（尖头）
-- **笔迹颜色**：金色（#D4A574）
+#### 答题界面（左右分栏）
+- **左侧**：题目显示区（OCR 识别的题目文字）
+- **右侧**：可切换面板，通过 `[✏ 草稿纸]` / `[✓ 答题区]` 按钮切换
+  - **答题区模式**：选择题显示 ABCD 选项 + 提交按钮；大题显示手写作答区 + 提交/跳过
+  - **草稿纸模式**：HandwritingView 草稿纸（大题场景下与答题区各自独立保留笔迹）
+
+#### 顶部工具栏
+- **左侧 80%**：[撤销 | 重做] | [笔 | 纸张 | 清空] | [缩放比例]
+- **右侧 20%**：根据选中工具显示选项面板
+  - 笔工具：颜色按钮（蓝/黑/红）+ 粗细按钮（0.1/0.3/0.5mm）
+  - 纸张工具：背景选择（空白/网格/横线）+ 底色选择（黑/白/肉）
+- 撤销/重做/清空作用于当前可见面板的 HandwritingView
+
+#### 提交后
+- 答题区和草稿纸同时自动清除
+- 显示对错标识
+- 进入下一题
 
 ### 数据库
 - Room + KSP 编译器
@@ -160,18 +162,13 @@ app/src/main/java/com/mistakenotes/
 └── ui/
     ├── theme/                   # Compose 主题（砚台风格）
     ├── components/
-    │   ├── HandwritingView.kt    # 手写画布（原生 View，Path 矢量绘制）
-    │   ├── BitmapDraftView.kt    # 草稿纸画布（Bitmap 绘制，像素级橡皮擦）
-    │   └── drawing/              # 绘制相关组件
-    │       ├── CoordTransformer.kt  # 坐标变换器
-    │       ├── Stroke.kt             # 笔画数据模型
-    │       └── StrokeRecorder.kt     # 笔画记录器
+    │   └── HandwritingView.kt    # 手写画布（原生 View，Path 矢量绘制）
     └── screens/
         ├── MainScreen.kt         # 主页面（首页+导航）
         ├── ImportScreen.kt       # 错题录入页面
         ├── ImportViewModel.kt   # 录入 ViewModel
-        ├── ReviewScreen.kt       # 复习流程页面（含 DraftModeContent 草稿纸）
-        └── ReviewViewModel.kt   # 复习 ViewModel
+        ├── ReviewScreen.kt       # 复习流程页面（左右分栏 + 工具栏）
+        └── ReviewViewModel.kt   # 复习 ViewModel（包含 ToolState 管理）
 ```
 
 ## 构建与运行
@@ -188,3 +185,4 @@ app/src/main/java/com/mistakenotes/
 - UI 风格必须遵循砚台设计（深色主题 + 金色强调）
 - 错题库支持用户自建库，UI 需要适配此功能
 - 数据库使用 Room + KSP，需配置 KSP 编译器
+- 草稿纸工具栏：触控笔落下时锁定缩放/移动，抬起时解锁
