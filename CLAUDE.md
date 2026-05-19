@@ -7,7 +7,38 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **草稿纸重构 v2**：基于 infinipaint + DrawBox + WriteBuddy + perfect-freehand 重构手写画布
 
 - 设计文档：`docs/superpowers/specs/2026-05-19-draft-paper-redesign-v2-design.md`
-- 核心功能：无限画布、压力感应笔画、像素级橡皮擦、撤销/重做
+- **实现计划**：`docs/superpowers/plans/2026-05-19-draft-paper-redesign-implementation.md`
+- 核心功能：无限画布、压力感应笔画（perfect-freehand）、像素级橡皮擦、撤销/重做
+
+**实现任务清单（按顺序）：**
+1. `StrokePoint.kt` — 笔画采样点数据类
+2. `PerfectStroke.kt` — perfect-freehand 算法核心
+3. `TransformState.kt` + `InfiniteCanvas.kt` — 无限画布引擎
+4. `PathLayer.kt` + `BitmapLayer.kt` — 矢量层和像素层
+5. `UndoRedoManager.kt` — 撤销/重做管理
+6. `DrawingEvent.kt` + `EraserTool.kt` — 事件类型和橡皮擦工具
+7. `StrokeRenderer.kt` — 笔画渲染器
+8. `HandwritingCanvas.kt` — 主视图（整合所有模块）
+9. 删除 `HandwritingView.kt`
+10. 更新 `ReviewScreen.kt` 和 `ReviewViewModel.kt`
+
+### 项目结构
+
+```
+app/src/main/java/com/mistakenotes/ui/components/
+├── HandwritingCanvas.kt          # 新主画布（重构后替换 HandwritingView）
+└── drawing/
+    ├── PerfectStroke.kt          # 算法核心
+    ├── StrokePoint.kt            # 数据类
+    ├── StrokeRenderer.kt         # 渲染器
+    ├── InfiniteCanvas.kt         # 无限画布引擎
+    ├── TransformState.kt         # 变换状态
+    ├── BitmapLayer.kt            # 像素层
+    ├── PathLayer.kt              # 矢量层
+    ├── UndoRedoManager.kt        # 撤销/重做
+    ├── EraserTool.kt            # 橡皮擦工具
+    └── DrawingEvent.kt          # 事件类型
+```
 
 ## 项目概述
 
@@ -75,10 +106,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 已实现功能
 
-### 手写画布（HandwritingView → HandwritingCanvas 重构中）
-- `ui/components/HandwritingView.kt` — 当前实现，原生 Android View，Path 矢量绘制
+### 手写画布（HandwritingCanvas 重构中）
+- `ui/components/HandwritingView.kt` — 当前实现，原生 Android View
 - **重构目标**：基于 perfect-freehand 算法 + 无限画布 + 像素级橡皮擦
-- 详见：`docs/superpowers/specs/2026-05-19-draft-paper-redesign-v2-design.md`
+- **实现计划**：`docs/superpowers/plans/2026-05-19-draft-paper-redesign-implementation.md`
 
 ### 错题录入
 - **笔写模式**：只用触控笔书写，笔落下时锁定缩放/移动，笔抬起时解锁
