@@ -3,21 +3,28 @@ package com.mistakenotes
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Box
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Text
-import androidx.compose.ui.Alignment
+import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import com.mistakenotes.ui.navigation.AppNavGraph
+import com.mistakenotes.ui.theme.InkStoneBlack
+import com.mistakenotes.ui.theme.MistakeNotesTheme
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         setContent {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Hello World")
+            MistakeNotesTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = InkStoneBlack
+                ) {
+                    AppNavGraph()
+                }
             }
         }
     }
