@@ -46,7 +46,7 @@ object PerfectStroke {
     /**
      * 获取插值平滑后的点
      */
-    fun getStrokePoints(points: List<StrokePoint>, options: Options): List<StrokeStrokePoint> {
+    internal fun getStrokePoints(points: List<StrokePoint>, options: Options): List<StrokeStrokePoint> {
         if (points.isEmpty()) return emptyList()
 
         val result = mutableListOf<StrokeStrokePoint>()
@@ -62,7 +62,7 @@ object PerfectStroke {
                     val dx = point.x - prev.point.x
                     val dy = point.y - prev.point.y
                     val dist = sqrt(dx * dx + dy * dy)
-                    val time = maxOf(1L, point.timestamp - prev.point.timestamp)
+                    val time = maxOf(1L, point.timestamp - prev.timestamp)
                     val speed = dist / time
                     (1f - minOf(speed / 0.5f, 1f) * (1f - options.thinning)).coerceIn(0.1f, 1f)
                 } else 0.5f
@@ -91,7 +91,8 @@ object PerfectStroke {
                 pressure = pressure,
                 vector = vector,
                 distance = runningLength,
-                runningLength = runningLength
+                runningLength = runningLength,
+                timestamp = point.timestamp
             )
 
             result.add(strokePoint)
@@ -107,13 +108,14 @@ object PerfectStroke {
         val pressure: Float,
         val vector: PointF,
         val distance: Float,
-        val runningLength: Float
+        val runningLength: Float,
+        val timestamp: Long = 0L
     )
 
     /**
      * 生成笔画多边形边缘点
      */
-    fun getStrokeOutlinePoints(strokePoints: List<StrokeStrokePoint>, options: Options): List<PointF> {
+    internal fun getStrokeOutlinePoints(strokePoints: List<StrokeStrokePoint>, options: Options): List<PointF> {
         if (strokePoints.size < 2) return emptyList()
 
         val outlinePoints = mutableListOf<PointF>()
@@ -170,7 +172,8 @@ object PerfectStroke {
                 pressure = curr.pressure,
                 vector = curr.vector,
                 distance = curr.distance,
-                runningLength = curr.runningLength
+                runningLength = curr.runningLength,
+                timestamp = curr.timestamp
             ))
         }
 

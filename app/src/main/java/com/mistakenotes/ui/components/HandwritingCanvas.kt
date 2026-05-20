@@ -42,6 +42,11 @@ class HandwritingCanvas @JvmOverloads constructor(
             currentPaint.strokeWidth = value
         }
 
+    // penThickness 兼容属性（供 ReviewScreen 使用）
+    var penThickness: Float
+        get() = penSize
+        set(value) { penSize = value }
+
     // 高亮笔属性
     var highlighterColor: Int = Color.YELLOW
     var highlighterSize: Float = 16f

@@ -29,7 +29,6 @@ data class ToolState(
     val selectedTool: String = "pen",
     val penColor: Int = Color.parseColor("#000000"),
     val penThickness: Float = 0.3f,
-    val eraserSize: Float = 20f,
     val canvasBackground: CanvasBackground = CanvasBackground.BLANK,
     val paperColor: PaperColor = PaperColor.BLACK,
     val scale: Float = 1f
@@ -60,10 +59,6 @@ class ReviewViewModel @Inject constructor(
 
     fun setPenThickness(thickness: Float) {
         _toolState.value = _toolState.value.copy(penThickness = thickness)
-    }
-
-    fun setEraserSize(size: Float) {
-        _toolState.value = _toolState.value.copy(eraserSize = size)
     }
 
     fun setCanvasBackground(bg: CanvasBackground) {

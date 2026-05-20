@@ -10,7 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mistakenotes.ui.theme.*
-import com.mistakenotes.ui.components.BitmapDraftView
+import com.mistakenotes.ui.components.HandwritingCanvas
 import com.mistakenotes.ui.components.CanvasBackground
 import com.mistakenotes.ui.components.PaperColor
 
@@ -47,7 +47,7 @@ fun HomeScreen(
     onNavigateToImport: () -> Unit,
     onNavigateToReview: () -> Unit
 ) {
-    var viewRef by remember { mutableStateOf<BitmapDraftView?>(null) }
+    var viewRef by remember { mutableStateOf<HandwritingCanvas?>(null) }
     var isPenMode by remember { mutableStateOf(true) }
     var scaleText by remember { mutableStateOf("100%") }
     var canvasBg by remember { mutableStateOf(CanvasBackground.BLANK) }
@@ -56,7 +56,6 @@ fun HomeScreen(
     // 当 viewRef 准备好时，同步初始状态
     LaunchedEffect(viewRef) {
         viewRef?.let {
-            isPenMode = it.isPenMode
             scaleText = "${(it.getScale() * 100).toInt()}%"
             it.onScaleChangeListener = { scale ->
                 scaleText = "${(scale * 100).toInt()}%"
@@ -108,7 +107,7 @@ fun HomeScreen(
             androidx.compose.ui.viewinterop.AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { context ->
-                    BitmapDraftView(context).apply {
+                    HandwritingCanvas(context).apply {
                         setBackgroundColor(android.graphics.Color.parseColor("#242424"))
                     }.also { view ->
                         viewRef = view
@@ -128,8 +127,7 @@ fun HomeScreen(
         ) {
             Button(
                 onClick = {
-                    viewRef?.togglePenMode()
-                    isPenMode = !isPenMode
+                    viewRef?.clear()
                 },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (isPenMode) InkStoneAccent else InkStoneSurface
@@ -163,7 +161,7 @@ fun HomeScreen(
             )
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(onClick = { viewRef?.clearDirect() }) {
+                TextButton(onClick = { viewRef?.clear() }) {
                     Text("清空", color = InkStoneError)
                 }
                 TextButton(onClick = {
