@@ -20,8 +20,6 @@
 | 本地数据库 | Room + KSP |
 | 图片加载 | Coil |
 | 导航 | Navigation Compose |
-| AI 评分 | DeepSeek API |
-| OCR | Tesseract OCR（中文语言包） |
 
 ## 3. UI 设计风格
 
@@ -56,21 +54,18 @@
 
 ### 4.2 录入流程（ImportScreen）
 
-**流程**：
-1. 拍照或从相册选择图片
-2. 系统自动 OCR 识别（离线 Tesseract）
-3. 用户确认/编辑识别结果
-4. 选择科目 → 章节 → 知识点（三级分类）
-5. 选择题目类型：单选题 / 多选题 / 主观题
-6. 输入/确认标准答案和得分点（主观题）
-   - AI 自动生成得分点，用户确认
-   - 可手动调整
-7. 保存
+**流程**（MVP 简化版）：
+1. 拍照或从相册选择图片（仅存档，不识别）
+2. 手动粘贴或输入题目文本
+3. 选择科目 → 章节 → 知识点（三级分类）
+4. 选择题目类型：单选题 / 多选题 / 主观题
+5. 输入标准答案和得分点（主观题）
+6. 保存
 
 **题目类型处理**：
 - 单选题：存储选项和正确答案
 - 多选题：存储选项和正确答案（多个）
-- 主观题：存储题目、参考答案、得分点
+- 主观题：存储题目、参考答案
 
 ### 4.3 复习界面（ReviewScreen）
 
@@ -103,11 +98,11 @@
 
 **提交逻辑**：
 - 选择题：自动对比正确答案，标记对错
-- 主观题：
-  1. 将用户作答图片 + 参考答案发送给 DeepSeek API
-  2. AI 对照得分点评分
-  3. 显示得分点对比
-  4. 用户确认最终得分
+- 主观题（参考答案对比模式）：
+  1. 提交后显示参考答案
+  2. 用户自行对比作答内容与参考答案
+  3. 手动标记得分或选择"对/错"
+  4. 系统记录结果
 
 **草稿纸**：
 - 独立于答题区存在
@@ -234,10 +229,11 @@ class VectorLayer {
 **Mistake（错题）**：
 - id, title, subjectId, chapterId, knowledgePointId
 - questionType（ SINGLE_CHOICE / MULTI_CHOICE / ESSAY ）
-- questionImagePath, recognizedText
+- questionImagePath
+- questionText（题目文本，手动输入）
 - options（JSON，选题用）
 - correctAnswer, explanation
-- scoringPoints（主观题得分点，JSON）
+- referenceAnswer（主观题参考答案）
 - createdAt, isFavorite, isTop
 
 **ReviewRecord（复习记录）**：
@@ -256,11 +252,35 @@ class VectorLayer {
 - 第 4 次做对：不再复习（已掌握）
 - 第 1 次做错：重置为第 1 次（1 天后复习）
 
-## 7. AI 评分设计
+## 7. 后续功能（v2.0）
 
-### 7.1 DeepSeek API 调用
+> 以下功能在 MVP 阶段暂不实现，待核心流程稳定后迭代。
 
-**请求格式**：
+### 7.1 OCR 识别
+
+**功能**：拍照后自动识别文字，无需手动输入
+
+**技术方案**：
+- Tesseract OCR（中文语言包）
+- 离线可用，无需网络
+- 识别后可编辑确认
+
+**流程升级**：
+```
+拍照/选图 → OCR识别 → 用户确认/编辑 → 选择分类 → 保存
+```
+
+### 7.2 AI 智能评分
+
+**功能**：主观题提交后，DeepSeek API 自动对比参考答案，给出得分点匹配分析
+
+**评分模式**：
+1. 用户提交作答
+2. 系统将作答图片 + 参考答案发送给 DeepSeek API
+3. AI 返回得分点匹配结果（高亮差异）
+4. 用户确认或调整最终得分
+
+**DeepSeek API 调用**：
 ```json
 {
   "model": "deepseek-chat",
@@ -277,16 +297,15 @@ class VectorLayer {
 }
 ```
 
-**响应处理**：
-- 解析 AI 返回的得分点匹配结果
-- 计算得分
-- 返回给用户确认
+### 7.3 AI 生成得分点
 
-### 7.2 得分点管理
+**功能**：录题时输入参考答案，AI 自动拆解得分点
 
-- 录题时：AI 自动从参考答案为每个得分点生成描述
-- 用户可手动编辑/确认
-- 格式：`[{point: "xxx", score: 2}, ...]`
+**流程**：
+1. 用户输入参考答案
+2. AI 自动生成得分点列表
+3. 用户确认/调整得分点
+4. 保存
 
 ## 8. 文件结构
 
@@ -300,8 +319,6 @@ app/src/main/java/com/mistakenotes/
 │   │   ├── AppDatabase.kt
 │   │   ├── Converters.kt
 │   │   └── Dao.kt
-│   ├── remote/
-│   │   └── DeepSeekApi.kt
 │   └── repository/
 │       └── MistakeRepository.kt
 │
@@ -342,25 +359,26 @@ app/src/main/java/com/mistakenotes/
 
 ## 9. 实现优先级
 
-### 第一阶段（核心功能）
+### 第一阶段（MVP - 核心功能）
 1. 数据库设计与实现
 2. 手写画布核心（笔画渲染 + 压力感应）
 3. 首页 + 题目列表
-4. 录入流程
-
-### 第二阶段（复习功能）
+4. 录入流程（拍照存档 + 手动输入文本）
 5. 左右分栏复习界面
 6. 选择题答题逻辑
-7. 主观题手写答题
-8. AI 评分集成
+7. 主观题手写答题 + 参考答案对比模式
+8. 艾宾浩斯复习算法
+9. 错题分析统计
+10. 收藏/置顶功能
 
-### 第三阶段（增强功能）
-9. 艾宾浩斯复习算法
-10. 错题分析统计
-11. 收藏/置顶功能
-12. 像素级橡皮擦优化
+### 第二阶段（v2.0 - 智能化）
+1. OCR 文字识别集成
+2. AI 智能评分（DeepSeek API）
+3. AI 自动生成得分点
 
 ## 10. 依赖版本
+
+> ⚠️ 版本号需在项目创建时通过 Android Studio Gradle Sync 验证为最新稳定版。
 
 ```kotlin
 // build.gradle.kts
@@ -368,17 +386,17 @@ plugins {
     id("com.android.application") version "8.2.2"
     id("org.jetbrains.kotlin.android") version "1.9.22"
     id("com.google.devtools.ksp") version "1.9.22-1.0.17"
-    id("com.google.dagger.hilt.android") version "2.50"
+    id("com.google.dagger.hilt.android") version "2.52"
 }
 
 dependencies {
     // Compose BOM
-    platform("androidx.compose:compose-bom:2024.06.00")
+    platform("androidx.compose:compose-bom:2025.02.00")
 
     // Core
-    implementation("androidx.core:core-ktx:1.12.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
-    implementation("androidx.activity:activity-compose:1.8.2")
+    implementation("androidx.core:core-ktx:1.13.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.0")
+    implementation("androidx.activity:activity-compose:1.9.0")
 
     // Compose UI
     implementation("androidx.compose.ui:ui")
@@ -388,34 +406,25 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
 
     // Navigation
-    implementation("androidx.navigation:navigation-compose:2.7.6")
+    implementation("androidx.navigation:navigation-compose:2.8.0")
 
     // Room
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    ksp("androidx.room:room-compiler:2.6.1")
+    implementation("androidx.room:room-runtime:2.7.0")
+    implementation("androidx.room:room-ktx:2.7.0")
+    ksp("androidx.room:room-compiler:2.7.0")
 
     // Hilt
-    implementation("com.google.dagger:hilt-android:2.50")
-    ksp("com.google.dagger:hilt-android-compiler:2.50")
-    implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
+    implementation("com.google.dagger:hilt-android:2.52")
+    ksp("com.google.dagger:hilt-android-compiler:2.52")
+    implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
     // Coil
-    implementation("io.coil-kt:coil-compose:2.5.0")
+    implementation("io.coil-kt:coil-compose:2.6.0")
 
     // ExifInterface
     implementation("androidx.exifinterface:exifinterface:1.3.7")
 
     // DataStore
-    implementation("androidx.datastore:datastore-preferences:1.0.0")
-
-    // Tesseract OCR
-    implementation("com.rmtheis:tess-two:9.1.0")
-
-    // Retrofit + OkHttp（DeepSeek API）
-    implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+    implementation("androidx.datastore:datastore-preferences:1.1.0")
 }
 ```

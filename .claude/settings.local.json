@@ -4,7 +4,10 @@
       "Bash(gradle wrapper *)",
       "mcp__gitmcp-docs__search_generic_code",
       "WebFetch(domain:github.com)",
-      "mcp__gitmcp-docs__fetch_generic_documentation"
+      "mcp__gitmcp-docs__fetch_generic_documentation",
+      "WebSearch",
+      "mcp__gitmcp-docs__fetch_generic_url_content",
+      "mcp__fetch__fetch"
     ]
   },
   "enabledPlugins": {
