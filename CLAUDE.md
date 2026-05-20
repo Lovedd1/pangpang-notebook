@@ -106,10 +106,14 @@ app/src/main/java/com/mistakenotes/ui/components/
 
 ## 已实现功能
 
-### 手写画布（HandwritingCanvas 重构中）
-- `ui/components/HandwritingView.kt` — 当前实现，原生 Android View
-- **重构目标**：基于 perfect-freehand 算法 + 无限画布 + 像素级橡皮擦
-- **实现计划**：`docs/superpowers/plans/2026-05-19-draft-paper-redesign-implementation.md`
+### 手写画布（HandwritingCanvas）
+- `ui/components/HandwritingCanvas.kt` — 原生 Android View，基于 perfect-freehand 算法
+- **支持工具**：画笔、荧光笔、橡皮擦（像素级）
+- **无限画布**：支持无限制缩放
+- **压力感应**：画笔压力越大笔画越粗
+- **撤销/重做**：50步快照制
+- **像素级橡皮擦**：Bitmap 级别擦除
+- **触控笔锁定**：笔落下锁定缩放，笔抬起解锁
 
 ### 错题录入
 - **笔写模式**：只用触控笔书写，笔落下时锁定缩放/移动，笔抬起时解锁
@@ -144,14 +148,14 @@ app/src/main/java/com/mistakenotes/ui/components/
 - **左侧**：题目显示区（OCR 识别的题目文字）
 - **右侧**：可切换面板，通过 `[✏ 草稿纸]` / `[✓ 答题区]` 按钮切换
   - **答题区模式**：选择题显示 ABCD 选项 + 提交按钮；大题显示手写作答区 + 提交/跳过
-  - **草稿纸模式**：HandwritingView 草稿纸（大题场景下与答题区各自独立保留笔迹）
+  - **草稿纸模式**：HandwritingCanvas 草稿纸（大题场景下与答题区各自独立保留笔迹）
 
 #### 顶部工具栏
 - **左侧 80%**：[撤销 | 重做] | [笔 | 纸张 | 清空] | [缩放比例]
 - **右侧 20%**：根据选中工具显示选项面板
   - 笔工具：颜色按钮（蓝/黑/红）+ 粗细按钮（0.1/0.3/0.5mm）
   - 纸张工具：背景选择（空白/网格/横线）+ 底色选择（黑/白/肉）
-- 撤销/重做/清空作用于当前可见面板的 HandwritingView
+- 撤销/重做/清空作用于当前可见面板的 HandwritingCanvas
 
 #### 提交后
 - 答题区和草稿纸同时自动清除
@@ -193,7 +197,7 @@ app/src/main/java/com/mistakenotes/
 └── ui/
     ├── theme/                   # Compose 主题（砚台风格）
     ├── components/
-    │   └── HandwritingView.kt    # 手写画布（原生 View，Path 矢量绘制）
+    │   └── HandwritingCanvas.kt  # 手写画布（原生 View，perfect-freehand）
     └── screens/
         ├── MainScreen.kt         # 主页面（首页+导航）
         ├── ImportScreen.kt       # 错题录入页面
