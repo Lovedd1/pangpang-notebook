@@ -210,8 +210,6 @@ private fun BrowseCard(
 }
 
 @Composable
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
 private fun ChapterDropdown(
     chapters: List<Chapter>,
     selectedChapterId: Long?,
@@ -288,6 +286,7 @@ private fun ChapterDropdown(
     }
 }
 
+@Composable
 private fun filterChipColors() = FilterChipDefaults.filterChipColors(
     selectedContainerColor = AmberGold,
     selectedLabelColor = InkStoneBlack,
