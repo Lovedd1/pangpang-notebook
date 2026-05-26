@@ -1,5 +1,6 @@
 package com.mistakenotes.ui.screens
 
+import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,10 +17,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import com.mistakenotes.domain.model.QuestionType
 import com.mistakenotes.ui.theme.*
 
@@ -107,6 +110,18 @@ fun ReviewScreen(
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text("题目", color = AmberGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.height(8.dp))
+                            // Question image
+                            if (!mistake.questionImagePath.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = Uri.parse(mistake.questionImagePath),
+                                    contentDescription = "题目图片",
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp)),
+                                    contentScale = ContentScale.FillWidth
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                            }
                             if (!mistake.questionText.isNullOrBlank()) {
                                 Text(
                                     mistake.questionText,
@@ -377,14 +392,27 @@ fun ReviewScreen(
                             }
                         }
 
-                        // Next button
-                        OutlinedButton(
-                            onClick = { viewModel.nextMistake() },
-                            modifier = Modifier.fillMaxWidth().height(48.dp),
-                            border = BorderStroke(1.5.dp, AmberGold),
-                            shape = RoundedCornerShape(12.dp)
+                        // Next or Back button
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text("下一题 →", color = AmberGold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            OutlinedButton(
+                                onClick = onNavigateBack,
+                                modifier = Modifier.weight(1f).height(48.dp),
+                                border = BorderStroke(1.5.dp, TextCream.copy(alpha = 0.3f)),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("返回", color = TextCream.copy(alpha = 0.6f), fontSize = 16.sp)
+                            }
+                            OutlinedButton(
+                                onClick = { viewModel.nextMistake() },
+                                modifier = Modifier.weight(1f).height(48.dp),
+                                border = BorderStroke(1.5.dp, AmberGold),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("下一题 →", color = AmberGold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
