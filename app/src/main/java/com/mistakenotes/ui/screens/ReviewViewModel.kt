@@ -7,7 +7,6 @@ import com.mistakenotes.domain.model.Mistake
 import com.mistakenotes.domain.model.QuestionType
 import com.mistakenotes.domain.model.ReviewRecord
 import com.mistakenotes.domain.model.ReviewResult
-import com.mistakenotes.ui.canvas.VectorStroke
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -15,14 +14,12 @@ import javax.inject.Inject
 
 data class ReviewUiState(
     val currentMistake: Mistake? = null,
-    val showQuestion: Boolean = true,
+    val selectedOptionIndices: Set<Int> = emptySet(),
     val showAnswer: Boolean = false,
-    val showReference: Boolean = false,
-    val selectedAnswer: String? = null,
     val isCorrect: Boolean? = null,
+    val correctIndices: Set<Int> = emptySet(),
     val isLoading: Boolean = true,
-    val reviewComplete: Boolean = false,
-    val canvasStrokes: List<VectorStroke> = emptyList()
+    val reviewComplete: Boolean = false
 )
 
 @HiltViewModel
@@ -37,85 +34,86 @@ class ReviewViewModel @Inject constructor(
     private var currentIndex = 0
 
     init {
-        android.util.Log.d("ReviewVM", "ReviewViewModel created, starting loadReviewQueue")
         loadReviewQueue()
     }
 
     private fun loadReviewQueue() {
-        android.util.Log.d("ReviewVM", "loadReviewQueue started")
         viewModelScope.launch {
             combine(
                 repository.getAllMistakes(),
                 repository.getAllReviewRecords()
             ) { mistakes, reviewRecords ->
-                android.util.Log.d("ReviewVM", "combine transform started")
                 val now = System.currentTimeMillis()
-                android.util.Log.d("ReviewVM", "now=$now")
                 val reviewRecordMap = reviewRecords.groupBy { it.mistakeId }
-                android.util.Log.d("ReviewVM", "reviewRecordMap has ${reviewRecordMap.size} entries")
 
-                val filtered = mistakes.filter { mistake ->
+                mistakes.filter { mistake ->
                     val records = reviewRecordMap[mistake.id] ?: emptyList()
                     val latestRecord = records.maxByOrNull { it.reviewDate }
                     val nextReview = latestRecord?.nextReviewDate
-                    val shouldInclude = nextReview != null && nextReview != -1L && nextReview <= now
-                    android.util.Log.d("ReviewVM", "mistake ${mistake.id}: nextReview=${nextReview}, shouldInclude=$shouldInclude")
-                    shouldInclude
-                }.also { queue ->
-                    android.util.Log.d("ReviewVM", "filtered queue size: ${queue.size}")
-                    reviewQueue = queue.toMutableList()
-                    reviewQueue.shuffle()
-                    currentIndex = 0
-                    android.util.Log.d("ReviewVM", "reviewQueue shuffled, first item: ${reviewQueue.firstOrNull()?.id}")
+                    nextReview != null && nextReview != -1L && nextReview <= now
                 }
-                android.util.Log.d("ReviewVM", "combine transform returning queue of size ${filtered.size}")
-                filtered
             }.collect { queue ->
-                android.util.Log.d("ReviewVM", "COLLECT called with queue size: ${queue.size}")
+                reviewQueue = queue.toMutableList()
+                reviewQueue.shuffle()
+                currentIndex = 0
                 if (queue.isNotEmpty()) {
-                    android.util.Log.d("ReviewVM", "setting currentMistake to ${queue.first().id}")
                     _uiState.update {
-                        it.copy(
-                            currentMistake = queue.first(),
-                            isLoading = false,
-                            reviewComplete = false
-                        )
+                        it.copy(currentMistake = queue.first(), isLoading = false, reviewComplete = false)
                     }
-                    android.util.Log.d("ReviewVM", "uiState after update: ${_uiState.value.currentMistake?.id}, loading=${_uiState.value.isLoading}")
                 } else {
-                    _uiState.update {
-                        it.copy(isLoading = false, reviewComplete = true)
-                    }
+                    _uiState.update { it.copy(isLoading = false, reviewComplete = true) }
                 }
             }
         }
     }
 
-    fun submitAnswer(answer: String) {
-        val currentMistake = _uiState.value.currentMistake ?: return
-        val correctAnswer = currentMistake.correctAnswer ?: return
-        val isCorrect = answer.equals(correctAnswer, ignoreCase = true)
-
-        _uiState.update {
-            it.copy(
-                selectedAnswer = answer,
-                isCorrect = isCorrect,
-                showAnswer = true
-            )
+    fun toggleOption(index: Int) {
+        _uiState.update { state ->
+            val mistake = state.currentMistake ?: return@update state
+            val newSelected = if (mistake.questionType == QuestionType.SINGLE_CHOICE) {
+                setOf(index)
+            } else {
+                val current = state.selectedOptionIndices
+                if (index in current) current - index else current + index
+            }
+            state.copy(selectedOptionIndices = newSelected)
         }
-
-        updateReviewRecord(currentMistake.id, isCorrect)
     }
 
-    fun submitEssayAnswer(score: Int?) {
-        val currentMistake = _uiState.value.currentMistake ?: return
+    fun submitAnswer() {
+        val state = _uiState.value
+        val mistake = state.currentMistake ?: return
+        val correctAnswer = mistake.correctAnswer ?: return
+
+        val labelLetters = listOf("A", "B", "C", "D", "E", "F", "G", "H")
+        val correctIndices = correctAnswer.toCharArray()
+            .mapNotNull { c -> labelLetters.indexOf(c.toString()).takeIf { it >= 0 } }
+            .toSet()
+
+        val userIndices = state.selectedOptionIndices
+        val isCorrect = userIndices == correctIndices
+
         _uiState.update {
             it.copy(
-                showReference = true,
-                showAnswer = true
+                showAnswer = true,
+                isCorrect = isCorrect,
+                correctIndices = correctIndices
             )
         }
-        updateReviewRecord(currentMistake.id, score != null && score >= 60)
+
+        updateReviewRecord(mistake.id, isCorrect)
+    }
+
+    fun submitEssaySelfEval(isCorrect: Boolean) {
+        val mistake = _uiState.value.currentMistake ?: return
+        _uiState.update { it.copy(showAnswer = true, isCorrect = isCorrect) }
+        updateReviewRecord(mistake.id, isCorrect)
+    }
+
+    fun skipEssay() {
+        val mistake = _uiState.value.currentMistake ?: return
+        _uiState.update { it.copy(showAnswer = true, isCorrect = null) }
+        updateReviewRecord(mistake.id, false)
     }
 
     private fun updateReviewRecord(mistakeId: Long, isCorrect: Boolean) {
@@ -123,12 +121,7 @@ class ReviewViewModel @Inject constructor(
             val records = repository.getReviewRecordsByMistake(mistakeId).first()
             val latestRecord = records.maxByOrNull { it.reviewDate }
 
-            val newCorrectCount = if (isCorrect) {
-                (latestRecord?.correctCount ?: 0) + 1
-            } else {
-                0
-            }
-
+            val newCorrectCount = if (isCorrect) (latestRecord?.correctCount ?: 0) + 1 else 0
             val nextReviewDate = calculateNextReviewDate(newCorrectCount, isCorrect)
 
             val newRecord = ReviewRecord(
@@ -139,21 +132,19 @@ class ReviewViewModel @Inject constructor(
                 nextReviewDate = nextReviewDate,
                 correctCount = newCorrectCount
             )
-
             repository.insertReviewRecord(newRecord)
         }
     }
 
-    fun calculateNextReviewDate(correctCount: Int, isCorrect: Boolean): Long {
+    private fun calculateNextReviewDate(correctCount: Int, isCorrect: Boolean): Long {
         val now = System.currentTimeMillis()
         val oneDay = 86400000L
-
         return when {
-            !isCorrect -> now + oneDay // Wrong: 1 day
-            correctCount == 1 -> now + oneDay // First correct: 1 day
-            correctCount == 2 -> now + (3 * oneDay) // Second correct: 3 days
-            correctCount == 3 -> now + (7 * oneDay) // Third correct: 7 days
-            correctCount >= 4 -> -1 // Mastered
+            !isCorrect -> now + oneDay
+            correctCount == 1 -> now + oneDay
+            correctCount == 2 -> now + (3 * oneDay)
+            correctCount == 3 -> now + (7 * oneDay)
+            correctCount >= 4 -> -1
             else -> now + oneDay
         }
     }
@@ -162,26 +153,10 @@ class ReviewViewModel @Inject constructor(
         currentIndex++
         if (currentIndex < reviewQueue.size) {
             _uiState.update {
-                it.copy(
-                    currentMistake = reviewQueue[currentIndex],
-                    showQuestion = true,
-                    showAnswer = false,
-                    showReference = false,
-                    selectedAnswer = null,
-                    isCorrect = null,
-                    canvasStrokes = emptyList()
-                )
+                ReviewUiState(currentMistake = reviewQueue[currentIndex], isLoading = false)
             }
         } else {
-            _uiState.update {
-                it.copy(reviewComplete = true, currentMistake = null)
-            }
-        }
-    }
-
-    fun onStrokeCompleted(stroke: VectorStroke) {
-        _uiState.update {
-            it.copy(canvasStrokes = it.canvasStrokes + stroke)
+            _uiState.update { it.copy(reviewComplete = true, currentMistake = null) }
         }
     }
 }
