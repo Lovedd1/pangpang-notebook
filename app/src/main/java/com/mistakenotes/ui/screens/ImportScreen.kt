@@ -372,7 +372,7 @@ private fun SubjectDropdown(
             onDismissRequest = { showDialog = false },
             title = { Text("选择科目", color = AmberGold) },
             text = {
-                Column {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     subjects.forEach { subject ->
                         TextButton(
                             onClick = { onSubjectSelected(subject.id); showDialog = false },
@@ -434,7 +434,7 @@ private fun ChapterDropdown(
             onDismissRequest = { showDialog = false },
             title = { Text("选择章节", color = AmberGold) },
             text = {
-                Column {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     if (chapters.isEmpty()) {
                         Text("请先选择科目", color = TextCream.copy(alpha = 0.6f))
                     } else {
@@ -500,7 +500,7 @@ private fun KnowledgePointDropdown(
             onDismissRequest = { showDialog = false },
             title = { Text("选择知识点", color = AmberGold) },
             text = {
-                Column {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     if (knowledgePoints.isEmpty()) {
                         Text("请先选择章节", color = TextCream.copy(alpha = 0.6f))
                     } else {
