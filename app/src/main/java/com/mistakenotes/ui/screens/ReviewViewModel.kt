@@ -37,28 +37,43 @@ class ReviewViewModel @Inject constructor(
     private var currentIndex = 0
 
     init {
+        android.util.Log.d("ReviewVM", "ReviewViewModel created, starting loadReviewQueue")
         loadReviewQueue()
     }
 
     private fun loadReviewQueue() {
+        android.util.Log.d("ReviewVM", "loadReviewQueue started")
         viewModelScope.launch {
             combine(
                 repository.getAllMistakes(),
                 repository.getAllReviewRecords()
             ) { mistakes, reviewRecords ->
+                android.util.Log.d("ReviewVM", "combine transform started")
                 val now = System.currentTimeMillis()
+                android.util.Log.d("ReviewVM", "now=$now")
                 val reviewRecordMap = reviewRecords.groupBy { it.mistakeId }
+                android.util.Log.d("ReviewVM", "reviewRecordMap has ${reviewRecordMap.size} entries")
 
-                mistakes.filter { mistake ->
+                val filtered = mistakes.filter { mistake ->
                     val records = reviewRecordMap[mistake.id] ?: emptyList()
                     val latestRecord = records.maxByOrNull { it.reviewDate }
-                    latestRecord?.nextReviewDate?.let { it <= now } ?: true
+                    val nextReview = latestRecord?.nextReviewDate
+                    val shouldInclude = nextReview != null && nextReview != -1L && nextReview <= now
+                    android.util.Log.d("ReviewVM", "mistake ${mistake.id}: nextReview=${nextReview}, shouldInclude=$shouldInclude")
+                    shouldInclude
                 }.also { queue ->
+                    android.util.Log.d("ReviewVM", "filtered queue size: ${queue.size}")
                     reviewQueue = queue.toMutableList()
                     reviewQueue.shuffle()
+                    currentIndex = 0
+                    android.util.Log.d("ReviewVM", "reviewQueue shuffled, first item: ${reviewQueue.firstOrNull()?.id}")
                 }
+                android.util.Log.d("ReviewVM", "combine transform returning queue of size ${filtered.size}")
+                filtered
             }.collect { queue ->
+                android.util.Log.d("ReviewVM", "COLLECT called with queue size: ${queue.size}")
                 if (queue.isNotEmpty()) {
+                    android.util.Log.d("ReviewVM", "setting currentMistake to ${queue.first().id}")
                     _uiState.update {
                         it.copy(
                             currentMistake = queue.first(),
@@ -66,6 +81,7 @@ class ReviewViewModel @Inject constructor(
                             reviewComplete = false
                         )
                     }
+                    android.util.Log.d("ReviewVM", "uiState after update: ${_uiState.value.currentMistake?.id}, loading=${_uiState.value.isLoading}")
                 } else {
                     _uiState.update {
                         it.copy(isLoading = false, reviewComplete = true)
@@ -104,8 +120,8 @@ class ReviewViewModel @Inject constructor(
 
     private fun updateReviewRecord(mistakeId: Long, isCorrect: Boolean) {
         viewModelScope.launch {
-            val records = repository.getReviewRecordsByMistake(mistakeId)
-            val latestRecord = records.firstOrNull()
+            val records = repository.getReviewRecordsByMistake(mistakeId).first()
+            val latestRecord = records.maxByOrNull { it.reviewDate }
 
             val newCorrectCount = if (isCorrect) {
                 (latestRecord?.correctCount ?: 0) + 1

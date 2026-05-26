@@ -70,6 +70,7 @@ fun ReviewScreen(
         },
         containerColor = InkStoneBlack
     ) { paddingValues ->
+        android.util.Log.d("ReviewScreen", "composable evaluated: isLoading=${uiState.isLoading}, reviewComplete=${uiState.reviewComplete}, currentMistake=${uiState.currentMistake?.id}")
         when {
             uiState.isLoading -> {
                 Box(

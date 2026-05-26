@@ -12,6 +12,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -62,7 +64,7 @@ fun ImportScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.Filled.ArrowBack,
                             contentDescription = "返回",
                             tint = AmberGold
                         )
@@ -183,14 +185,6 @@ fun ImportScreen(
                 onChapterSelected = { viewModel.setChapter(it) }
             )
 
-            // Knowledge Point
-            KnowledgePointDropdown(
-                knowledgePoints = uiState.knowledgePoints,
-                selectedKnowledgePointId = uiState.knowledgePointId,
-                enabled = uiState.chapterId != null,
-                onKnowledgePointSelected = { viewModel.setKnowledgePoint(it) }
-            )
-
             // Question Text
             OutlinedTextField(
                 value = uiState.questionText,
@@ -210,40 +204,12 @@ fun ImportScreen(
                 )
             )
 
-            // Options for choice questions
+            // Correct Answer for choice questions
             if (uiState.questionType != QuestionType.ESSAY) {
-                Text(
-                    text = "选项",
-                    color = TextCream,
-                    style = MaterialTheme.typography.titleSmall
-                )
-
-                val optionLabels = listOf("A", "B", "C", "D", "E", "F")
-                uiState.options.forEachIndexed { index, option ->
-                    OutlinedTextField(
-                        value = option,
-                        onValueChange = { viewModel.setOption(index, it) },
-                        label = { Text("选项 ${optionLabels.getOrElse(index) { "" }}") },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = TextCream,
-                            unfocusedTextColor = TextCream,
-                            focusedBorderColor = AmberGold,
-                            unfocusedBorderColor = CardDark,
-                            focusedLabelColor = AmberGold,
-                            unfocusedLabelColor = TextCream.copy(alpha = 0.6f),
-                            cursorColor = AmberGold,
-                            focusedContainerColor = CardDark,
-                            unfocusedContainerColor = CardDark
-                        )
-                    )
-                }
-
-                // Correct Answer
                 OutlinedTextField(
                     value = uiState.correctAnswer,
                     onValueChange = { viewModel.setCorrectAnswer(it) },
-                    label = { Text("正确答案") },
+                    label = { Text("正确答案（如：A）") },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = TextCream,
@@ -323,47 +289,69 @@ private fun SubjectDropdown(
     selectedSubjectId: Long?,
     onSubjectSelected: (Long) -> Unit
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    var showDialog by remember { mutableStateOf(false) }
     val selectedSubject = subjects.find { it.id == selectedSubjectId }
 
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = !expanded }
-    ) {
-        OutlinedTextField(
-            value = selectedSubject?.name ?: "",
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("科目") },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = TextCream,
-                unfocusedTextColor = TextCream,
-                focusedBorderColor = AmberGold,
-                unfocusedBorderColor = CardDark,
-                focusedLabelColor = AmberGold,
-                unfocusedLabelColor = TextCream.copy(alpha = 0.6f),
-                focusedContainerColor = CardDark,
-                unfocusedContainerColor = CardDark
-            )
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            subjects.forEach { subject ->
-                DropdownMenuItem(
-                    text = { Text(subject.name, color = TextCream) },
-                    onClick = {
-                        onSubjectSelected(subject.id)
-                        expanded = false
-                    }
+    OutlinedTextField(
+        value = selectedSubject?.name ?: "请选择科目",
+        onValueChange = {},
+        readOnly = true,
+        label = { Text("科目") },
+        trailingIcon = {
+            IconButton(onClick = { showDialog = true }) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = TextCream
                 )
             }
-        }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { showDialog = true },
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = TextCream,
+            unfocusedTextColor = TextCream,
+            focusedBorderColor = AmberGold,
+            unfocusedBorderColor = CardDark,
+            focusedLabelColor = AmberGold,
+            unfocusedLabelColor = TextCream.copy(alpha = 0.6f),
+            focusedContainerColor = CardDark,
+            unfocusedContainerColor = CardDark
+        )
+    )
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text("选择科目", color = AmberGold) },
+            text = {
+                Column {
+                    subjects.forEach { subject ->
+                        TextButton(
+                            onClick = {
+                                onSubjectSelected(subject.id)
+                                showDialog = false
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = subject.name,
+                                color = if (subject.id == selectedSubjectId) AmberGold else TextCream,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDialog = false }) {
+                    Text("取消", color = TextCream.copy(alpha = 0.6f))
+                }
+            },
+            containerColor = CardDark,
+            titleContentColor = AmberGold
+        )
     }
 }
 
@@ -375,48 +363,76 @@ private fun ChapterDropdown(
     enabled: Boolean,
     onChapterSelected: (Long) -> Unit
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    var showDialog by remember { mutableStateOf(false) }
     val selectedChapter = chapters.find { it.id == selectedChapterId }
 
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { if (enabled) expanded = !expanded }
-    ) {
-        OutlinedTextField(
-            value = selectedChapter?.name ?: "",
-            onValueChange = {},
-            readOnly = true,
-            enabled = enabled,
-            label = { Text("章节") },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = TextCream,
-                unfocusedTextColor = if (enabled) TextCream else TextCream.copy(alpha = 0.4f),
-                focusedBorderColor = AmberGold,
-                unfocusedBorderColor = CardDark,
-                focusedLabelColor = AmberGold,
-                unfocusedLabelColor = TextCream.copy(alpha = 0.6f),
-                focusedContainerColor = CardDark,
-                unfocusedContainerColor = CardDark
-            )
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            chapters.forEach { chapter ->
-                DropdownMenuItem(
-                    text = { Text(chapter.name, color = TextCream) },
-                    onClick = {
-                        onChapterSelected(chapter.id)
-                        expanded = false
-                    }
-                )
+    OutlinedTextField(
+        value = selectedChapter?.name ?: if (enabled) "请选择章节" else "",
+        onValueChange = {},
+        readOnly = true,
+        enabled = enabled,
+        label = { Text("章节") },
+        trailingIcon = {
+            if (enabled) {
+                IconButton(onClick = { showDialog = true }) {
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = TextCream.copy(alpha = if (enabled) 1f else 0.4f)
+                    )
+                }
             }
-        }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled) { showDialog = true },
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = TextCream,
+            unfocusedTextColor = if (enabled) TextCream else TextCream.copy(alpha = 0.4f),
+            focusedBorderColor = AmberGold,
+            unfocusedBorderColor = CardDark,
+            focusedLabelColor = AmberGold,
+            unfocusedLabelColor = TextCream.copy(alpha = 0.6f),
+            focusedContainerColor = CardDark,
+            unfocusedContainerColor = CardDark
+        )
+    )
+
+    if (showDialog && enabled) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text("选择章节", color = AmberGold) },
+            text = {
+                Column {
+                    if (chapters.isEmpty()) {
+                        Text("请先选择科目", color = TextCream.copy(alpha = 0.6f))
+                    } else {
+                        chapters.forEach { chapter ->
+                            TextButton(
+                                onClick = {
+                                    onChapterSelected(chapter.id)
+                                    showDialog = false
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = chapter.name,
+                                    color = if (chapter.id == selectedChapterId) AmberGold else TextCream,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDialog = false }) {
+                    Text("取消", color = TextCream.copy(alpha = 0.6f))
+                }
+            },
+            containerColor = CardDark,
+            titleContentColor = AmberGold
+        )
     }
 }
 
@@ -428,47 +444,75 @@ private fun KnowledgePointDropdown(
     enabled: Boolean,
     onKnowledgePointSelected: (Long) -> Unit
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    var showDialog by remember { mutableStateOf(false) }
     val selectedKp = knowledgePoints.find { it.id == selectedKnowledgePointId }
 
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { if (enabled) expanded = !expanded }
-    ) {
-        OutlinedTextField(
-            value = selectedKp?.name ?: "",
-            onValueChange = {},
-            readOnly = true,
-            enabled = enabled,
-            label = { Text("知识点") },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = TextCream,
-                unfocusedTextColor = if (enabled) TextCream else TextCream.copy(alpha = 0.4f),
-                focusedBorderColor = AmberGold,
-                unfocusedBorderColor = CardDark,
-                focusedLabelColor = AmberGold,
-                unfocusedLabelColor = TextCream.copy(alpha = 0.6f),
-                focusedContainerColor = CardDark,
-                unfocusedContainerColor = CardDark
-            )
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            knowledgePoints.forEach { kp ->
-                DropdownMenuItem(
-                    text = { Text(kp.name, color = TextCream) },
-                    onClick = {
-                        onKnowledgePointSelected(kp.id)
-                        expanded = false
-                    }
-                )
+    OutlinedTextField(
+        value = selectedKp?.name ?: if (enabled) "请选择知识点" else "",
+        onValueChange = {},
+        readOnly = true,
+        enabled = enabled,
+        label = { Text("知识点") },
+        trailingIcon = {
+            if (enabled) {
+                IconButton(onClick = { showDialog = true }) {
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = TextCream.copy(alpha = if (enabled) 1f else 0.4f)
+                    )
+                }
             }
-        }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled) { showDialog = true },
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = TextCream,
+            unfocusedTextColor = if (enabled) TextCream else TextCream.copy(alpha = 0.4f),
+            focusedBorderColor = AmberGold,
+            unfocusedBorderColor = CardDark,
+            focusedLabelColor = AmberGold,
+            unfocusedLabelColor = TextCream.copy(alpha = 0.6f),
+            focusedContainerColor = CardDark,
+            unfocusedContainerColor = CardDark
+        )
+    )
+
+    if (showDialog && enabled) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text("选择知识点", color = AmberGold) },
+            text = {
+                Column {
+                    if (knowledgePoints.isEmpty()) {
+                        Text("请先选择章节", color = TextCream.copy(alpha = 0.6f))
+                    } else {
+                        knowledgePoints.forEach { kp ->
+                            TextButton(
+                                onClick = {
+                                    onKnowledgePointSelected(kp.id)
+                                    showDialog = false
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = kp.name,
+                                    color = if (kp.id == selectedKnowledgePointId) AmberGold else TextCream,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDialog = false }) {
+                    Text("取消", color = TextCream.copy(alpha = 0.6f))
+                }
+            },
+            containerColor = CardDark,
+            titleContentColor = AmberGold
+        )
     }
 }

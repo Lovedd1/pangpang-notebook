@@ -3,11 +3,12 @@ package com.mistakenotes.ui.screens
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mistakenotes.data.repository.MistakeRepository
-import com.mistakenotes.domain.model.Mistake
-import com.mistakenotes.domain.model.ReviewRecord
 import com.mistakenotes.domain.model.Subject
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class HomeUiState(
@@ -26,53 +27,45 @@ class HomeViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
-    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+    val uiState: StateFlow<HomeUiState> = _uiState
 
     init {
-        loadData()
-    }
+        viewModelScope.launch {
+            combine(
+                repository.getAllSubjects(),
+                repository.getAllMistakes(),
+                repository.getAllReviewRecords()
+            ) { subjects, mistakes, reviewRecords ->
+                Triple(subjects, mistakes, reviewRecords)
+            }.collect { (subjects, mistakes, reviewRecords) ->
+                val now = System.currentTimeMillis()
+                val latestByMistake = reviewRecords.groupBy { it.mistakeId }
+                    .mapValues { (_, recs) -> recs.maxByOrNull { it.reviewDate } }
 
-    private fun loadData() {
-        combine(
-            repository.getAllSubjects(),
-            repository.getAllMistakes(),
-            repository.getAllReviewRecords()
-        ) { subjects, mistakes, reviewRecords ->
-            val currentSubjectId = _uiState.value.currentSubjectId
+                val toReview = latestByMistake.count { (_, rec) ->
+                    rec?.nextReviewDate?.let { it != -1L && it <= now } == true
+                }
+                val overdue = latestByMistake.count { (_, rec) ->
+                    rec?.nextReviewDate?.let { it != -1L && it < now - 86400000 } == true
+                }
+                val mastered = latestByMistake.count { (_, rec) ->
+                    rec?.nextReviewDate == -1L || (rec?.correctCount ?: 0) >= 4
+                }
 
-            val filteredMistakes = if (currentSubjectId != null) {
-                mistakes.filter { it.subjectId == currentSubjectId }
-            } else {
-                mistakes
+                _uiState.value = HomeUiState(
+                    subjects = subjects,
+                    currentSubjectId = _uiState.value.currentSubjectId,
+                    totalMistakes = mistakes.size,
+                    toReviewCount = toReview,
+                    overdueCount = overdue,
+                    masteredCount = mastered,
+                    isLoading = false
+                )
             }
-
-            val now = System.currentTimeMillis()
-
-            // Calculate review stats based on Ebbinghaus
-            val toReview = reviewRecords.filter { record ->
-                record.nextReviewDate?.let { it <= now } ?: false
-            }.size
-
-            val overdue = reviewRecords.filter { record ->
-                record.nextReviewDate?.let { it < now - 86400000 } ?: false
-            }.size
-
-            val mastered = reviewRecords.filter { it.correctCount >= 4 }.size
-
-            HomeUiState(
-                subjects = subjects,
-                currentSubjectId = currentSubjectId,
-                totalMistakes = filteredMistakes.size,
-                toReviewCount = toReview,
-                overdueCount = overdue,
-                masteredCount = mastered,
-                isLoading = false
-            )
-        }.launchIn(viewModelScope)
+        }
     }
 
     fun selectSubject(subjectId: Long?) {
-        _uiState.update { it.copy(currentSubjectId = subjectId) }
-        loadData()
+        _uiState.value = _uiState.value.copy(currentSubjectId = subjectId)
     }
 }

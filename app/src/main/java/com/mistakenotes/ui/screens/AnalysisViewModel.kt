@@ -162,10 +162,10 @@ class AnalysisViewModel @Inject constructor(
         val knowledgePoints = mutableListOf<Pair<KnowledgePoint, Int>>()
 
         for ((kpId, count) in kpIdWithCounts) {
-            val kp = mistakes.find { it.knowledgePointId == kpId }?.let {
-                KnowledgePoint(id = it.knowledgePointId, chapterId = it.chapterId, name = "")
-            }
-            if (kp != null && count > 0) {
+            val kpIdNonNull = kpId ?: continue
+            val mistake = mistakes.filter { it.knowledgePointId == kpIdNonNull }.firstOrNull()
+            if (mistake != null && count > 0) {
+                val kp = KnowledgePoint(id = kpIdNonNull, chapterId = mistake.chapterId, name = "")
                 knowledgePoints.add(kp to count)
             }
         }

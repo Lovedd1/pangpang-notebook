@@ -25,8 +25,8 @@ import com.mistakenotes.ui.theme.*
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
-    onNavigateToCamera: () -> Unit = {},
-    onNavigateToSearch: () -> Unit = {},
+    onNavigateToImport: () -> Unit = {},
+    onNavigateToReview: () -> Unit = {},
     onNavigateToAnalysis: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -99,7 +99,7 @@ fun HomeScreen(
                     value = uiState.toReviewCount.toString(),
                     color = AmberGold,
                     modifier = Modifier.weight(1f),
-                    onClick = {}
+                    onClick = onNavigateToReview
                 )
                 StatCard(
                     title = "逾期",
@@ -139,7 +139,7 @@ fun HomeScreen(
                 icon = Icons.Default.CameraAlt,
                 title = "拍照录入",
                 description = "拍摄题目快速录入",
-                onClick = onNavigateToCamera,
+                onClick = onNavigateToImport,
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -149,7 +149,7 @@ fun HomeScreen(
                 icon = Icons.Default.Search,
                 title = "搜索题目",
                 description = "查找错题内容",
-                onClick = onNavigateToSearch,
+                onClick = onNavigateToReview,
                 modifier = Modifier.fillMaxWidth()
             )
 

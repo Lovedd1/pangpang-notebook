@@ -67,18 +67,11 @@ data class KnowledgePointEntity(
             parentColumns = ["id"],
             childColumns = ["chapterId"],
             onDelete = ForeignKey.CASCADE
-        ),
-        ForeignKey(
-            entity = KnowledgePointEntity::class,
-            parentColumns = ["id"],
-            childColumns = ["knowledgePointId"],
-            onDelete = ForeignKey.CASCADE
         )
     ],
     indices = [
         Index("subjectId"),
-        Index("chapterId"),
-        Index("knowledgePointId")
+        Index("chapterId")
     ]
 )
 data class MistakeEntity(
@@ -87,7 +80,7 @@ data class MistakeEntity(
     val title: String = "",
     val subjectId: Long,
     val chapterId: Long,
-    val knowledgePointId: Long,
+    val knowledgePointId: Long? = null,
     val questionType: String = "SINGLE_CHOICE",
     val questionImagePath: String? = null,
     val questionText: String? = null,

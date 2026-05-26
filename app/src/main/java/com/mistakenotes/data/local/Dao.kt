@@ -100,6 +100,9 @@ interface ReviewRecordDao {
     @Query("SELECT * FROM review_records WHERE mistakeId = :mistakeId ORDER BY reviewDate DESC")
     fun getReviewRecordsByMistake(mistakeId: Long): Flow<List<ReviewRecordEntity>>
 
+    @Query("SELECT * FROM review_records ORDER BY reviewDate DESC")
+    fun getAllReviewRecords(): Flow<List<ReviewRecordEntity>>
+
     @Query("SELECT * FROM review_records WHERE nextReviewDate IS NOT NULL AND nextReviewDate <= :currentTime ORDER BY nextReviewDate ASC")
     fun getReviewRecordsDue(currentTime: Long): Flow<List<ReviewRecordEntity>>
 

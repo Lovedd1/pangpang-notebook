@@ -16,41 +16,41 @@ class MistakeRepository @Inject constructor(
     private val reviewRecordDao: ReviewRecordDao
 ) {
     // Subject
-    fun getAllSubjects(): Flow<List<Subject>> = subjectDao.getAll().map { list ->
+    fun getAllSubjects(): Flow<List<Subject>> = subjectDao.getAllSubjects().map { list ->
         list.map { it.toDomain() }
     }
-    suspend fun getSubjectById(id: Long): Subject? = subjectDao.getById(id)?.toDomain()
-    suspend fun insertSubject(subject: Subject): Long = subjectDao.insert(subject.toEntity())
-    suspend fun deleteSubject(subject: Subject) = subjectDao.delete(subject.toEntity())
+    suspend fun getSubjectById(id: Long): Subject? = subjectDao.getSubjectById(id)?.toDomain()
+    suspend fun insertSubject(subject: Subject): Long = subjectDao.insertSubject(subject.toEntity())
+    suspend fun deleteSubject(subject: Subject) = subjectDao.deleteSubject(subject.toEntity())
 
     // Chapter
     fun getChaptersBySubject(subjectId: Long): Flow<List<Chapter>> =
-        chapterDao.getBySubject(subjectId).map { list -> list.map { it.toDomain() } }
-    suspend fun insertChapter(chapter: Chapter): Long = chapterDao.insert(chapter.toEntity())
+        chapterDao.getChaptersBySubject(subjectId).map { list -> list.map { it.toDomain() } }
+    suspend fun insertChapter(chapter: Chapter): Long = chapterDao.insertChapter(chapter.toEntity())
 
     // KnowledgePoint
     fun getKnowledgePointsByChapter(chapterId: Long): Flow<List<KnowledgePoint>> =
-        knowledgePointDao.getByChapter(chapterId).map { list -> list.map { it.toDomain() } }
-    suspend fun insertKnowledgePoint(kp: KnowledgePoint): Long = knowledgePointDao.insert(kp.toEntity())
+        knowledgePointDao.getKnowledgePointsByChapter(chapterId).map { list -> list.map { it.toDomain() } }
+    suspend fun insertKnowledgePoint(kp: KnowledgePoint): Long = knowledgePointDao.insertKnowledgePoint(kp.toEntity())
 
     // Mistake
-    fun getAllMistakes(): Flow<List<Mistake>> = mistakeDao.getAll().map { list ->
+    fun getAllMistakes(): Flow<List<Mistake>> = mistakeDao.getAllMistakes().map { list ->
         list.map { it.toDomain() }
     }
     fun getMistakesBySubject(subjectId: Long): Flow<List<Mistake>> =
-        mistakeDao.getBySubject(subjectId).map { list -> list.map { it.toDomain() } }
-    suspend fun getMistakeById(id: Long): Mistake? = mistakeDao.getById(id)?.toDomain()
-    suspend fun insertMistake(mistake: Mistake): Long = mistakeDao.insert(mistake.toEntity())
-    suspend fun updateMistake(mistake: Mistake) = mistakeDao.update(mistake.toEntity())
-    suspend fun deleteMistake(mistake: Mistake) = mistakeDao.delete(mistake.toEntity())
+        mistakeDao.getMistakesBySubject(subjectId).map { list -> list.map { it.toDomain() } }
+    suspend fun getMistakeById(id: Long): Mistake? = mistakeDao.getMistakeById(id)?.toDomain()
+    suspend fun insertMistake(mistake: Mistake): Long = mistakeDao.insertMistake(mistake.toEntity())
+    suspend fun updateMistake(mistake: Mistake) = mistakeDao.updateMistake(mistake.toEntity())
+    suspend fun deleteMistake(mistake: Mistake) = mistakeDao.deleteMistake(mistake.toEntity())
 
     // ReviewRecord
     fun getReviewRecordsByMistake(mistakeId: Long): Flow<List<ReviewRecord>> =
-        reviewRecordDao.getByMistake(mistakeId).map { list -> list.map { it.toDomain() } }
-    fun getAllReviewRecords(): Flow<List<ReviewRecord>> = reviewRecordDao.getAll().map { list ->
+        reviewRecordDao.getReviewRecordsByMistake(mistakeId).map { list -> list.map { it.toDomain() } }
+    fun getAllReviewRecords(): Flow<List<ReviewRecord>> = reviewRecordDao.getAllReviewRecords().map { list ->
         list.map { it.toDomain() }
     }
-    suspend fun insertReviewRecord(record: ReviewRecord): Long = reviewRecordDao.insert(record.toEntity())
+    suspend fun insertReviewRecord(record: ReviewRecord): Long = reviewRecordDao.insertReviewRecord(record.toEntity())
 }
 
 // Extension functions for mapping

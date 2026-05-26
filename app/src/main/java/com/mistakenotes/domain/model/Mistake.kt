@@ -11,7 +11,7 @@ data class Mistake(
     val title: String = "",
     val subjectId: Long,
     val chapterId: Long,
-    val knowledgePointId: Long,
+    val knowledgePointId: Long? = null,
     val questionType: QuestionType = QuestionType.SINGLE_CHOICE,
     val questionImagePath: String? = null,
     val questionText: String? = null,

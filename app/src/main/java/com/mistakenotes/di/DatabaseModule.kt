@@ -21,7 +21,10 @@ object DatabaseModule {
             context,
             AppDatabase::class.java,
             "mistake_notes.db"
-        ).build()
+        )
+            .addCallback(AppDatabase.prepopulateCallback)
+            .fallbackToDestructiveMigration()
+            .build()
     }
 
     @Provides

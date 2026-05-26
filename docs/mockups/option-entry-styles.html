@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>录入 & 复习 - 样式预览</title>
+<style>
+  :root {
+    --bg: #1A1A1A;
+    --card: #242424;
+    --text: #E8E4DC;
+    --gold: #D4A574;
+    --green: #6ABF6A;
+    --red: #D44040;
+    --border: #3A3A3A;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Microsoft YaHei", sans-serif;
+    background: #111;
+    color: var(--text);
+    display: flex;
+    gap: 24px;
+    padding: 24px;
+    min-height: 100vh;
+    overflow-x: auto;
+  }
+
+  .panel {
+    background: var(--bg);
+    border-radius: 16px;
+    padding: 24px;
+    width: 420px;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+  }
+  .panel h2 {
+    color: var(--gold);
+    font-size: 18px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .panel h3 {
+    color: var(--text);
+    font-size: 14px;
+    margin: 20px 0 12px;
+    opacity: 0.8;
+  }
+
+  /* ============================================= */
+  /* 风格1: 标签式 — 选中=金色填充                */
+  /* ============================================= */
+  .style1-option {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px;
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .style1-option:hover { border-color: var(--gold); }
+  .style1-option .label {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px;
+    color: var(--text);
+    flex-shrink: 0;
+    transition: all 0.2s;
+  }
+  .style1-option input[type="text"] {
+    flex: 1; background: transparent; border: none; color: var(--text);
+    font-size: 15px; outline: none;
+  }
+  .style1-option input[type="text"]::placeholder { color: #666; }
+  .style1-option .check-btn {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: transparent;
+    cursor: pointer; flex-shrink: 0;
+    transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .style1-option.correct { border-color: var(--green); }
+  .style1-option.correct .label { background: var(--green); color: #111; }
+  .style1-option.correct .check-btn { background: var(--green); border-color: var(--green); }
+  .style1-option.correct .check-btn::after { content: "✓"; color: #111; font-weight: bold; font-size: 14px; }
+  .style1-option .delete-btn {
+    width: 28px; height: 28px;
+    border: none; background: transparent; color: #666;
+    cursor: pointer; font-size: 18px; flex-shrink: 0;
+    transition: color 0.2s;
+  }
+  .style1-option .delete-btn:hover { color: var(--red); }
+  .style1-add {
+    display: flex; align-items: center; justify-content: center;
+    gap: 6px; padding: 10px;
+    border: 1.5px dashed var(--border);
+    border-radius: 10px; color: #666;
+    cursor: pointer; font-size: 14px;
+    transition: all 0.2s;
+  }
+  .style1-add:hover { border-color: var(--gold); color: var(--gold); }
+
+  /* ============================================= */
+  /* 风格2: 紧凑卡片式 — 选项在一行内带确认       */
+  /* ============================================= */
+  .style2-row {
+    display: flex; gap: 8px; align-items: center; margin-bottom: 8px;
+  }
+  .style2-option {
+    flex: 1; display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px;
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    transition: all 0.2s;
+  }
+  .style2-option .letter {
+    font-weight: 700; font-size: 14px; color: var(--gold);
+    width: 20px; flex-shrink: 0;
+  }
+  .style2-option input {
+    flex: 1; background: transparent; border: none; color: var(--text);
+    font-size: 15px; outline: none;
+  }
+  .style2-option input::placeholder { color: #555; }
+  .style2-row .right-btn {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    cursor: pointer; flex-shrink: 0;
+    transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; color: #666;
+  }
+  .style2-row .right-btn.is-correct {
+    background: var(--green); border-color: var(--green); color: #111;
+  }
+  .style2-row .right-btn:hover { border-color: var(--gold); }
+
+  /* ============================================= */
+  /* 风格3: 列表式 — 正确选项金色左边框           */
+  /* ============================================= */
+  .style3-option {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px;
+    background: var(--card);
+    border-left: 4px solid var(--border);
+    border-radius: 0 10px 10px 0;
+    margin-bottom: 8px;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .style3-option.correct { border-left-color: var(--green); }
+  .style3-option .idx {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 12px;
+    flex-shrink: 0;
+  }
+  .style3-option.correct .idx { background: var(--green); color: #111; }
+  .style3-option input {
+    flex: 1; background: transparent; border: none; color: var(--text);
+    font-size: 15px; outline: none;
+  }
+  .style3-option .actions {
+    display: flex; gap: 4px;
+  }
+  .style3-option .actions button {
+    width: 32px; height: 32px;
+    border: none; background: transparent; cursor: pointer;
+    border-radius: 6px; font-size: 16px;
+    transition: all 0.15s;
+  }
+  .style3-option .mark-btn { color: #666; }
+  .style3-option .mark-btn:hover { background: rgba(106,191,106,0.15); color: var(--green); }
+  .style3-option.correct .mark-btn { color: var(--green); }
+  .style3-option .del-btn { color: #555; }
+  .style3-option .del-btn:hover { background: rgba(212,64,64,0.15); color: var(--red); }
+
+  /* ============================================= */
+  /* 通用: 题型标签                               */
+  /* ============================================= */
+  .type-tags {
+    display: flex; gap: 8px; margin-bottom: 20px;
+  }
+  .type-tag {
+    padding: 8px 18px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+  }
+  .type-tag.active {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: #111;
+    font-weight: 600;
+  }
+  .type-tag:hover:not(.active) { border-color: var(--gold); }
+
+  /* ============================================= */
+  /* 复习界面 — 选项按钮                          */
+  /* ============================================= */
+  .review-option {
+    display: flex; align-items: center; gap: 12px;
+    padding: 16px 20px;
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .review-option:hover { border-color: var(--gold); }
+  .review-option.selected { border-color: var(--gold); background: rgba(212,165,116,0.08); }
+  .review-option.correct-reveal { border-color: var(--green); background: rgba(106,191,106,0.12); }
+  .review-option.wrong-reveal { border-color: var(--red); background: rgba(212,64,64,0.12); }
+  .review-option .radio {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+  .review-option.selected .radio {
+    border-color: var(--gold);
+    background: var(--gold);
+  }
+  .review-option.selected .radio::after {
+    content: ""; width: 8px; height: 8px;
+    background: #111; border-radius: 50%;
+  }
+  .review-option.correct-reveal .radio {
+    border-color: var(--green); background: var(--green);
+  }
+  .review-option.wrong-reveal .radio {
+    border-color: var(--red); background: var(--red);
+  }
+  .review-option .opt-text {
+    font-size: 15px; color: var(--text);
+  }
+  .review-option .opt-letter {
+    font-weight: 700; color: var(--gold); font-size: 16px;
+    width: 24px; flex-shrink: 0;
+  }
+
+  /* 提交按钮 */
+  .submit-btn {
+    width: 100%; padding: 14px;
+    background: var(--gold);
+    border: none; border-radius: 12px;
+    color: #111; font-size: 16px; font-weight: 600;
+    cursor: pointer; margin-top: 16px;
+    transition: opacity 0.2s;
+  }
+  .submit-btn:hover { opacity: 0.9; }
+  .submit-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* 结果提示 */
+  .result-banner {
+    margin-top: 16px; padding: 14px 18px;
+    border-radius: 12px; font-size: 15px; font-weight: 600;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .result-banner.correct { background: rgba(106,191,106,0.15); color: var(--green); }
+  .result-banner.wrong { background: rgba(212,64,64,0.15); color: var(--red); }
+  .result-banner .icon { font-size: 20px; }
+  .next-btn {
+    width: 100%; padding: 12px;
+    background: transparent;
+    border: 1.5px solid var(--gold);
+    border-radius: 12px;
+    color: var(--gold); font-size: 15px;
+    cursor: pointer; margin-top: 12px;
+    transition: all 0.2s;
+  }
+  .next-btn:hover { background: rgba(212,165,116,0.1); }
+
+  /* 题目区域 */
+  .question-area {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    min-height: 120px;
+  }
+  .question-area .q-label {
+    color: var(--gold); font-size: 13px;
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+  .question-area .q-text {
+    font-size: 16px; line-height: 1.6;
+  }
+  .question-area .q-type-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 10px;
+    background: var(--gold);
+    color: #111;
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  /* 进度条 */
+  .progress {
+    color: #666; font-size: 13px; margin-bottom: 16px;
+  }
+</style>
+</head>
+<body>
+
+<!-- =========================================================== -->
+<!-- 录入 - 风格1: 标签式                                        -->
+<!-- =========================================================== -->
+<div class="panel">
+  <h2>录入界面 · 风格1 — 标签式</h2>
+
+  <div class="type-tags">
+    <button class="type-tag active">单选题</button>
+    <button class="type-tag">多选题</button>
+    <button class="type-tag">主观题</button>
+  </div>
+
+  <h3>选项录入 (点击右侧圆圈标记正确答案)</h3>
+
+  <div class="style1-option correct">
+    <span class="label">A</span>
+    <input type="text" value="长期股权投资" placeholder="输入选项内容">
+    <button class="check-btn" title="标记为正确答案"></button>
+    <button class="delete-btn">×</button>
+  </div>
+
+  <div class="style1-option">
+    <span class="label">B</span>
+    <input type="text" value="交易性金融资产" placeholder="输入选项内容">
+    <button class="check-btn" title="标记为正确答案"></button>
+    <button class="delete-btn">×</button>
+  </div>
+
+  <div class="style1-option">
+    <span class="label">C</span>
+    <input type="text" value="持有至到期投资" placeholder="输入选项内容">
+    <button class="check-btn" title="标记为正确答案"></button>
+    <button class="delete-btn">×</button>
+  </div>
+
+  <div class="style1-option">
+    <span class="label">D</span>
+    <input type="text" placeholder="输入选项内容">
+    <button class="check-btn" title="标记为正确答案"></button>
+    <button class="delete-btn">×</button>
+  </div>
+
+  <div class="style1-add">+ 添加选项</div>
+</div>
+
+<!-- =========================================================== -->
+<!-- 录入 - 风格2: 紧凑卡片式                                    -->
+<!-- =========================================================== -->
+<div class="panel">
+  <h2>录入界面 · 风格2 — 右侧标记</h2>
+
+  <div class="type-tags">
+    <button class="type-tag active">单选题</button>
+    <button class="type-tag">多选题</button>
+    <button class="type-tag">主观题</button>
+  </div>
+
+  <h3>选项录入 (点击右侧 ✓ 标记正确答案)</h3>
+
+  <div class="style2-row">
+    <div class="style2-option">
+      <span class="letter">A</span>
+      <input type="text" value="长期股权投资" placeholder="输入选项内容">
+    </div>
+    <button class="right-btn is-correct">✓</button>
+    <button class="right-btn" style="font-size:20px">×</button>
+  </div>
+
+  <div class="style2-row">
+    <div class="style2-option">
+      <span class="letter">B</span>
+      <input type="text" value="交易性金融资产" placeholder="输入选项内容">
+    </div>
+    <button class="right-btn">✓</button>
+    <button class="right-btn" style="font-size:20px">×</button>
+  </div>
+
+  <div class="style2-row">
+    <div class="style2-option">
+      <span class="letter">C</span>
+      <input type="text" value="持有至到期投资" placeholder="输入选项内容">
+    </div>
+    <button class="right-btn">✓</button>
+    <button class="right-btn" style="font-size:20px">×</button>
+  </div>
+
+  <div class="style2-row">
+    <div class="style2-option">
+      <span class="letter">D</span>
+      <input type="text" placeholder="输入选项内容">
+    </div>
+    <button class="right-btn">✓</button>
+    <button class="right-btn" style="font-size:20px">×</button>
+  </div>
+
+  <div class="style1-add">+ 添加选项</div>
+</div>
+
+<!-- =========================================================== -->
+<!-- 录入 - 风格3: 左边框式                                      -->
+<!-- =========================================================== -->
+<div class="panel">
+  <h2>录入界面 · 风格3 — 左边框标记</h2>
+
+  <div class="type-tags">
+    <button class="type-tag active">单选题</button>
+    <button class="type-tag">多选题</button>
+    <button class="type-tag">主观题</button>
+  </div>
+
+  <h3>选项录入 (点击 ☑ 标记为正确答案)</h3>
+
+  <div class="style3-option correct">
+    <span class="idx">A</span>
+    <input type="text" value="长期股权投资" placeholder="输入选项内容">
+    <div class="actions">
+      <button class="mark-btn" title="切换正确答案">☑</button>
+      <button class="del-btn" title="删除">✕</button>
+    </div>
+  </div>
+
+  <div class="style3-option">
+    <span class="idx">B</span>
+    <input type="text" value="交易性金融资产" placeholder="输入选项内容">
+    <div class="actions">
+      <button class="mark-btn" title="切换正确答案">☐</button>
+      <button class="del-btn" title="删除">✕</button>
+    </div>
+  </div>
+
+  <div class="style3-option">
+    <span class="idx">C</span>
+    <input type="text" value="持有至到期投资" placeholder="输入选项内容">
+    <div class="actions">
+      <button class="mark-btn" title="切换正确答案">☐</button>
+      <button class="del-btn" title="删除">✕</button>
+    </div>
+  </div>
+
+  <div class="style3-option">
+    <span class="idx">D</span>
+    <input type="text" placeholder="输入选项内容">
+    <div class="actions">
+      <button class="mark-btn" title="切换正确答案">☐</button>
+      <button class="del-btn" title="删除">✕</button>
+    </div>
+  </div>
+
+  <div class="style1-add">+ 添加选项</div>
+</div>
+
+<!-- =========================================================== -->
+<!-- 复习界面 - 单选                                             -->
+<!-- =========================================================== -->
+<div class="panel">
+  <h2>复习界面 · 单选 - 未提交</h2>
+
+  <div class="q-area">
+    <div class="q-type-badge">单选题</div>
+    <div class="progress">第 3 / 10 题</div>
+    <div class="question-area">
+      <div class="q-label">题目</div>
+      <div class="q-text">下列关于长期股权投资的会计处理中，正确的是？</div>
+    </div>
+
+    <div class="review-option selected">
+      <span class="opt-letter">A</span>
+      <span class="opt-text">成本法下被投资单位实现净利润不做账务处理</span>
+      <span style="margin-left:auto" class="radio"></span>
+    </div>
+
+    <div class="review-option">
+      <span class="opt-letter">B</span>
+      <span class="opt-text">权益法下被投资单位宣告分派现金股利确认投资收益</span>
+      <span style="margin-left:auto" class="radio"></span>
+    </div>
+
+    <div class="review-option">
+      <span class="opt-letter">C</span>
+      <span class="opt-text">成本法下计提减值准备后可以转回</span>
+      <span style="margin-left:auto" class="radio"></span>
+    </div>
+
+    <div class="review-option">
+      <span class="opt-letter">D</span>
+      <span class="opt-text">权益法下初始投资成本大于份额不调整</span>
+      <span style="margin-left:auto" class="radio"></span>
+    </div>
+
+    <button class="submit-btn">提交答案</button>
+  </div>
+</div>
+
+<!-- =========================================================== -->
+<!-- 复习界面 - 已提交结果                                       -->
+<!-- =========================================================== -->
+<div class="panel">
+  <h2>复习界面 · 单选 - 已提交</h2>
+
+  <div class="q-type-badge">单选题</div>
+  <div class="progress">第 3 / 10 题</div>
+  <div class="question-area">
+    <div class="q-label">题目</div>
+    <div class="q-text">下列关于长期股权投资的会计处理中，正确的是？</div>
+  </div>
+
+  <!-- 正确选项 -->
+  <div class="review-option correct-reveal">
+    <span class="opt-letter">A</span>
+    <span class="opt-text">成本法下被投资单位实现净利润不做账务处理</span>
+    <span style="margin-left:auto" class="radio"></span>
+  </div>
+
+  <!-- 用户选的错误选项 -->
+  <div class="review-option wrong-reveal">
+    <span class="opt-letter">B</span>
+    <span class="opt-text">权益法下被投资单位宣告分派现金股利确认投资收益</span>
+    <span style="margin-left:auto" class="radio"></span>
+  </div>
+
+  <div class="review-option">
+    <span class="opt-letter">C</span>
+    <span class="opt-text">成本法下计提减值准备后可以转回</span>
+    <span style="margin-left:auto" class="radio"></span>
+  </div>
+
+  <div class="review-option">
+    <span class="opt-letter">D</span>
+    <span class="opt-text">权益法下初始投资成本大于份额不调整</span>
+    <span style="margin-left:auto" class="radio"></span>
+  </div>
+
+  <div class="result-banner wrong">
+    <span class="icon">✕</span>
+    <span>回答错误 · 正确答案是 A</span>
+  </div>
+  <button class="next-btn">下一题 →</button>
+</div>
+
+<!-- =========================================================== -->
+<!-- 复习界面 - 多选                                             -->
+<!-- =========================================================== -->
+<div class="panel">
+  <h2>复习界面 · 多选</h2>
+
+  <div class="q-type-badge" style="background: var(--gold)">多选题</div>
+  <div class="progress">第 5 / 10 题</div>
+  <div class="question-area">
+    <div class="q-label">题目</div>
+    <div class="q-text">以下哪些属于合并财务报表的合并范围？</div>
+  </div>
+
+  <div class="review-option selected correct-reveal">
+    <span class="opt-letter">A</span>
+    <span class="opt-text">母公司直接拥有半数以上表决权的子公司</span>
+    <span style="margin-left:auto" class="radio" style="border-radius:6px"></span>
+  </div>
+
+  <div class="review-option correct-reveal">
+    <span class="opt-letter">B</span>
+    <span class="opt-text">母公司间接拥有半数以上表决权的子公司</span>
+    <span style="margin-left:auto" class="radio" style="border-radius:6px"></span>
+  </div>
+
+  <div class="review-option selected wrong-reveal">
+    <span class="opt-letter">C</span>
+    <span class="opt-text">已宣告被清理整顿的子公司</span>
+    <span style="margin-left:auto" class="radio" style="border-radius:6px"></span>
+  </div>
+
+  <div class="review-option">
+    <span class="opt-letter">D</span>
+    <span class="opt-text">联营企业</span>
+    <span style="margin-left:auto" class="radio" style="border-radius:6px"></span>
+  </div>
+
+  <div class="result-banner wrong">
+    <span class="icon">✕</span>
+    <span>部分正确 · 正确答案是 AB</span>
+  </div>
+  <button class="next-btn">下一题 →</button>
+</div>
+
+<!-- =========================================================== -->
+<!-- 复习界面 - 主观题（无手写，纯自评）                        -->
+<!-- =========================================================== -->
+<div class="panel">
+  <h2>复习界面 · 主观题 — 自评模式</h2>
+
+  <div class="q-type-badge">主观题</div>
+  <div class="progress">第 7 / 10 题</div>
+  <div class="question-area">
+    <div class="q-label">题目</div>
+    <div class="q-text">简述长期股权投资权益法下初始投资成本的确定方法，并说明与成本法的主要区别。</div>
+  </div>
+
+  <div style="
+    background: var(--card);
+    border-radius: 12px;
+    padding: 20px;
+    margin: 16px 0;
+    border: 1px dashed var(--border);
+    text-align: center;
+    color: #666;
+  ">
+    主观题不评判，需自行对比答案后自评
+  </div>
+
+  <div style="display: flex; gap: 10px;">
+    <button class="submit-btn" style="background: var(--green); flex:1;">✓ 答对了</button>
+    <button class="submit-btn" style="background: var(--red); flex:1;">✗ 答错了</button>
+  </div>
+  <button class="submit-btn" style="background: transparent; border: 1.5px solid var(--border); color: var(--text);">
+    跳过
+  </button>
+</div>
+
+<script>
+  // 点击标记正确答案的交互
+  document.querySelectorAll('.style1-option .check-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const option = this.closest('.style1-option');
+      // 单选：取消其他选项的 correct
+      const parent = option.parentElement;
+      parent.querySelectorAll('.style1-option').forEach(opt => opt.classList.remove('correct'));
+      // 标记当前
+      option.classList.add('correct');
+    });
+  });
+
+  // 点击删除
+  document.querySelectorAll('.style1-option .delete-btn, .style2-row .right-btn:last-child').forEach(btn => {
+    btn.addEventListener('click', function() {
+      if (confirm('删除此选项？')) {
+        this.closest('.style1-option, .style2-row').remove();
+      }
+    });
+  });
+
+  // 复习选项点击
+  document.querySelectorAll('.review-option').forEach(opt => {
+    opt.addEventListener('click', function() {
+      // 如果已经提交，不再允许选择
+      if (this.closest('.panel')?.querySelector('.result-banner')) return;
+      // 单选 vs 多选逻辑
+      const isMulti = this.closest('.panel')?.querySelector('.q-type-badge')?.textContent.includes('多');
+      if (!isMulti) {
+        this.parentElement.querySelectorAll('.review-option').forEach(o => o.classList.remove('selected'));
+      }
+      this.classList.toggle('selected');
+    });
+  });
+</script>
+
+</body>
+</html>

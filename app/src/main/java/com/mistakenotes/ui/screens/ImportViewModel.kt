@@ -8,6 +8,8 @@ import com.mistakenotes.domain.model.Chapter
 import com.mistakenotes.domain.model.KnowledgePoint
 import com.mistakenotes.domain.model.Mistake
 import com.mistakenotes.domain.model.QuestionType
+import com.mistakenotes.domain.model.ReviewRecord
+import com.mistakenotes.domain.model.ReviewResult
 import com.mistakenotes.domain.model.Subject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -21,7 +23,6 @@ data class ImportUiState(
     val chapterId: Long? = null,
     val knowledgePointId: Long? = null,
     val questionType: QuestionType = QuestionType.SINGLE_CHOICE,
-    val options: List<String> = listOf("", "", "", ""),
     val correctAnswer: String = "",
     val referenceAnswer: String = "",
     val subjects: List<Subject> = emptyList(),
@@ -108,16 +109,6 @@ class ImportViewModel @Inject constructor(
         _uiState.update { it.copy(questionType = type) }
     }
 
-    fun setOption(index: Int, value: String) {
-        _uiState.update { state ->
-            val newOptions = state.options.toMutableList()
-            if (index < newOptions.size) {
-                newOptions[index] = value
-            }
-            state.copy(options = newOptions)
-        }
-    }
-
     fun setCorrectAnswer(answer: String) {
         _uiState.update { it.copy(correctAnswer = answer) }
     }
@@ -138,19 +129,14 @@ class ImportViewModel @Inject constructor(
             _uiState.update { it.copy(errorMessage = "请选择章节") }
             return
         }
-        if (state.knowledgePointId == null) {
-            _uiState.update { it.copy(errorMessage = "请选择知识点") }
-            return
-        }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, errorMessage = null) }
 
             try {
-                val optionsJson = if (state.questionType != QuestionType.ESSAY) {
-                    state.options.filter { it.isNotBlank() }.joinToString("\n")
-                } else null
-
+                val now = System.currentTimeMillis()
+                val pastTime = now - 10000 // 10 seconds ago
+                android.util.Log.d("ImportVM", "Creating mistake with now=$now, past=$pastTime")
                 val mistake = Mistake(
                     title = state.questionText.take(50).ifBlank { "错题" },
                     subjectId = state.subjectId,
@@ -159,12 +145,31 @@ class ImportViewModel @Inject constructor(
                     questionType = state.questionType,
                     questionImagePath = state.imageUri?.toString(),
                     questionText = state.questionText.takeIf { it.isNotBlank() },
-                    options = optionsJson,
+                    options = null,
                     correctAnswer = state.correctAnswer.takeIf { it.isNotBlank() },
                     referenceAnswer = state.referenceAnswer.takeIf { it.isNotBlank() }
                 )
 
-                repository.insertMistake(mistake)
+                val mistakeId = repository.insertMistake(mistake)
+                android.util.Log.d("ImportVM", "inserted mistake with id: $mistakeId")
+
+                // Create initial review record
+                try {
+                    val pastTime = now - 10000
+                    val reviewRec = ReviewRecord(
+                        mistakeId = mistakeId,
+                        reviewDate = pastTime,
+                        result = ReviewResult.SKIP,
+                        nextReviewDate = pastTime,
+                        correctCount = 0
+                    )
+                    android.util.Log.d("ImportVM", "Inserting review record for mistakeId: $mistakeId")
+                    repository.insertReviewRecord(reviewRec)
+                    android.util.Log.d("ImportVM", "Review record inserted successfully")
+                } catch (e: Exception) {
+                    android.util.Log.e("ImportVM", "Failed to insert review record", e)
+                }
+
                 _uiState.update { it.copy(isSaving = false, saveSuccess = true) }
             } catch (e: Exception) {
                 _uiState.update {
