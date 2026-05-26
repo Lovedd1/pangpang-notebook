@@ -21,7 +21,9 @@ data class SubjectStat(
 data class ChapterStat(
     val chapter: Chapter,
     val mistakeCount: Int,
-    val correctRate: Float
+    val correctRate: Float,
+    val subjectName: String = "",
+    val subjectColor: Long = 0xFFD4A574
 )
 
 data class AnalysisUiState(
@@ -138,7 +140,9 @@ class AnalysisViewModel @Inject constructor(
                         ChapterStat(
                             chapter = chapter,
                             mistakeCount = mistakeCount,
-                            correctRate = correctRate
+                            correctRate = correctRate,
+                            subjectName = subject.name,
+                            subjectColor = subject.color
                         )
                     )
                 }

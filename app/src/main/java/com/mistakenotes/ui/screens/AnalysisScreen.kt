@@ -84,7 +84,7 @@ fun AnalysisScreen(
                     SubjectStatCard(stat = stat)
                 }
 
-                // Section 2: Chapter Distribution
+                // Section 2: Chapter Distribution (grouped by subject)
                 item {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
@@ -95,8 +95,30 @@ fun AnalysisScreen(
                     )
                 }
 
-                items(uiState.chapterStats.take(5)) { stat ->
-                    ChapterStatCard(stat = stat)
+                // Group chapters by subject
+                val groupedChapters = uiState.chapterStats.groupBy { it.subjectName }
+                groupedChapters.forEach { (subjectName, stats) ->
+                    val subjColor = if (stats.isNotEmpty()) Color(stats.first().subjectColor) else AmberGold
+                    item {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(RoundedCornerShape(5.dp))
+                                    .background(subjColor)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = subjectName,
+                                color = subjColor,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                    items(stats) { stat ->
+                        ChapterStatCard(stat = stat)
+                    }
                 }
 
                 // Section 3: Weak Knowledge Points
