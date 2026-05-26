@@ -110,13 +110,20 @@ class HomeViewModel @Inject constructor(
                 }
 
                 val todayList = todayPairs.map { it.second }
+                val overdueList = overduePairs.map { it.second }
                 val todaySubjIds = todayList.map { it.mistake.subjectId }.toSet()
+
+                val selSubject = _uiState.value.currentSubjectId
+                val filteredToday = if (selSubject != null)
+                    todayList.filter { it.mistake.subjectId == selSubject } else todayList
+                val filteredOverdue = if (selSubject != null)
+                    overdueList.filter { it.mistake.subjectId == selSubject } else overdueList
 
                 HomeUiState(
                     subjects = subjects,
                     currentSubjectId = _uiState.value.currentSubjectId,
-                    todayCards = todayList,
-                    overdueCards = overduePairs.map { it.second },
+                    todayCards = filteredToday,
+                    overdueCards = filteredOverdue,
                     todaySubjectIds = todaySubjIds,
                     totalMistakes = mistakes.size,
                     masteredCount = mastered,
