@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目状态
 
-CPA 错题笔记应用已完成主体功能开发。包含首页统计、错题录入、复习面板（带手写画布）、数据分析四大核心功能。
+CPA 错题笔记应用 — 核心复习流程（录入→复习→分析）已完成。手写画布已移除，复习改为纯文本交互，主页改为今日待复习+逾期列表。功能稳定，可日常使用。
 
 ## 技术栈
 
@@ -21,53 +21,81 @@ CPA 错题笔记应用已完成主体功能开发。包含首页统计、错题�
 
 - **真机调试**：Android Studio 连接设备，运行 `:app` 模块
 - **Sync**：File → Sync Project with Gradle Files（或 Ctrl+Shift+O）
-- **Gradle**：8.9（位于 gradle/wrapper/gradle-wrapper.properties）
+- **Gradle**：8.9
 
 ## 目录结构
 
 ```
 app/src/main/java/com/mistakenotes/
-├── MainActivity.kt                    # 应用入口
+├── MainActivity.kt
 ├── data/
 │   ├── local/
-│   │   ├── AppDatabase.kt            # Room 数据库
+│   │   ├── AppDatabase.kt            # Room 数据库 + 预置CPA六科112章数据
 │   │   ├── Dao.kt                    # 数据访问对象
 │   │   └── Entities.kt              # 数据库实体
 │   └── repository/
-│       └── MistakeRepository.kt      # 错题数据仓库
+│       └── MistakeRepository.kt      # 数据仓库（Entity↔Domain映射）
 ├── domain/model/
-│   ├── Subject.kt, Chapter.kt, KnowledgePoint.kt  # 领域模型
-│   ├── Mistake.kt                    # 错题实体
-│   └── ReviewRecord.kt               # 复习记录
+│   ├── Subject.kt, Chapter.kt, KnowledgePoint.kt
+│   ├── Mistake.kt                    # 错题（含questionImagePath本地路径）
+│   └── ReviewRecord.kt               # 复习记录（含Ebbinghaus间隔）
+├── di/
+│   └── DatabaseModule.kt             # Hilt DI（Room + DAO）
 └── ui/
-    ├── canvas/
-    │   ├── HandwritingCanvas.kt      # 手写画布组件
-    │   ├── StrokeRenderer.kt        # 笔触渲染（Catmull-Rom 平滑）
-    │   ├── VectorStroke.kt, VectorLayer.kt  # 矢量数据模型
-    │   └── UndoRedoManager.kt        # 撤销/重做管理
     ├── navigation/
-    │   └── NavGraph.kt               # 导航图
+    │   └── NavGraph.kt               # 4屏导航（Home/Import/Review/Analysis）
     ├── screens/
-    │   ├── HomeScreen.kt, HomeViewModel.kt     # 首页
-    │   ├── ImportScreen.kt, ImportViewModel.kt # 录入
-    │   ├── ReviewScreen.kt, ReviewViewModel.kt  # 复习
-    │   └── AnalysisScreen.kt, AnalysisViewModel.kt  # 分析
+    │   ├── HomeScreen.kt             # 主页：科目筛选 + 今日待复习/逾期可展开列表
+    │   ├── HomeViewModel.kt          # 今日/逾期分离逻辑 + 复习状态追踪
+    │   ├── ImportScreen.kt           # 录入：图片+按钮式选项+三级分类
+    │   ├── ImportViewModel.kt        # 选项管理 + 图片本地存储 + 答案字母化
+    │   ├── ReviewScreen.kt           # 复习：题目图片+单列选项+结果展示
+    │   ├── ReviewViewModel.kt        # 复习逻辑 + Ebbinghaus算法 + 队列管理
+    │   ├── ReviewSession.kt          # 跨Screen复习队列/状态传递
+    │   ├── AnalysisScreen.kt         # 分析：科目掌握度+章节分布+薄弱知识点
+    │   └── AnalysisViewModel.kt      # 统计数据计算
     └── theme/
-        ├── Color.kt                 # 砚台风格配色（InkStoneBlack, AmberGold 等）
-        └── Theme.kt                 # 主题配置
+        ├── Color.kt                  # InkStoneBlack/AmberGold/CardDark/TextCream
+        └── Theme.kt
 ```
 
 ## 核心功能
 
-- **首页**：科目筛选、统计数据卡片（待复习/逾期/已掌握/总错题）、快捷入口
-- **录入**：图片选择、题型/科目/章节/知识点三级分类、选项编辑
-- **复习**：35%/65% 左右分栏、选择题/主观题支持、手写草稿
-- **分析**：科目掌握度、章节错题分布、薄弱知识点
-- **算法**：基于 Ebbinghaus 的间隔重复复习算法
+- **主页**：科目筛选 Chip、今日待复习列表（已复习/未复习标签）、逾期列表（逾期天数+降序）、总错题/已掌握统计、快捷入口
+- **录入**：拍照/选图（自动复制到本地存储）、单选题/多选题/主观题切换、按钮式选项（A~H标签+✓标记正确+×删除）、三级分类（科目→章节→知识点）、选项以`|`分隔存储
+- **复习**：单列布局（题目图片+文字+选项按钮）、单选圆形/多选方形、提交后绿色正确/红色错误高亮+结果横幅、"下一题"循环（按主页列表顺序）、已复习卡片直接展示结果、主观题自评（答对/答错/跳过）
+- **分析**：科目掌握度（进度条+百分比）、章节错题分布、薄弱知识点排行
+- **算法**：Ebbinghaus 间隔重复（1天→3天→7天→掌握）
 
-## 开发说明
+## 数据模型
 
-- 所有 UI 使用 Compose Material3，主题色为 AmberGold（琥珀金）+ InkStoneBlack（砚石黑）
-- 手写画布使用 DrawScope 进行绘制，支持压力感应笔触
-- 数据库采用 Room，KSP 编译时生成代码
-- ViewModel 通过 Hilt 注入，配合 StateFlow 管理 UI 状态
+| 表 | 关键字段 | 说明 |
+|-----|---------|------|
+| subjects | id, name, color | CPA六科（预置数据） |
+| chapters | id, subjectId, name, order | 112章（预置数据） |
+| knowledge_points | id, chapterId, name | 知识点（预置/自定义） |
+| mistakes | id, questionType, options, correctAnswer, questionImagePath | 错题主体 |
+| review_records | id, mistakeId, result, nextReviewDate, correctCount | 复习历史 |
+
+- `options`：`|`分隔的选项文本（如"长投\|交易性金融资产"）
+- `correctAnswer`：答案字母（单选"A"，多选"AB"）
+- `questionImagePath`：图片本地绝对路径（录入时从content://复制到filesDir/question_images/）
+- 今日判定：`nextReviewDate ∈ [today 00:00, today 23:59]`
+
+## 跨Screen数据传递
+
+`ReviewSession` 单例对象（`ui/screens/ReviewSession.kt`）传递复习队列：
+- `queue: List<Mistake>` — 当前复习队列
+- `startIndex: Int` — 起始位置
+- `isViewingResult: Boolean` — 是否查看已复习结果
+- `preReviewedIndices: Set<Int>` / `preReviewedResults: Map<Int, Boolean?>` — 预审核卡片索引与结果
+
+HomeScreen 设置 → ReviewViewModel 读取后 clear → 后续循环用 ViewModel 内部 `reviewedIndices`/`reviewedResults`。
+
+## 注意事项
+
+- 图片存储在 `context.filesDir/question_images/`，不是原始 content:// URI
+- ReviewViewModel 用 `.first()` 快照加载队列，不响应数据库变更
+- HomeViewModel 用 `.collect()` 响应式更新列表状态
+- SKIP 结果的 ReviewRecord 不计入"已复习"
+- 数据库用 `fallbackToDestructiveMigration()`，版本2
