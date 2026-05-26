@@ -294,7 +294,7 @@ fun ReviewScreen(
                                 shape = RoundedCornerShape(10.dp)
                             ) {
                                 Icon(
-                                    imageVector = if (showAnswerImage) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    imageVector = if (showAnswerImage) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                                     contentDescription = null,
                                     tint = AmberGold,
                                     modifier = Modifier.size(18.dp)
