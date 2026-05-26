@@ -293,13 +293,6 @@ fun ReviewScreen(
                                 border = BorderStroke(1.dp, AmberGold.copy(alpha = 0.5f)),
                                 shape = RoundedCornerShape(10.dp)
                             ) {
-                                Icon(
-                                    imageVector = if (showAnswerImage) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                                    contentDescription = null,
-                                    tint = AmberGold,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = if (showAnswerImage) "隐藏答案" else "查看答案",
                                     color = AmberGold,
