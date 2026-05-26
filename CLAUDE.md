@@ -44,16 +44,18 @@ app/src/main/java/com/mistakenotes/
 │   └── DatabaseModule.kt             # Hilt DI（Room + DAO）
 └── ui/
     ├── navigation/
-    │   └── NavGraph.kt               # 4屏导航（Home/Import/Review/Analysis）
+    │   └── NavGraph.kt               # 5屏导航（Home/Import/Review/Analysis/Browse）
     ├── screens/
     │   ├── HomeScreen.kt             # 主页：科目筛选 + 今日待复习/逾期可展开列表
     │   ├── HomeViewModel.kt          # 今日/逾期分离逻辑 + 复习状态追踪
-    │   ├── ImportScreen.kt           # 录入：图片+按钮式选项+三级分类
-    │   ├── ImportViewModel.kt        # 选项管理 + 图片本地存储 + 答案字母化
-    │   ├── ReviewScreen.kt           # 复习：题目图片+单列选项+结果展示
+    │   ├── ImportScreen.kt           # 录入：图片+按钮式选项+三级分类+标题自动生成
+    │   ├── ImportViewModel.kt        # 选项管理 + 图片本地存储 + 答案字母化 + 编辑/删除
+    │   ├── ReviewScreen.kt           # 复习：题目图片+单列选项+结果展示+主观题答案图片
     │   ├── ReviewViewModel.kt        # 复习逻辑 + Ebbinghaus算法 + 队列管理
     │   ├── ReviewSession.kt          # 跨Screen复习队列/状态传递
-    │   ├── AnalysisScreen.kt         # 分析：科目掌握度+章节分布+薄弱知识点
+    │   ├── BrowseScreen.kt           # 错题浏览：科目/章节筛选 + 复习记录图标展示
+    │   ├── BrowseViewModel.kt        # 错误次数排序 + 正确/错误计数
+    │   ├── AnalysisScreen.kt         # 分析：科目掌握度+章节分布(按科目分组)+薄弱知识点
     │   └── AnalysisViewModel.kt      # 统计数据计算
     └── theme/
         ├── Color.kt                  # InkStoneBlack/AmberGold/CardDark/TextCream
@@ -62,25 +64,28 @@ app/src/main/java/com/mistakenotes/
 
 ## 核心功能
 
-- **主页**：科目筛选 Chip、今日待复习列表（已复习/未复习标签）、逾期列表（逾期天数+降序）、总错题/已掌握统计、快捷入口
-- **录入**：拍照/选图（自动复制到本地存储）、单选题/多选题/主观题切换、按钮式选项（A~H标签+✓标记正确+×删除）、三级分类（科目→章节→知识点）、选项以`|`分隔存储
-- **复习**：单列布局（题目图片+文字+选项按钮）、单选圆形/多选方形、提交后绿色正确/红色错误高亮+结果横幅、"下一题"循环（按主页列表顺序）、已复习卡片直接展示结果、主观题自评（答对/答错/跳过）
-- **分析**：科目掌握度（进度条+百分比）、章节错题分布、薄弱知识点排行
+- **主页**：科目筛选 Chip（仅显示有今日卡片的科目，彩虹配色）、今日待复习列表（已复习/未复习标签+科目/章节信息）、逾期列表（逾期天数+降序）、总错题/已掌握统计、快捷入口（拍照录入/错题浏览/错题分析）
+- **录入**：拍照/选图（自动复制到本地存储）、标题（不填自动生成 `YYYY-MM-DD-NN`）、单选题/多选题/主观题切换、按钮式选项（A~H标签+✓标记正确+×删除）、三级分类（科目→章节→知识点）、主观题答案图片上传、选项以`|`分隔存储、编辑模式（从列表📝图标进入）+ 删除功能
+- **复习**：单列布局（题目图片+文字+选项按钮）、单选圆形/多选方形、提交后绿色正确/红色错误高亮+结果横幅、"下一题"循环（按主页列表顺序）、已复习卡片直接展示结果、主观题自评（答对/答错/跳过）+ 查看答案图片按钮（有图金色可点击，无图灰色）
+- **错题浏览**：科目/章节双层筛选（章节为下拉菜单）、列表按错误次数降序（相同按录入时间降序）、每条显示复习历史图标（✅绿色✓/❌红色✗）+ 正确/错误计数 + 章节信息 + 知识点*占位、点击进入单题复习
+- **分析**：科目掌握度（进度条+百分比+科目配色）、章节错题分布（按科目分组，带配色标题）、薄弱知识点排行
 - **算法**：Ebbinghaus 间隔重复（1天→3天→7天→掌握）
 
 ## 数据模型
 
 | 表 | 关键字段 | 说明 |
 |-----|---------|------|
-| subjects | id, name, color | CPA六科（预置数据） |
+| subjects | id, name, color | CPA六科（彩虹配色预置数据） |
 | chapters | id, subjectId, name, order | 112章（预置数据） |
 | knowledge_points | id, chapterId, name | 知识点（预置/自定义） |
-| mistakes | id, questionType, options, correctAnswer, questionImagePath | 错题主体 |
+| mistakes | id, title, questionType, options, correctAnswer, questionImagePath, referenceAnswer | 错题主体 |
 | review_records | id, mistakeId, result, nextReviewDate, correctCount | 复习历史 |
 
+- `title`：用户填写或自动生成（`YYYY-MM-DD-NN`格式）
 - `options`：`|`分隔的选项文本（如"长投\|交易性金融资产"）
 - `correctAnswer`：答案字母（单选"A"，多选"AB"）
 - `questionImagePath`：图片本地绝对路径（录入时从content://复制到filesDir/question_images/）
+- `referenceAnswer`：主观题答案图片本地路径
 - 今日判定：`nextReviewDate ∈ [today 00:00, today 23:59]`
 
 ## 跨Screen数据传递
@@ -100,17 +105,16 @@ HomeScreen 设置 → ReviewViewModel 读取后 clear → 后续循环用 ViewMo
 - HomeViewModel 用 `.collect()` 响应式更新列表状态
 - SKIP 结果的 ReviewRecord 不计入"已复习"
 - 数据库用 `fallbackToDestructiveMigration()`，版本2
+- 科目配色在 `onOpen` 中自动更新，旧数据无需迁移
 
 ## 待开发功能
 
 | 优先级 | 功能 | 说明 |
 |--------|------|------|
 | **高** | 知识点管理 | knowledge_points 表空，需 UI 增删改 |
-| **高** | 错题编辑/删除 | 已录入错题无编辑入口 |
-| **高** | 错题浏览 | 按科目/章节筛选查看全部错题 |
-| 中 | 主观题答案录入 | Mistake.referenceAnswer 字段保留待用 |
 | 中 | 收藏/置顶 | isFavorite/isTop 字段已存在，缺 UI |
 | 中 | 搜索题目 | 关键词搜索功能 |
+| 中 | 解析字段 | Mistake.explanation 从未使用 |
 | v2 | OCR 识别 | Tesseract 拍照自动识别文字 |
 | v2 | AI 评分 | DeepSeek API 主观题智能评分 |
 | v2 | AI 得分点 | AI 自动拆解参考答案得分点 |
