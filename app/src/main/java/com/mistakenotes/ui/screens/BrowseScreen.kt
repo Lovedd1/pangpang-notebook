@@ -196,12 +196,26 @@ private fun BrowseCard(
             // Bottom row: review pattern + counts
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (item.reviewPattern.isNotEmpty()) {
-                    Text(
-                        text = item.reviewPattern,
-                        fontSize = 16.sp,
-                        color = TextCream.copy(alpha = 0.8f),
-                        letterSpacing = 2.sp
-                    )
+                    // Style 1: solid rounded squares
+                    item.reviewPattern.forEach { c ->
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .padding(1.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(
+                                    if (c == '✓') SuccessGreen else ErrorRed
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = c.toString(),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (c == '✓') InkStoneBlack else TextCream
+                            )
+                        }
+                    }
                 } else {
                     Text(
                         text = "未复习",

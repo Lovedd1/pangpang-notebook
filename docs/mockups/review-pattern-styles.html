@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>复习记录展示方案对比</title>
+<style>
+  :root { --bg: #1A1A1A; --card: #242424; --text: #E8E4DC; --gold: #D4A574; --green: #6ABF6A; --red: #D44040; }
+  body { font-family: "Microsoft YaHei", sans-serif; background: #111; color: var(--text); padding: 24px; }
+  h2 { color: var(--gold); margin: 32px 0 16px; font-size: 20px; border-bottom: 1px solid var(--card); padding-bottom: 8px; }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .demo { background: var(--card); border-radius: 10px; padding: 14px 18px; display: inline-flex; gap: 10px; align-items: center; font-size: 15px; margin: 6px 0; }
+
+  /* 方案1: 纯色 icon 小方块 */
+  .s1 .mark {
+    display: inline-flex; width: 24px; height: 24px; border-radius: 6px;
+    align-items: center; justify-content: center; font-size: 13px; font-weight: 700;
+  }
+  .s1 .mark.correct { background: var(--green); color: #111; }
+  .s1 .mark.wrong   { background: var(--red); color: #fff; }
+
+  /* 方案2: 彩色圆圈 */
+  .s2 .mark {
+    display: inline-flex; width: 22px; height: 22px; border-radius: 50%;
+    align-items: center; justify-content: center; font-size: 12px; font-weight: 700;
+  }
+  .s2 .mark.correct { border: 2px solid var(--green); color: var(--green); }
+  .s2 .mark.wrong   { border: 2px solid var(--red); color: var(--red); }
+
+  /* 方案3: 迷你进度条式 */
+  .s3 .mark {
+    display: inline-block; width: 20px; height: 8px; border-radius: 4px;
+    margin: 0 1px;
+  }
+  .s3 .mark.correct { background: var(--green); }
+  .s3 .mark.wrong   { background: var(--red); }
+
+  /* 方案4: 斜线标记 */
+  .s4 .mark {
+    display: inline-flex; width: 20px; height: 20px; border-radius: 4px;
+    align-items: center; justify-content: center; font-size: 14px; font-weight: 700;
+    background: var(--bg);
+  }
+  .s4 .mark.correct { color: var(--green); border-bottom: 2px solid var(--green); }
+  .s4 .mark.wrong   { color: var(--red); }
+
+  /* 方案5: 连接线式 */
+  .s5 { display: flex; align-items: center; gap: 0; }
+  .s5 .node {
+    width: 16px; height: 16px; border-radius: 50%; position: relative;
+  }
+  .s5 .node.correct { background: var(--green); }
+  .s5 .node.wrong   { background: var(--red); }
+  .s5 .line {
+    width: 12px; height: 2px; background: var(--text); opacity: 0.2;
+  }
+
+  .label { font-size: 12px; color: var(--text); opacity: 0.5; min-width: 40px; }
+</style>
+</head>
+<body>
+
+<h2>方案1 — 实心小方块</h2>
+<div class="demo s1">
+  <span class="label">历史:</span>
+  <span class="mark correct">✓</span>
+  <span class="mark wrong">✗</span>
+  <span class="mark correct">✓</span>
+  <span class="mark correct">✓</span>
+  <span class="mark wrong">✗</span>
+  <span style="margin-left:8px;font-size:12px;opacity:0.4;">✓3 ✗2</span>
+</div>
+<div class="demo s1">
+  <span class="label">历史:</span>
+  <span class="mark correct">✓</span>
+  <span class="mark correct">✓</span>
+  <span style="margin-left:8px;font-size:12px;opacity:0.4;">✓2 ✗0</span>
+</div>
+
+<h2>方案2 — 彩色圆圈</h2>
+<div class="demo s2">
+  <span class="label">历史:</span>
+  <span class="mark correct">✓</span>
+  <span class="mark wrong">✗</span>
+  <span class="mark correct">✓</span>
+  <span class="mark wrong">✗</span>
+  <span class="mark wrong">✗</span>
+  <span style="margin-left:8px;font-size:12px;opacity:0.4;">✓2 ✗3</span>
+</div>
+<div class="demo s2">
+  <span class="label">历史:</span>
+  <span class="mark correct">✓</span>
+  <span class="mark correct">✓</span>
+  <span class="mark correct">✓</span>
+  <span class="mark correct">✓</span>
+  <span style="margin-left:8px;font-size:12px;opacity:0.4;">✓4 ✗0</span>
+</div>
+
+<h2>方案3 — 迷你进度条</h2>
+<div class="demo s3">
+  <span class="label">历史:</span>
+  <span class="mark correct"></span>
+  <span class="mark wrong"></span>
+  <span class="mark correct"></span>
+  <span class="mark wrong"></span>
+  <span class="mark correct"></span>
+  <span style="margin-left:8px;font-size:12px;opacity:0.4;">✓3 ✗2</span>
+</div>
+<div class="demo s3">
+  <span class="label">历史:</span>
+  <span class="mark correct"></span>
+  <span class="mark correct"></span>
+  <span class="mark correct"></span>
+  <span style="margin-left:8px;font-size:12px;opacity:0.4;">✓3 ✗0</span>
+</div>
+
+<h2>方案4 — 文字标记（加下划线强调）</h2>
+<div class="demo s4">
+  <span class="label">历史:</span>
+  <span class="mark correct">✓</span>
+  <span class="mark wrong">✗</span>
+  <span class="mark correct">✓</span>
+  <span class="mark correct">✓</span>
+  <span style="margin-left:8px;font-size:12px;opacity:0.4;">3题 正确率 60%</span>
+</div>
+<div class="demo s4">
+  <span class="label">历史:</span>
+  <span class="mark correct">✓</span>
+  <span class="mark correct">✓</span>
+  <span class="mark correct">✓</span>
+  <span class="mark correct">✓</span>
+  <span style="margin-left:8px;font-size:12px;opacity:0.4;">4题 正确率 100%</span>
+</div>
+
+<h2>方案5 — 连接线式</h2>
+<div class="demo s5">
+  <span class="label">历史:</span>
+  <span class="node correct"></span><span class="line"></span>
+  <span class="node wrong"></span><span class="line"></span>
+  <span class="node correct"></span><span class="line"></span>
+  <span class="node correct"></span><span class="line"></span>
+  <span class="node wrong"></span>
+  <span style="margin-left:8px;font-size:12px;opacity:0.4;">🎯 3/5</span>
+</div>
+<div class="demo s5">
+  <span class="label">历史:</span>
+  <span class="node correct"></span><span class="line"></span>
+  <span class="node correct"></span><span class="line"></span>
+  <span class="node correct"></span>
+  <span style="margin-left:8px;font-size:12px;opacity:0.4;">🎯 3/3</span>
+</div>
+
+</body>
+</html>
