@@ -13,6 +13,9 @@ interface SubjectDao {
     @Query("SELECT * FROM subjects ORDER BY id ASC")
     fun getAllSubjects(): Flow<List<SubjectEntity>>
 
+    @Query("UPDATE subjects SET color = :color WHERE id = :id")
+    suspend fun updateColor(id: Long, color: Long)
+
     @Query("SELECT * FROM subjects WHERE id = :id")
     suspend fun getSubjectById(id: Long): SubjectEntity?
 

@@ -74,11 +74,17 @@ fun HomeScreen(
                     }
                     val filteredSubjects = uiState.subjects.filter { it.id in uiState.todaySubjectIds }
                     items(filteredSubjects) { subject ->
+                        val subjColor = Color(subject.color)
                         FilterChip(
                             selected = uiState.currentSubjectId == subject.id,
                             onClick = { viewModel.selectSubject(subject.id) },
                             label = { Text(subject.name) },
-                            colors = filterChipColors()
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = subjColor,
+                                selectedLabelColor = InkStoneBlack,
+                                containerColor = CardDark,
+                                labelColor = subjColor
+                            )
                         )
                     }
                 }
@@ -386,13 +392,22 @@ private fun TodayCardItem(
                     overflow = TextOverflow.Ellipsis
                 )
                 if (info.subjectName.isNotEmpty()) {
-                    Text(
-                        text = "${info.subjectName} · ${info.chapterName}",
-                        color = TextCream.copy(alpha = 0.4f),
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(Color(info.subjectColor))
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "${info.subjectName} · ${info.chapterName}",
+                            color = TextCream.copy(alpha = 0.4f),
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
 
@@ -486,13 +501,22 @@ private fun OverdueCardItem(
                     overflow = TextOverflow.Ellipsis
                 )
                 if (info.subjectName.isNotEmpty()) {
-                    Text(
-                        text = "${info.subjectName} · ${info.chapterName}",
-                        color = TextCream.copy(alpha = 0.4f),
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(Color(info.subjectColor))
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "${info.subjectName} · ${info.chapterName}",
+                            color = TextCream.copy(alpha = 0.4f),
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
 

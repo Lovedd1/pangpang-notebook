@@ -32,19 +32,19 @@ abstract class AppDatabase : RoomDatabase() {
             override fun onCreate(db: SupportSQLiteDatabase) {
                 super.onCreate(db)
 
-                // CPA 考试六科
+                // CPA 考试六科（彩虹色）
                 val subjects = listOf(
-                    Pair(1L, "会计"),
-                    Pair(2L, "审计"),
-                    Pair(3L, "财务成本管理"),
-                    Pair(4L, "税法"),
-                    Pair(5L, "经济法"),
-                    Pair(6L, "公司战略与风险管理")
+                    Triple(1L, "会计", 0xFFE74C3CL),             // 红
+                    Triple(2L, "审计", 0xFFE67E22L),             // 橙
+                    Triple(3L, "财务成本管理", 0xFFF1C40FL),     // 黄
+                    Triple(4L, "税法", 0xFF2ECC71L),             // 绿
+                    Triple(5L, "经济法", 0xFF3498DBL),           // 蓝
+                    Triple(6L, "公司战略与风险管理", 0xFF9B59B6L) // 紫
                 )
-                subjects.forEach { (id, name) ->
+                subjects.forEach { (id, name, color) ->
                     db.execSQL(
                         "INSERT INTO subjects (id, name, color) VALUES (?, ?, ?)",
-                        arrayOf(id, name, 0xFFD4A574)
+                        arrayOf(id, name, color)
                     )
                 }
 
@@ -183,6 +183,22 @@ abstract class AppDatabase : RoomDatabase() {
                             arrayOf(triple.first, triple.second, triple.third, index + 1)
                         )
                     }
+                }
+            }
+
+            override fun onOpen(db: SupportSQLiteDatabase) {
+                super.onOpen(db)
+                // Update subject colors to rainbow scheme (migration from old AmberGold)
+                val colors = mapOf(
+                    1L to 0xFFE74C3CL,  // 会计 - 红
+                    2L to 0xFFE67E22L,  // 审计 - 橙
+                    3L to 0xFFF1C40FL,  // 财务成本管理 - 黄
+                    4L to 0xFF2ECC71L,  // 税法 - 绿
+                    5L to 0xFF3498DBL,  // 经济法 - 蓝
+                    6L to 0xFF9B59B6L   // 公司战略与风险管理 - 紫
+                )
+                colors.forEach { (id, color) ->
+                    db.execSQL("UPDATE subjects SET color = ? WHERE id = ?", arrayOf(color, id))
                 }
             }
         }

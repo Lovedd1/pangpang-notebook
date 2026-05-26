@@ -22,6 +22,7 @@ class MistakeRepository @Inject constructor(
     suspend fun getSubjectById(id: Long): Subject? = subjectDao.getSubjectById(id)?.toDomain()
     suspend fun insertSubject(subject: Subject): Long = subjectDao.insertSubject(subject.toEntity())
     suspend fun deleteSubject(subject: Subject) = subjectDao.deleteSubject(subject.toEntity())
+    suspend fun updateSubjectColor(id: Long, color: Long) = subjectDao.updateColor(id, color)
 
     // Chapter
     fun getAllChapters(): Flow<List<Chapter>> = chapterDao.getAllChapters().map { list -> list.map { it.toDomain() } }

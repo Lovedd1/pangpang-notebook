@@ -74,7 +74,12 @@ fun BrowseScreen(
                         selected = uiState.currentSubjectId == subject.id,
                         onClick = { viewModel.selectSubject(subject.id) },
                         label = { Text(subject.name) },
-                        colors = filterChipColors()
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(subject.color),
+                            selectedLabelColor = InkStoneBlack,
+                            containerColor = CardDark,
+                            labelColor = Color(subject.color)
+                        )
                     )
                 }
             }

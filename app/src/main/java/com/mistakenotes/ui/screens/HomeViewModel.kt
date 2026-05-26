@@ -18,14 +18,16 @@ data class TodayCardInfo(
     val isReviewed: Boolean,
     val lastResult: ReviewResult?,
     val subjectName: String = "",
-    val chapterName: String = ""
+    val chapterName: String = "",
+    val subjectColor: Long = 0xFFD4A574
 )
 
 data class OverdueCardInfo(
     val mistake: Mistake,
     val overdueDays: Int,
     val subjectName: String = "",
-    val chapterName: String = ""
+    val chapterName: String = "",
+    val subjectColor: Long = 0xFFD4A574
 )
 
 data class HomeUiState(
@@ -81,6 +83,7 @@ class HomeViewModel @Inject constructor(
 
                 fun nameOf(subjectId: Long) = subjectMap[subjectId]?.name ?: ""
                 fun chapterNameOf(chapterId: Long) = chapterMap[chapterId]?.name ?: ""
+                fun colorOf(subjectId: Long) = subjectMap[subjectId]?.color ?: 0xFFD4A574
 
                 val todayPairs = mistakes.mapNotNull { mistake ->
                     val rec = latestByMistake[mistake.id]
@@ -93,7 +96,8 @@ class HomeViewModel @Inject constructor(
                         TodayCardInfo(
                             mistake, isReviewed, todayRecord?.result,
                             subjectName = nameOf(mistake.subjectId),
-                            chapterName = chapterNameOf(mistake.chapterId)
+                            chapterName = chapterNameOf(mistake.chapterId),
+                            subjectColor = colorOf(mistake.subjectId)
                         )
                     } else null
                 }
@@ -106,7 +110,8 @@ class HomeViewModel @Inject constructor(
                             mistake,
                             ((todayStart - next) / 86400000L).toInt() + 1,
                             subjectName = nameOf(mistake.subjectId),
-                            chapterName = chapterNameOf(mistake.chapterId)
+                            chapterName = chapterNameOf(mistake.chapterId),
+                            subjectColor = colorOf(mistake.subjectId)
                         )
                     } else null
                 }.sortedByDescending { it.overdueDays }
