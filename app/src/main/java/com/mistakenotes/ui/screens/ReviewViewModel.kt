@@ -170,6 +170,16 @@ class ReviewViewModel @Inject constructor(
         updateReviewRecord(mistake.id, false)
     }
 
+    fun toggleFavorite() {
+        val mistake = _uiState.value.currentMistake ?: return
+        viewModelScope.launch {
+            repository.setFavorite(mistake.id, !mistake.isFavorite)
+        }
+        _uiState.update {
+            it.copy(currentMistake = mistake.copy(isFavorite = !mistake.isFavorite))
+        }
+    }
+
     private fun updateReviewRecord(mistakeId: Long, isCorrect: Boolean) {
         viewModelScope.launch {
             val records = repository.getReviewRecordsByMistake(mistakeId).first()

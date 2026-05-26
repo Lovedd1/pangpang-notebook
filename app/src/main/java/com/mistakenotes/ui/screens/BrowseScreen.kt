@@ -42,7 +42,13 @@ fun BrowseScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("错题浏览", color = AmberGold, fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        if (uiState.isFavoritesMode) "收藏夹" else "错题浏览",
+                        color = AmberGold,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回", tint = TextCream)
@@ -109,7 +115,11 @@ fun BrowseScreen(
                             modifier = Modifier.size(48.dp)
                         )
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text("暂无错题", color = TextCream.copy(alpha = 0.4f), fontSize = 15.sp)
+                        Text(
+                            if (uiState.isFavoritesMode) "暂无收藏" else "暂无错题",
+                            color = TextCream.copy(alpha = 0.4f),
+                            fontSize = 15.sp
+                        )
                     }
                 }
             } else {
@@ -121,10 +131,13 @@ fun BrowseScreen(
                     items(uiState.items) { item ->
                         BrowseCard(
                             item = item,
+                            isFavoritesMode = uiState.isFavoritesMode,
                             onClick = {
                                 ReviewSession.start(queue = listOf(item.mistake))
                                 onNavigateToReview()
-                            }
+                            },
+                            onToggleFavorite = { viewModel.toggleFavorite(item.mistake) },
+                            onToggleTop = { viewModel.toggleTop(item.mistake) }
                         )
                     }
                 }
@@ -136,7 +149,10 @@ fun BrowseScreen(
 @Composable
 private fun BrowseCard(
     item: BrowseItem,
-    onClick: () -> Unit
+    isFavoritesMode: Boolean,
+    onClick: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onToggleTop: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
@@ -147,7 +163,7 @@ private fun BrowseCard(
             modifier = Modifier.fillMaxWidth().padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Top row: type badge + title
+            // Top row: type badge + title + pin indicator
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
@@ -164,6 +180,17 @@ private fun BrowseCard(
                         fontSize = 10.sp,
                         color = AmberGold
                     )
+                }
+                if (item.mistake.isTop) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(AmberGold.copy(alpha = 0.2f))
+                            .padding(horizontal = 5.dp, vertical = 2.dp)
+                    ) {
+                        Text("置顶", fontSize = 10.sp, color = AmberGold)
+                    }
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -186,7 +213,7 @@ private fun BrowseCard(
                 }
             }
 
-            // Bottom row: review pattern + counts
+            // Bottom row: review pattern + counts + actions
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (item.reviewPattern.isNotEmpty()) {
                     item.reviewPattern.forEach { c ->
@@ -211,6 +238,36 @@ private fun BrowseCard(
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("✓ ${item.correctCount}", fontSize = 12.sp, color = SuccessGreen, fontWeight = FontWeight.Bold)
                     Text("✗ ${item.wrongCount}", fontSize = 12.sp, color = ErrorRed, fontWeight = FontWeight.Bold)
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Pin button
+                IconButton(
+                    onClick = onToggleTop,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Image(
+                        painter = painterResource(
+                            id = if (item.mistake.isTop) R.drawable.ic_pin_on else R.drawable.ic_pin_off
+                        ),
+                        contentDescription = "置顶",
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                // Favorite button
+                IconButton(
+                    onClick = onToggleFavorite,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Image(
+                        painter = painterResource(
+                            id = if (item.mistake.isFavorite) R.drawable.ic_fav_on else R.drawable.ic_fav_off
+                        ),
+                        contentDescription = if (item.mistake.isFavorite) "取消收藏" else "收藏",
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
 
                 Icon(

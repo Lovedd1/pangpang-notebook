@@ -91,6 +91,12 @@ interface MistakeDao {
     @Query("SELECT * FROM mistakes WHERE id = :id")
     suspend fun getMistakeById(id: Long): MistakeEntity?
 
+    @Query("UPDATE mistakes SET isFavorite = :isFavorite WHERE id = :id")
+    suspend fun updateFavorite(id: Long, isFavorite: Boolean)
+
+    @Query("UPDATE mistakes SET isTop = :isTop WHERE id = :id")
+    suspend fun updateTop(id: Long, isTop: Boolean)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMistake(mistake: MistakeEntity): Long
 

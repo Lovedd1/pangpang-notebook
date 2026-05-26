@@ -3,6 +3,7 @@ package com.mistakenotes.ui.screens
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -19,11 +20,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.mistakenotes.R
 import com.mistakenotes.domain.model.QuestionType
 import com.mistakenotes.domain.model.ReviewResult
 import com.mistakenotes.ui.theme.*
@@ -34,7 +37,8 @@ fun HomeScreen(
     onNavigateToImport: (Long?) -> Unit = {},
     onNavigateToReview: () -> Unit = {},
     onNavigateToAnalysis: () -> Unit = {},
-    onNavigateToBrowse: () -> Unit = {}
+    onNavigateToBrowse: () -> Unit = {},
+    onNavigateToFavorites: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showTodaySection by remember { mutableStateOf(true) }
@@ -72,7 +76,7 @@ fun HomeScreen(
                             colors = filterChipColors()
                         )
                     }
-                    val filteredSubjects = uiState.subjects.filter { it.id in uiState.todaySubjectIds }
+                    val filteredSubjects = uiState.subjects.filter { it.id in uiState.cardSubjectIds }
                     items(filteredSubjects) { subject ->
                         val subjColor = Color(subject.color)
                         FilterChip(
@@ -253,6 +257,16 @@ fun HomeScreen(
 
             item {
                 QuickActionCard(
+                    icon = Icons.Default.Star,
+                    title = "收藏夹",
+                    description = "查看收藏的错题",
+                    onClick = onNavigateToFavorites,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            item {
+                QuickActionCard(
                     icon = Icons.Default.Analytics,
                     title = "错题分析",
                     description = "查看学习统计数据",
@@ -417,10 +431,9 @@ private fun TodayCardItem(
                     onClick = onEdit,
                     modifier = Modifier.size(32.dp)
                 ) {
-                    Icon(
-                        Icons.Default.Edit,
-                        "编辑",
-                        tint = TextCream.copy(alpha = 0.5f),
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_edit),
+                        contentDescription = "编辑",
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -526,10 +539,9 @@ private fun OverdueCardItem(
                     onClick = onEdit,
                     modifier = Modifier.size(32.dp)
                 ) {
-                    Icon(
-                        Icons.Default.Edit,
-                        "编辑",
-                        tint = TextCream.copy(alpha = 0.5f),
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_edit),
+                        contentDescription = "编辑",
                         modifier = Modifier.size(18.dp)
                     )
                 }

@@ -2,6 +2,7 @@ package com.mistakenotes.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,11 +19,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.mistakenotes.R
 import com.mistakenotes.domain.model.QuestionType
 import com.mistakenotes.ui.theme.*
 import java.io.File
@@ -45,6 +48,19 @@ fun ReviewScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回", tint = TextCream)
+                    }
+                },
+                actions = {
+                    if (uiState.currentMistake != null) {
+                        IconButton(onClick = { viewModel.toggleFavorite() }) {
+                            Image(
+                                painter = painterResource(
+                                    id = if (uiState.currentMistake!!.isFavorite) R.drawable.ic_fav_on else R.drawable.ic_fav_off
+                                ),
+                                contentDescription = if (uiState.currentMistake!!.isFavorite) "取消收藏" else "收藏",
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = InkStoneBlack)

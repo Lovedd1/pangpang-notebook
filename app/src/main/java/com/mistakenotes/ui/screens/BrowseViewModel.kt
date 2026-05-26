@@ -1,5 +1,6 @@
 package com.mistakenotes.ui.screens
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mistakenotes.data.repository.MistakeRepository
@@ -27,15 +28,19 @@ data class BrowseUiState(
     val currentSubjectId: Long? = null,
     val currentChapterId: Long? = null,
     val items: List<BrowseItem> = emptyList(),
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    val isFavoritesMode: Boolean = false
 )
 
 @HiltViewModel
 class BrowseViewModel @Inject constructor(
-    private val repository: MistakeRepository
+    private val repository: MistakeRepository,
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(BrowseUiState())
+    private val isFavoritesMode: Boolean = savedStateHandle.get<Boolean>("favorites") ?: false
+
+    private val _uiState = MutableStateFlow(BrowseUiState(isFavoritesMode = isFavoritesMode))
     val uiState: StateFlow<BrowseUiState> = _uiState.asStateFlow()
 
     private var allMistakes = listOf<Mistake>()
@@ -49,9 +54,10 @@ class BrowseViewModel @Inject constructor(
 
     private fun loadData() {
         viewModelScope.launch {
+            val mistakesFlow = if (isFavoritesMode) repository.getFavoriteMistakes() else repository.getAllMistakes()
             combine(
                 repository.getAllSubjects(),
-                repository.getAllMistakes(),
+                mistakesFlow,
                 repository.getAllReviewRecords(),
                 repository.getAllChapters()
             ) { subjects, mistakes, records, chapters ->
@@ -84,6 +90,18 @@ class BrowseViewModel @Inject constructor(
         buildBrowseItems()
     }
 
+    fun toggleFavorite(mistake: Mistake) {
+        viewModelScope.launch {
+            repository.setFavorite(mistake.id, !mistake.isFavorite)
+        }
+    }
+
+    fun toggleTop(mistake: Mistake) {
+        viewModelScope.launch {
+            repository.setTop(mistake.id, !mistake.isTop)
+        }
+    }
+
     private fun buildBrowseItems() {
         val state = _uiState.value
         val filtered = allMistakes.filter { mistake ->
@@ -113,7 +131,11 @@ class BrowseViewModel @Inject constructor(
                 chapterName = chapterMap[mistake.chapterId]?.name ?: "",
                 subjectName = subjectMap[mistake.subjectId]?.name ?: ""
             )
-        }.sortedWith(compareByDescending<BrowseItem> { it.wrongCount }.thenByDescending { it.mistake.createdAt })
+        }.sortedWith(
+            compareByDescending<BrowseItem> { it.mistake.isTop }
+                .thenByDescending { it.wrongCount }
+                .thenByDescending { it.mistake.createdAt }
+        )
 
         _uiState.update { it.copy(items = items) }
     }

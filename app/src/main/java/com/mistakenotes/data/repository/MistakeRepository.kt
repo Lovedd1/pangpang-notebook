@@ -39,12 +39,17 @@ class MistakeRepository @Inject constructor(
     fun getAllMistakes(): Flow<List<Mistake>> = mistakeDao.getAllMistakes().map { list ->
         list.map { it.toDomain() }
     }
+    fun getFavoriteMistakes(): Flow<List<Mistake>> = mistakeDao.getFavoriteMistakes().map { list ->
+        list.map { it.toDomain() }
+    }
     fun getMistakesBySubject(subjectId: Long): Flow<List<Mistake>> =
         mistakeDao.getMistakesBySubject(subjectId).map { list -> list.map { it.toDomain() } }
     suspend fun getMistakeById(id: Long): Mistake? = mistakeDao.getMistakeById(id)?.toDomain()
     suspend fun insertMistake(mistake: Mistake): Long = mistakeDao.insertMistake(mistake.toEntity())
     suspend fun updateMistake(mistake: Mistake) = mistakeDao.updateMistake(mistake.toEntity())
     suspend fun deleteMistake(mistake: Mistake) = mistakeDao.deleteMistake(mistake.toEntity())
+    suspend fun setFavorite(mistakeId: Long, isFavorite: Boolean) = mistakeDao.updateFavorite(mistakeId, isFavorite)
+    suspend fun setTop(mistakeId: Long, isTop: Boolean) = mistakeDao.updateTop(mistakeId, isTop)
 
     // ReviewRecord
     fun getReviewRecordsByMistake(mistakeId: Long): Flow<List<ReviewRecord>> =

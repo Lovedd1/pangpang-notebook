@@ -35,7 +35,7 @@ data class HomeUiState(
     val currentSubjectId: Long? = null,
     val todayCards: List<TodayCardInfo> = emptyList(),
     val overdueCards: List<OverdueCardInfo> = emptyList(),
-    val todaySubjectIds: Set<Long> = emptySet(),
+    val cardSubjectIds: Set<Long> = emptySet(),
     val totalMistakes: Int = 0,
     val masteredCount: Int = 0,
     val isLoading: Boolean = true
@@ -53,7 +53,7 @@ class HomeViewModel @Inject constructor(
     private var allTodayCards = listOf<TodayCardInfo>()
     private var allOverdueCards = listOf<OverdueCardInfo>()
     private var cachedSubjects = listOf<Subject>()
-    private var cachedTodaySubjIds = setOf<Long>()
+    private var cachedCardSubjIds = setOf<Long>()
     private var cachedTotalMistakes = 0
     private var cachedMastered = 0
 
@@ -124,7 +124,7 @@ class HomeViewModel @Inject constructor(
                 cachedSubjects = subjects
                 allTodayCards = todayPairs
                 allOverdueCards = overduePairs
-                cachedTodaySubjIds = todayPairs.map { it.mistake.subjectId }.toSet()
+                cachedCardSubjIds = (todayPairs.map { it.mistake.subjectId } + overduePairs.map { it.mistake.subjectId }).toSet()
                 cachedTotalMistakes = mistakes.size
                 cachedMastered = mastered
 
@@ -145,7 +145,7 @@ class HomeViewModel @Inject constructor(
             currentSubjectId = sel,
             todayCards = if (sel != null) allTodayCards.filter { it.mistake.subjectId == sel } else allTodayCards,
             overdueCards = if (sel != null) allOverdueCards.filter { it.mistake.subjectId == sel } else allOverdueCards,
-            todaySubjectIds = cachedTodaySubjIds,
+            cardSubjectIds = cachedCardSubjIds,
             totalMistakes = cachedTotalMistakes,
             masteredCount = cachedMastered,
             isLoading = false
