@@ -10,21 +10,25 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.mistakenotes.domain.model.Chapter
+import com.mistakenotes.domain.model.KnowledgePoint
 import com.mistakenotes.domain.model.QuestionType
+import com.mistakenotes.domain.model.Subject
 import com.mistakenotes.ui.theme.*
+
+private val LABELS = listOf("A", "B", "C", "D", "E", "F", "G", "H")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,7 +46,6 @@ fun ImportScreen(
         viewModel.setImageUri(uri)
     }
 
-    // Show snackbar for error messages
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let { message ->
             snackbarHostState.showSnackbar(message)
@@ -50,7 +53,6 @@ fun ImportScreen(
         }
     }
 
-    // Navigate back on save success
     LaunchedEffect(uiState.saveSuccess) {
         if (uiState.saveSuccess) {
             onNavigateBack()
@@ -63,16 +65,10 @@ fun ImportScreen(
                 title = { Text("录入错题", color = AmberGold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.Filled.ArrowBack,
-                            contentDescription = "返回",
-                            tint = AmberGold
-                        )
+                        Icon(Icons.Filled.ArrowBack, contentDescription = "返回", tint = AmberGold)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = InkStoneBlack
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = InkStoneBlack)
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -86,7 +82,7 @@ fun ImportScreen(
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Image Selection Card
+            // Image card
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -95,10 +91,7 @@ fun ImportScreen(
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = CardDark)
             ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     if (uiState.imageUri != null) {
                         AsyncImage(
                             model = uiState.imageUri,
@@ -107,155 +100,105 @@ fun ImportScreen(
                             contentScale = ContentScale.Fit
                         )
                     } else {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
-                                imageVector = Icons.Default.Image,
-                                contentDescription = null,
-                                modifier = Modifier.size(48.dp),
-                                tint = AmberGold.copy(alpha = 0.6f)
+                                Icons.Default.Image, contentDescription = null,
+                                modifier = Modifier.size(48.dp), tint = AmberGold.copy(alpha = 0.6f)
                             )
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "点击选择图片",
-                                color = TextCream.copy(alpha = 0.6f)
-                            )
+                            Text("点击选择图片", color = TextCream.copy(alpha = 0.6f))
                         }
                     }
                 }
             }
 
-            // Question Type Selection
-            Text(
-                text = "题目类型",
-                color = TextCream,
-                style = MaterialTheme.typography.titleSmall
-            )
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                FilterChip(
-                    selected = uiState.questionType == QuestionType.SINGLE_CHOICE,
-                    onClick = { viewModel.setQuestionType(QuestionType.SINGLE_CHOICE) },
-                    label = { Text("单选题") },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = AmberGold,
-                        selectedLabelColor = InkStoneBlack,
-                        containerColor = CardDark,
-                        labelColor = TextCream
+            // Question type
+            Text("题目类型", color = TextCream, style = MaterialTheme.typography.titleSmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                QuestionType.entries.forEach { type ->
+                    FilterChip(
+                        selected = uiState.questionType == type,
+                        onClick = { viewModel.setQuestionType(type) },
+                        label = {
+                            Text(
+                                when (type) {
+                                    QuestionType.SINGLE_CHOICE -> "单选题"
+                                    QuestionType.MULTI_CHOICE -> "多选题"
+                                    QuestionType.ESSAY -> "主观题"
+                                }
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = AmberGold,
+                            selectedLabelColor = InkStoneBlack,
+                            containerColor = CardDark,
+                            labelColor = TextCream
+                        )
                     )
-                )
-                FilterChip(
-                    selected = uiState.questionType == QuestionType.MULTI_CHOICE,
-                    onClick = { viewModel.setQuestionType(QuestionType.MULTI_CHOICE) },
-                    label = { Text("多选题") },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = AmberGold,
-                        selectedLabelColor = InkStoneBlack,
-                        containerColor = CardDark,
-                        labelColor = TextCream
-                    )
-                )
-                FilterChip(
-                    selected = uiState.questionType == QuestionType.ESSAY,
-                    onClick = { viewModel.setQuestionType(QuestionType.ESSAY) },
-                    label = { Text("主观题") },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = AmberGold,
-                        selectedLabelColor = InkStoneBlack,
-                        containerColor = CardDark,
-                        labelColor = TextCream
-                    )
-                )
+                }
             }
 
-            // Classification Selection - Subject
+            // Classification dropdowns
             SubjectDropdown(
                 subjects = uiState.subjects,
                 selectedSubjectId = uiState.subjectId,
                 onSubjectSelected = { viewModel.setSubject(it) }
             )
-
-            // Chapter
             ChapterDropdown(
                 chapters = uiState.chapters,
                 selectedChapterId = uiState.chapterId,
                 enabled = uiState.subjectId != null,
                 onChapterSelected = { viewModel.setChapter(it) }
             )
+            KnowledgePointDropdown(
+                knowledgePoints = uiState.knowledgePoints,
+                selectedKnowledgePointId = uiState.knowledgePointId,
+                enabled = uiState.chapterId != null,
+                onKnowledgePointSelected = { viewModel.setKnowledgePoint(it) }
+            )
 
-            // Question Text
+            // Question text
             OutlinedTextField(
                 value = uiState.questionText,
                 onValueChange = { viewModel.setQuestionText(it) },
                 label = { Text("题目描述") },
                 modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = TextCream,
-                    unfocusedTextColor = TextCream,
-                    focusedBorderColor = AmberGold,
-                    unfocusedBorderColor = CardDark,
-                    focusedLabelColor = AmberGold,
-                    unfocusedLabelColor = TextCream.copy(alpha = 0.6f),
-                    cursorColor = AmberGold,
-                    focusedContainerColor = CardDark,
-                    unfocusedContainerColor = CardDark
-                )
+                colors = textFieldColors()
             )
 
-            // Correct Answer for choice questions
+            // Options (choice questions only)
             if (uiState.questionType != QuestionType.ESSAY) {
-                OutlinedTextField(
-                    value = uiState.correctAnswer,
-                    onValueChange = { viewModel.setCorrectAnswer(it) },
-                    label = { Text("正确答案（如：A）") },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = TextCream,
-                        unfocusedTextColor = TextCream,
-                        focusedBorderColor = AmberGold,
-                        unfocusedBorderColor = CardDark,
-                        focusedLabelColor = AmberGold,
-                        unfocusedLabelColor = TextCream.copy(alpha = 0.6f),
-                        cursorColor = AmberGold,
-                        focusedContainerColor = CardDark,
-                        unfocusedContainerColor = CardDark
-                    )
-                )
-            }
+                Text("选项", color = TextCream, style = MaterialTheme.typography.titleSmall)
 
-            // Reference Answer for essay questions
-            if (uiState.questionType == QuestionType.ESSAY) {
-                OutlinedTextField(
-                    value = uiState.referenceAnswer,
-                    onValueChange = { viewModel.setReferenceAnswer(it) },
-                    label = { Text("参考答案") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(150.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = TextCream,
-                        unfocusedTextColor = TextCream,
-                        focusedBorderColor = AmberGold,
-                        unfocusedBorderColor = CardDark,
-                        focusedLabelColor = AmberGold,
-                        unfocusedLabelColor = TextCream.copy(alpha = 0.6f),
-                        cursorColor = AmberGold,
-                        focusedContainerColor = CardDark,
-                        unfocusedContainerColor = CardDark
+                uiState.optionEntries.forEachIndexed { index, optionText ->
+                    OptionEntryRow(
+                        index = index,
+                        text = optionText,
+                        isCorrect = index in uiState.correctOptionIndices,
+                        onTextChange = { viewModel.setOptionText(index, it) },
+                        onToggleCorrect = { viewModel.toggleCorrectOption(index) },
+                        onDelete = { viewModel.removeOption(index) },
+                        canDelete = uiState.optionEntries.size > 2
                     )
-                )
+                }
+
+                // Add option button
+                TextButton(
+                    onClick = { viewModel.addOption() },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, tint = AmberGold)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("添加选项", color = AmberGold)
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Save Button
+            // Save button
             Button(
                 onClick = { viewModel.saveMistake() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
+                modifier = Modifier.fillMaxWidth().height(56.dp),
                 enabled = !uiState.isSaving,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = AmberGold,
@@ -270,10 +213,7 @@ fun ImportScreen(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text(
-                        text = "保存",
-                        style = MaterialTheme.typography.titleMedium
-                    )
+                    Text("保存", style = MaterialTheme.typography.titleMedium)
                 }
             }
 
@@ -282,43 +222,106 @@ fun ImportScreen(
     }
 }
 
+// ============================================================
+// Option Entry Row
+// ============================================================
+
+@Composable
+private fun OptionEntryRow(
+    index: Int,
+    text: String,
+    isCorrect: Boolean,
+    onTextChange: (String) -> Unit,
+    onToggleCorrect: () -> Unit,
+    onDelete: () -> Unit,
+    canDelete: Boolean
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // Letter label badge
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(if (isCorrect) SuccessGreen else CardDark),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = LABELS.getOrElse(index) { "${index}" },
+                color = if (isCorrect) InkStoneBlack else TextCream,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp
+            )
+        }
+
+        // Text input for option content
+        OutlinedTextField(
+            value = text,
+            onValueChange = onTextChange,
+            placeholder = { Text("输入选项内容（可为空）", color = TextCream.copy(alpha = 0.3f)) },
+            modifier = Modifier.weight(1f),
+            singleLine = true,
+            colors = textFieldColors()
+        )
+
+        // Mark correct toggle button
+        IconButton(
+            onClick = onToggleCorrect,
+            modifier = Modifier.size(36.dp)
+        ) {
+            Icon(
+                imageVector = if (isCorrect) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                contentDescription = if (isCorrect) "已标记为正确答案" else "点击标记正确答案",
+                tint = if (isCorrect) SuccessGreen else TextCream.copy(alpha = 0.4f),
+                modifier = Modifier.size(24.dp)
+            )
+        }
+
+        // Delete button
+        IconButton(
+            onClick = onDelete,
+            enabled = canDelete,
+            modifier = Modifier.size(36.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "删除选项",
+                tint = if (canDelete) TextCream.copy(alpha = 0.5f) else TextCream.copy(alpha = 0.2f),
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+// ============================================================
+// Dropdown Components
+// ============================================================
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SubjectDropdown(
-    subjects: List<com.mistakenotes.domain.model.Subject>,
+    subjects: List<Subject>,
     selectedSubjectId: Long?,
     onSubjectSelected: (Long) -> Unit
 ) {
     var showDialog by remember { mutableStateOf(false) }
-    val selectedSubject = subjects.find { it.id == selectedSubjectId }
+    val selected = subjects.find { it.id == selectedSubjectId }
 
     OutlinedTextField(
-        value = selectedSubject?.name ?: "请选择科目",
+        value = selected?.name ?: "请选择科目",
         onValueChange = {},
         readOnly = true,
         label = { Text("科目") },
         trailingIcon = {
             IconButton(onClick = { showDialog = true }) {
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = null,
-                    tint = TextCream
-                )
+                Icon(Icons.Default.KeyboardArrowDown, null, tint = TextCream)
             }
         },
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { showDialog = true },
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedTextColor = TextCream,
-            unfocusedTextColor = TextCream,
-            focusedBorderColor = AmberGold,
-            unfocusedBorderColor = CardDark,
-            focusedLabelColor = AmberGold,
-            unfocusedLabelColor = TextCream.copy(alpha = 0.6f),
-            focusedContainerColor = CardDark,
-            unfocusedContainerColor = CardDark
-        )
+        modifier = Modifier.fillMaxWidth().clickable { showDialog = true },
+        colors = textFieldColors()
     )
 
     if (showDialog) {
@@ -329,14 +332,11 @@ private fun SubjectDropdown(
                 Column {
                     subjects.forEach { subject ->
                         TextButton(
-                            onClick = {
-                                onSubjectSelected(subject.id)
-                                showDialog = false
-                            },
+                            onClick = { onSubjectSelected(subject.id); showDialog = false },
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = subject.name,
+                                subject.name,
                                 color = if (subject.id == selectedSubjectId) AmberGold else TextCream,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -358,16 +358,16 @@ private fun SubjectDropdown(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChapterDropdown(
-    chapters: List<com.mistakenotes.domain.model.Chapter>,
+    chapters: List<Chapter>,
     selectedChapterId: Long?,
     enabled: Boolean,
     onChapterSelected: (Long) -> Unit
 ) {
     var showDialog by remember { mutableStateOf(false) }
-    val selectedChapter = chapters.find { it.id == selectedChapterId }
+    val selected = chapters.find { it.id == selectedChapterId }
 
     OutlinedTextField(
-        value = selectedChapter?.name ?: if (enabled) "请选择章节" else "",
+        value = selected?.name ?: if (enabled) "请选择章节" else "",
         onValueChange = {},
         readOnly = true,
         enabled = enabled,
@@ -376,26 +376,14 @@ private fun ChapterDropdown(
             if (enabled) {
                 IconButton(onClick = { showDialog = true }) {
                     Icon(
-                        imageVector = Icons.Default.KeyboardArrowDown,
-                        contentDescription = null,
+                        Icons.Default.KeyboardArrowDown, null,
                         tint = TextCream.copy(alpha = if (enabled) 1f else 0.4f)
                     )
                 }
             }
         },
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = enabled) { showDialog = true },
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedTextColor = TextCream,
-            unfocusedTextColor = if (enabled) TextCream else TextCream.copy(alpha = 0.4f),
-            focusedBorderColor = AmberGold,
-            unfocusedBorderColor = CardDark,
-            focusedLabelColor = AmberGold,
-            unfocusedLabelColor = TextCream.copy(alpha = 0.6f),
-            focusedContainerColor = CardDark,
-            unfocusedContainerColor = CardDark
-        )
+        modifier = Modifier.fillMaxWidth().clickable(enabled = enabled) { showDialog = true },
+        colors = textFieldColors(enabled)
     )
 
     if (showDialog && enabled) {
@@ -409,14 +397,11 @@ private fun ChapterDropdown(
                     } else {
                         chapters.forEach { chapter ->
                             TextButton(
-                                onClick = {
-                                    onChapterSelected(chapter.id)
-                                    showDialog = false
-                                },
+                                onClick = { onChapterSelected(chapter.id); showDialog = false },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text(
-                                    text = chapter.name,
+                                    chapter.name,
                                     color = if (chapter.id == selectedChapterId) AmberGold else TextCream,
                                     modifier = Modifier.fillMaxWidth()
                                 )
@@ -439,16 +424,16 @@ private fun ChapterDropdown(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun KnowledgePointDropdown(
-    knowledgePoints: List<com.mistakenotes.domain.model.KnowledgePoint>,
+    knowledgePoints: List<KnowledgePoint>,
     selectedKnowledgePointId: Long?,
     enabled: Boolean,
     onKnowledgePointSelected: (Long) -> Unit
 ) {
     var showDialog by remember { mutableStateOf(false) }
-    val selectedKp = knowledgePoints.find { it.id == selectedKnowledgePointId }
+    val selected = knowledgePoints.find { it.id == selectedKnowledgePointId }
 
     OutlinedTextField(
-        value = selectedKp?.name ?: if (enabled) "请选择知识点" else "",
+        value = selected?.name ?: if (enabled) "请选择知识点" else "",
         onValueChange = {},
         readOnly = true,
         enabled = enabled,
@@ -457,26 +442,14 @@ private fun KnowledgePointDropdown(
             if (enabled) {
                 IconButton(onClick = { showDialog = true }) {
                     Icon(
-                        imageVector = Icons.Default.KeyboardArrowDown,
-                        contentDescription = null,
+                        Icons.Default.KeyboardArrowDown, null,
                         tint = TextCream.copy(alpha = if (enabled) 1f else 0.4f)
                     )
                 }
             }
         },
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = enabled) { showDialog = true },
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedTextColor = TextCream,
-            unfocusedTextColor = if (enabled) TextCream else TextCream.copy(alpha = 0.4f),
-            focusedBorderColor = AmberGold,
-            unfocusedBorderColor = CardDark,
-            focusedLabelColor = AmberGold,
-            unfocusedLabelColor = TextCream.copy(alpha = 0.6f),
-            focusedContainerColor = CardDark,
-            unfocusedContainerColor = CardDark
-        )
+        modifier = Modifier.fillMaxWidth().clickable(enabled = enabled) { showDialog = true },
+        colors = textFieldColors(enabled)
     )
 
     if (showDialog && enabled) {
@@ -490,14 +463,11 @@ private fun KnowledgePointDropdown(
                     } else {
                         knowledgePoints.forEach { kp ->
                             TextButton(
-                                onClick = {
-                                    onKnowledgePointSelected(kp.id)
-                                    showDialog = false
-                                },
+                                onClick = { onKnowledgePointSelected(kp.id); showDialog = false },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text(
-                                    text = kp.name,
+                                    kp.name,
                                     color = if (kp.id == selectedKnowledgePointId) AmberGold else TextCream,
                                     modifier = Modifier.fillMaxWidth()
                                 )
@@ -515,4 +485,23 @@ private fun KnowledgePointDropdown(
             titleContentColor = AmberGold
         )
     }
+}
+
+// ============================================================
+// Shared TextField Colors
+// ============================================================
+
+@Composable
+private fun textFieldColors(enabled: Boolean = true): TextFieldColors {
+    return OutlinedTextFieldDefaults.colors(
+        focusedTextColor = TextCream,
+        unfocusedTextColor = if (enabled) TextCream else TextCream.copy(alpha = 0.4f),
+        focusedBorderColor = AmberGold,
+        unfocusedBorderColor = CardDark,
+        focusedLabelColor = AmberGold,
+        unfocusedLabelColor = TextCream.copy(alpha = 0.6f),
+        cursorColor = AmberGold,
+        focusedContainerColor = CardDark,
+        unfocusedContainerColor = CardDark
+    )
 }
