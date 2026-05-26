@@ -285,24 +285,28 @@ fun ReviewScreen(
 
                     // Essay answer toggle + self-evaluation
                     if (mistake.questionType == QuestionType.ESSAY) {
-                        // Toggle answer image button
-                        if (!mistake.referenceAnswer.isNullOrBlank()) {
-                            OutlinedButton(
-                                onClick = { showAnswerImage = !showAnswerImage },
-                                modifier = Modifier.fillMaxWidth().height(44.dp),
-                                border = BorderStroke(1.dp, AmberGold.copy(alpha = 0.5f)),
-                                shape = RoundedCornerShape(10.dp)
-                            ) {
-                                Text(
-                                    text = if (showAnswerImage) "隐藏答案" else "查看答案",
-                                    color = AmberGold,
-                                    fontSize = 14.sp
-                                )
-                            }
+                        val hasAnswer = !mistake.referenceAnswer.isNullOrBlank()
+                        // Answer toggle button — always visible
+                        OutlinedButton(
+                            onClick = { if (hasAnswer) showAnswerImage = !showAnswerImage },
+                            enabled = hasAnswer,
+                            modifier = Modifier.fillMaxWidth().height(44.dp),
+                            border = BorderStroke(1.dp, AmberGold.copy(alpha = 0.5f)),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text(
+                                text = when {
+                                    !hasAnswer -> "暂无答案"
+                                    showAnswerImage -> "隐藏答案"
+                                    else -> "查看答案"
+                                },
+                                color = if (hasAnswer) AmberGold else TextCream.copy(alpha = 0.3f),
+                                fontSize = 14.sp
+                            )
                         }
 
                         // Answer image
-                        AnimatedVisibility(visible = showAnswerImage) {
+                        AnimatedVisibility(visible = showAnswerImage && hasAnswer) {
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
@@ -369,13 +373,15 @@ fun ReviewScreen(
                         }
                         }
 
-                        OutlinedButton(
-                            onClick = { viewModel.skipEssay() },
-                            modifier = Modifier.fillMaxWidth(),
-                            border = BorderStroke(1.dp, TextCream.copy(alpha = 0.3f)),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text("跳过", color = TextCream.copy(alpha = 0.6f))
+                        if (!showResult) {
+                            OutlinedButton(
+                                onClick = { viewModel.skipEssay() },
+                                modifier = Modifier.fillMaxWidth(),
+                                border = BorderStroke(1.dp, TextCream.copy(alpha = 0.3f)),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("跳过", color = TextCream.copy(alpha = 0.6f))
+                            }
                         }
                     }
 
