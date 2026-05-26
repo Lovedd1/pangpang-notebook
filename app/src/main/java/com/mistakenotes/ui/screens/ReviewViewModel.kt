@@ -43,10 +43,35 @@ class ReviewViewModel @Inject constructor(
                 // Use pre-set review session (from HomeScreen)
                 reviewQueue = ReviewSession.queue.toMutableList()
                 currentIndex = ReviewSession.startIndex.coerceIn(0, reviewQueue.size - 1)
+                val viewResult = ReviewSession.isViewingResult
                 ReviewSession.clear()
+
                 if (reviewQueue.isNotEmpty()) {
-                    _uiState.update {
-                        it.copy(currentMistake = reviewQueue[currentIndex], isLoading = false)
+                    val mistake = reviewQueue[currentIndex]
+                    if (viewResult) {
+                        // Show previous result directly
+                        val labelLetters = listOf("A", "B", "C", "D", "E", "F", "G", "H")
+                        val correctIndices = (mistake.correctAnswer ?: "").map { c ->
+                            labelLetters.indexOf(c.toString())
+                        }.filter { it >= 0 }.toSet()
+                        val resultIsCorrect = when (ReviewSession.lastResult) {
+                            ReviewResult.CORRECT -> true
+                            ReviewResult.WRONG -> false
+                            else -> null
+                        }
+                        _uiState.update {
+                            it.copy(
+                                currentMistake = mistake,
+                                isLoading = false,
+                                showAnswer = true,
+                                correctIndices = correctIndices,
+                                isCorrect = resultIsCorrect
+                            )
+                        }
+                    } else {
+                        _uiState.update {
+                            it.copy(currentMistake = mistake, isLoading = false)
+                        }
                     }
                 }
             } else {

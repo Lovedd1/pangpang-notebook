@@ -63,15 +63,15 @@ class HomeViewModel @Inject constructor(
                     recs.maxByOrNull { it.reviewDate }
                 }
 
-                // Today's cards: nextReviewDate within today [todayStart, todayEnd]
+                // Today's cards: due today OR reviewed today
                 val todayPairs = mistakes.mapNotNull { mistake ->
                     val rec = latestByMistake[mistake.id]
                     val next = rec?.nextReviewDate
-                    if (next != null && next != -1L && next in todayStart..todayEnd) {
-                        // Check if reviewed today
-                        val todayRecord = reviewRecordMap[mistake.id]
-                            ?.find { it.reviewDate in todayStart..todayEnd }
-                        val isReviewed = todayRecord != null
+                    val isDueToday = next != null && next != -1L && next in todayStart..todayEnd
+                    val todayRecord = reviewRecordMap[mistake.id]
+                        ?.find { it.reviewDate in todayStart..todayEnd }
+                    val isReviewed = todayRecord != null
+                    if (isDueToday || isReviewed) {
                         mistake to TodayCardInfo(mistake, isReviewed, todayRecord?.result)
                     } else null
                 }

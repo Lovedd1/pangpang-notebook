@@ -121,7 +121,9 @@ fun HomeScreen(
                                     onClick = {
                                         ReviewSession.start(
                                             queue = uiState.todayCards.map { it.mistake },
-                                            startIndex = index
+                                            startIndex = index,
+                                            isViewingResult = card.isReviewed,
+                                            lastResult = card.lastResult
                                         )
                                         onNavigateToReview()
                                     }

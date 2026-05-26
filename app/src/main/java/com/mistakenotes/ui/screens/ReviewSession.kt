@@ -5,10 +5,19 @@ import com.mistakenotes.domain.model.Mistake
 object ReviewSession {
     var queue: List<Mistake> = emptyList()
     var startIndex: Int = 0
+    var isViewingResult: Boolean = false
+    var lastResult: ReviewResult? = null
 
-    fun start(queue: List<Mistake>, startIndex: Int = 0) {
+    fun start(
+        queue: List<Mistake>,
+        startIndex: Int = 0,
+        isViewingResult: Boolean = false,
+        lastResult: ReviewResult? = null
+    ) {
         this.queue = queue
         this.startIndex = startIndex
+        this.isViewingResult = isViewingResult
+        this.lastResult = lastResult
     }
 
     fun clear() {
