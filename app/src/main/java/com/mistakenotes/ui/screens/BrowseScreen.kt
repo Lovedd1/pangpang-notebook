@@ -160,16 +160,24 @@ private fun BrowseCard(
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = item.mistake.questionText
-                        ?: item.mistake.title
-                        ?: "(无题目)",
-                    color = TextCream,
-                    fontSize = 14.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = item.mistake.questionText
+                            ?: item.mistake.title
+                            ?: "(无题目)",
+                        color = TextCream,
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = "${item.chapterName} · 知识点*",
+                        color = TextCream.copy(alpha = 0.4f),
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
 
             // Bottom row: review pattern + counts

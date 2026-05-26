@@ -16,7 +16,9 @@ data class BrowseItem(
     val mistake: Mistake,
     val reviewPattern: String,
     val correctCount: Int,
-    val wrongCount: Int
+    val wrongCount: Int,
+    val chapterName: String = "",
+    val subjectName: String = ""
 )
 
 data class BrowseUiState(
@@ -38,24 +40,26 @@ class BrowseViewModel @Inject constructor(
 
     private var allMistakes = listOf<Mistake>()
     private var allRecords = listOf<com.mistakenotes.domain.model.ReviewRecord>()
+    private var chapterMap = mapOf<Long, Chapter>()
+    private var subjectMap = mapOf<Long, Subject>()
 
     init {
-        viewModelScope.launch {
-            repository.getAllSubjects().collect { subjects ->
-                _uiState.update { it.copy(subjects = subjects, isLoading = false) }
-            }
-        }
         loadData()
     }
 
     private fun loadData() {
         viewModelScope.launch {
             combine(
+                repository.getAllSubjects(),
                 repository.getAllMistakes(),
-                repository.getAllReviewRecords()
-            ) { mistakes, records ->
+                repository.getAllReviewRecords(),
+                repository.getAllChapters()
+            ) { subjects, mistakes, records, chapters ->
+                subjectMap = subjects.associateBy { it.id }
+                chapterMap = chapters.associateBy { it.id }
                 allMistakes = mistakes
                 allRecords = records
+                _uiState.update { it.copy(subjects = subjects, isLoading = false) }
                 buildBrowseItems()
             }.collect()
         }
@@ -91,7 +95,7 @@ class BrowseViewModel @Inject constructor(
         val items = filtered.map { mistake ->
             val records = allRecords
                 .filter { it.mistakeId == mistake.id }
-                .filter { it.result != com.mistakenotes.domain.model.ReviewResult.SKIP }
+                .filter { it.result != ReviewResult.SKIP }
                 .sortedBy { it.reviewDate }
 
             val pattern = records.joinToString("") { rec ->
@@ -104,8 +108,12 @@ class BrowseViewModel @Inject constructor(
             val correct = records.count { it.result == ReviewResult.CORRECT }
             val wrong = records.count { it.result == ReviewResult.WRONG }
 
-            BrowseItem(mistake, pattern, correct, wrong)
-        }.sortedByDescending { it.mistake.createdAt }
+            BrowseItem(
+                mistake, pattern, correct, wrong,
+                chapterName = chapterMap[mistake.chapterId]?.name ?: "",
+                subjectName = subjectMap[mistake.subjectId]?.name ?: ""
+            )
+        }.sortedWith(compareByDescending<BrowseItem> { it.wrongCount }.thenByDescending { it.mistake.createdAt })
 
         _uiState.update { it.copy(items = items) }
     }
