@@ -24,6 +24,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.mistakenotes.domain.model.Chapter
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import com.mistakenotes.domain.model.KnowledgePoint
 import com.mistakenotes.domain.model.QuestionType
 import com.mistakenotes.domain.model.Subject
@@ -156,6 +159,17 @@ fun ImportScreen(
                 selectedKnowledgePointId = uiState.knowledgePointId,
                 enabled = uiState.chapterId != null,
                 onKnowledgePointSelected = { viewModel.setKnowledgePoint(it) }
+            )
+
+            // Title
+            OutlinedTextField(
+                value = uiState.title,
+                onValueChange = { viewModel.setTitle(it) },
+                label = { Text("标题") },
+                placeholder = { Text(SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) + "-01", color = TextCream.copy(alpha = 0.3f)) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                colors = textFieldColors()
             )
 
             // Question text

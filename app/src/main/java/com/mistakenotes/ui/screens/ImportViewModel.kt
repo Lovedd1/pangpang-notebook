@@ -25,6 +25,7 @@ import javax.inject.Inject
 
 data class ImportUiState(
     val imageUri: Uri? = null,
+    val title: String = "",
     val questionText: String = "",
     val subjectId: Long? = null,
     val chapterId: Long? = null,
@@ -83,6 +84,7 @@ class ImportViewModel @Inject constructor(
 
             _uiState.update {
                 it.copy(
+                    title = mistake.title.ifBlank { "" },
                     questionText = mistake.questionText ?: "",
                     subjectId = mistake.subjectId,
                     chapterId = mistake.chapterId,
@@ -109,6 +111,10 @@ class ImportViewModel @Inject constructor(
 
     fun setImageUri(uri: Uri?) {
         _uiState.update { it.copy(imageUri = uri) }
+    }
+
+    fun setTitle(text: String) {
+        _uiState.update { it.copy(title = text) }
     }
 
     fun setQuestionText(text: String) {
@@ -244,6 +250,20 @@ class ImportViewModel @Inject constructor(
                 val isEdit = state.isEditMode
                 val existingMistake = if (isEdit) repository.getMistakeById(editingMistakeId) else null
 
+                // Auto-generate title if blank
+                val finalTitle = if (state.title.isBlank()) {
+                    val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+                    val cal = java.util.Calendar.getInstance()
+                    cal.set(java.util.Calendar.HOUR_OF_DAY, 0); cal.set(java.util.Calendar.MINUTE, 0)
+                    cal.set(java.util.Calendar.SECOND, 0); cal.set(java.util.Calendar.MILLISECOND, 0)
+                    val todayStart = cal.timeInMillis
+                    cal.add(java.util.Calendar.DAY_OF_MONTH, 1)
+                    val todayEnd = cal.timeInMillis - 1
+                    val todayCount = repository.getAllMistakes().first()
+                        .count { it.createdAt in todayStart..todayEnd } + 1
+                    "$dateStr-${todayCount.toString().padStart(2, '0')}"
+                } else state.title
+
                 // Preserve existing images if not replaced
                 val localImagePath = if (state.imageUri != null) {
                     copyImageToLocal(state.imageUri)
@@ -255,7 +275,7 @@ class ImportViewModel @Inject constructor(
 
                 val mistake = Mistake(
                     id = if (isEdit) editingMistakeId else 0,
-                    title = state.questionText.take(50).ifBlank { "错题" },
+                    title = finalTitle,
                     subjectId = state.subjectId,
                     chapterId = state.chapterId,
                     knowledgePointId = state.knowledgePointId,
