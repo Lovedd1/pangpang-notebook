@@ -117,4 +117,7 @@ interface ReviewRecordDao {
 
     @Delete
     suspend fun deleteReviewRecord(reviewRecord: ReviewRecordEntity)
+
+    @Query("DELETE FROM review_records WHERE mistakeId = :mistakeId")
+    suspend fun deleteByMistakeId(mistakeId: Long)
 }

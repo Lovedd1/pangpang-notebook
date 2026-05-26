@@ -51,6 +51,7 @@ class MistakeRepository @Inject constructor(
         list.map { it.toDomain() }
     }
     suspend fun insertReviewRecord(record: ReviewRecord): Long = reviewRecordDao.insertReviewRecord(record.toEntity())
+    suspend fun deleteReviewRecordsByMistakeId(mistakeId: Long) = reviewRecordDao.deleteByMistakeId(mistakeId)
 }
 
 // Extension functions for mapping
