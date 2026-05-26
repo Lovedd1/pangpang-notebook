@@ -47,6 +47,14 @@ class HomeViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState
 
+    // Unfiltered data cached for re-filtering on subject change
+    private var allTodayCards = listOf<TodayCardInfo>()
+    private var allOverdueCards = listOf<OverdueCardInfo>()
+    private var cachedSubjects = listOf<Subject>()
+    private var cachedTodaySubjIds = setOf<Long>()
+    private var cachedTotalMistakes = 0
+    private var cachedMastered = 0
+
     init {
         viewModelScope.launch {
             combine(
@@ -74,7 +82,6 @@ class HomeViewModel @Inject constructor(
                 fun nameOf(subjectId: Long) = subjectMap[subjectId]?.name ?: ""
                 fun chapterNameOf(chapterId: Long) = chapterMap[chapterId]?.name ?: ""
 
-                // Today's cards: due today OR reviewed today
                 val todayPairs = mistakes.mapNotNull { mistake ->
                     val rec = latestByMistake[mistake.id]
                     val next = rec?.nextReviewDate
@@ -83,7 +90,7 @@ class HomeViewModel @Inject constructor(
                         ?.find { it.reviewDate in todayStart..todayEnd }
                     val isReviewed = todayRecord != null && todayRecord.result != ReviewResult.SKIP
                     if (isDueToday || isReviewed) {
-                        mistake to TodayCardInfo(
+                        TodayCardInfo(
                             mistake, isReviewed, todayRecord?.result,
                             subjectName = nameOf(mistake.subjectId),
                             chapterName = chapterNameOf(mistake.chapterId)
@@ -91,51 +98,52 @@ class HomeViewModel @Inject constructor(
                     } else null
                 }
 
-                // Overdue cards: nextReviewDate < todayStart
                 val overduePairs = mistakes.mapNotNull { mistake ->
                     val rec = latestByMistake[mistake.id]
                     val next = rec?.nextReviewDate
                     if (next != null && next != -1L && next < todayStart) {
-                        val overdueDays = ((todayStart - next) / 86400000L).toInt() + 1
-                        mistake to OverdueCardInfo(
-                            mistake, overdueDays,
+                        OverdueCardInfo(
+                            mistake,
+                            ((todayStart - next) / 86400000L).toInt() + 1,
                             subjectName = nameOf(mistake.subjectId),
                             chapterName = chapterNameOf(mistake.chapterId)
                         )
                     } else null
-                }.sortedByDescending { it.second.overdueDays }
+                }.sortedByDescending { it.overdueDays }
 
                 val mastered = latestByMistake.count { (_, rec) ->
                     rec?.nextReviewDate == -1L || (rec?.correctCount ?: 0) >= 4
                 }
 
-                val todayList = todayPairs.map { it.second }
-                val overdueList = overduePairs.map { it.second }
-                val todaySubjIds = todayList.map { it.mistake.subjectId }.toSet()
+                // Cache unfiltered data
+                cachedSubjects = subjects
+                allTodayCards = todayPairs
+                allOverdueCards = overduePairs
+                cachedTodaySubjIds = todayPairs.map { it.mistake.subjectId }.toSet()
+                cachedTotalMistakes = mistakes.size
+                cachedMastered = mastered
 
-                val selSubject = _uiState.value.currentSubjectId
-                val filteredToday = if (selSubject != null)
-                    todayList.filter { it.mistake.subjectId == selSubject } else todayList
-                val filteredOverdue = if (selSubject != null)
-                    overdueList.filter { it.mistake.subjectId == selSubject } else overdueList
-
-                HomeUiState(
-                    subjects = subjects,
-                    currentSubjectId = _uiState.value.currentSubjectId,
-                    todayCards = filteredToday,
-                    overdueCards = filteredOverdue,
-                    todaySubjectIds = todaySubjIds,
-                    totalMistakes = mistakes.size,
-                    masteredCount = mastered,
-                    isLoading = false
-                )
-            }.collect { state ->
-                _uiState.value = state
-            }
+                emitFilteredState()
+            }.collect()
         }
     }
 
     fun selectSubject(subjectId: Long?) {
         _uiState.value = _uiState.value.copy(currentSubjectId = subjectId)
+        emitFilteredState()
+    }
+
+    private fun emitFilteredState() {
+        val sel = _uiState.value.currentSubjectId
+        _uiState.value = HomeUiState(
+            subjects = cachedSubjects,
+            currentSubjectId = sel,
+            todayCards = if (sel != null) allTodayCards.filter { it.mistake.subjectId == sel } else allTodayCards,
+            overdueCards = if (sel != null) allOverdueCards.filter { it.mistake.subjectId == sel } else allOverdueCards,
+            todaySubjectIds = cachedTodaySubjIds,
+            totalMistakes = cachedTotalMistakes,
+            masteredCount = cachedMastered,
+            isLoading = false
+        )
     }
 }
