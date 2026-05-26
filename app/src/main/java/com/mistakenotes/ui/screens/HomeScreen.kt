@@ -115,28 +115,30 @@ fun HomeScreen(
                         if (uiState.todayCards.isEmpty()) {
                             EmptyHint("暂无今日待复习题目")
                         } else {
-                            val unreviewedMistakes = uiState.todayCards.filter { !it.isReviewed }.map { it.mistake }
+                            val allMistakes = uiState.todayCards.map { it.mistake }
+                            val preReviewedSet = uiState.todayCards
+                                .mapIndexedNotNull { i, c -> if (c.isReviewed) i else null }
+                                .toSet()
+                            val preReviewedResultMap = uiState.todayCards
+                                .mapIndexedNotNull { i, c ->
+                                    if (c.isReviewed) i to when (c.lastResult) {
+                                        ReviewResult.CORRECT -> true
+                                        ReviewResult.WRONG -> false
+                                        else -> null
+                                    } else null
+                                }.toMap()
                             uiState.todayCards.forEachIndexed { index, card ->
                                 TodayCardItem(
                                     info = card,
                                     onClick = {
-                                        if (card.isReviewed) {
-                                            // Reviewed card — view result only
-                                            ReviewSession.start(
-                                                queue = listOf(card.mistake),
-                                                startIndex = 0,
-                                                isViewingResult = true,
-                                                lastResult = card.lastResult
-                                            )
-                                        } else {
-                                            // Unreviewed card — start review from here
-                                            val pos = unreviewedMistakes.indexOf(card.mistake).coerceAtLeast(0)
-                                            ReviewSession.start(
-                                                queue = unreviewedMistakes,
-                                                startIndex = pos,
-                                                isViewingResult = false
-                                            )
-                                        }
+                                        ReviewSession.start(
+                                            queue = allMistakes,
+                                            startIndex = index,
+                                            isViewingResult = card.isReviewed,
+                                            lastResult = card.lastResult,
+                                            preReviewedIndices = preReviewedSet,
+                                            preReviewedResults = preReviewedResultMap
+                                        )
                                         onNavigateToReview()
                                     }
                                 )
@@ -144,12 +146,18 @@ fun HomeScreen(
 
                             Spacer(modifier = Modifier.height(8.dp))
 
-                            // "Start review" button — only unreviewed today cards
+                            // "Start review" — all today's cards in list order, start from first unreviewed
                             val unreviewed = uiState.todayCards.filter { !it.isReviewed }
                             if (unreviewed.isNotEmpty()) {
+                                val firstUnreviewedIdx = uiState.todayCards.indexOfFirst { !it.isReviewed }
                                 Button(
                                     onClick = {
-                                        ReviewSession.start(queue = unreviewed.map { it.mistake })
+                                        ReviewSession.start(
+                                            queue = allMistakes,
+                                            startIndex = firstUnreviewedIdx.coerceAtLeast(0),
+                                            preReviewedIndices = preReviewedSet,
+                                            preReviewedResults = preReviewedResultMap
+                                        )
                                         onNavigateToReview()
                                     },
                                     modifier = Modifier.fillMaxWidth().height(48.dp),

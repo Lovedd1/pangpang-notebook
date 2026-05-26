@@ -210,7 +210,8 @@ class ReviewViewModel @Inject constructor(
         }
         if (reviewQueue.isNotEmpty()) {
             val mistake = reviewQueue[currentIndex]
-            if (currentIndex in reviewedIndices) {
+            val isPreReviewed = currentIndex in ReviewSession.preReviewedIndices
+            if (currentIndex in reviewedIndices || isPreReviewed) {
                 // Already reviewed in this session — show result
                 val labelLetters = listOf("A", "B", "C", "D", "E", "F", "G", "H")
                 val correctIndices = (mistake.correctAnswer ?: "").map { c ->
@@ -223,6 +224,7 @@ class ReviewViewModel @Inject constructor(
                         showAnswer = true,
                         correctIndices = correctIndices,
                         isCorrect = reviewedResults[currentIndex]
+                            ?: ReviewSession.preReviewedResults[currentIndex]
                     )
                 }
             } else {
