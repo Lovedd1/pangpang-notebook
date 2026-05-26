@@ -115,16 +115,28 @@ fun HomeScreen(
                         if (uiState.todayCards.isEmpty()) {
                             EmptyHint("暂无今日待复习题目")
                         } else {
+                            val unreviewedMistakes = uiState.todayCards.filter { !it.isReviewed }.map { it.mistake }
                             uiState.todayCards.forEachIndexed { index, card ->
                                 TodayCardItem(
                                     info = card,
                                     onClick = {
-                                        ReviewSession.start(
-                                            queue = uiState.todayCards.map { it.mistake },
-                                            startIndex = index,
-                                            isViewingResult = card.isReviewed,
-                                            lastResult = card.lastResult
-                                        )
+                                        if (card.isReviewed) {
+                                            // Reviewed card — view result only
+                                            ReviewSession.start(
+                                                queue = listOf(card.mistake),
+                                                startIndex = 0,
+                                                isViewingResult = true,
+                                                lastResult = card.lastResult
+                                            )
+                                        } else {
+                                            // Unreviewed card — start review from here
+                                            val pos = unreviewedMistakes.indexOf(card.mistake).coerceAtLeast(0)
+                                            ReviewSession.start(
+                                                queue = unreviewedMistakes,
+                                                startIndex = pos,
+                                                isViewingResult = false
+                                            )
+                                        }
                                         onNavigateToReview()
                                     }
                                 )
