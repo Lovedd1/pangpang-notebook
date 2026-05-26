@@ -33,7 +33,8 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
     onNavigateToImport: (Long?) -> Unit = {},
     onNavigateToReview: () -> Unit = {},
-    onNavigateToAnalysis: () -> Unit = {}
+    onNavigateToAnalysis: () -> Unit = {},
+    onNavigateToBrowse: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showTodaySection by remember { mutableStateOf(true) }
@@ -229,6 +230,16 @@ fun HomeScreen(
                     title = "拍照录入",
                     description = "拍摄题目快速录入",
                     onClick = { onNavigateToImport(null) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            item {
+                QuickActionCard(
+                    icon = Icons.Default.List,
+                    title = "错题浏览",
+                    description = "按科目章节查看全部错题",
+                    onClick = onNavigateToBrowse,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
