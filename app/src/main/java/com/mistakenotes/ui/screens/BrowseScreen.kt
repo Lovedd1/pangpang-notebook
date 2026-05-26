@@ -7,7 +7,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -23,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mistakenotes.R
+import com.mistakenotes.domain.model.Chapter
 import com.mistakenotes.domain.model.QuestionType
 import com.mistakenotes.ui.theme.*
 
@@ -78,38 +81,11 @@ fun BrowseScreen(
 
             // Chapter filter
             if (uiState.chapters.isNotEmpty()) {
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    contentPadding = PaddingValues(bottom = 8.dp)
-                ) {
-                    item {
-                        FilterChip(
-                            selected = uiState.currentChapterId == null,
-                            onClick = { viewModel.selectChapter(null) },
-                            label = { Text("全部章节", fontSize = 12.sp) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = AmberGold.copy(alpha = 0.3f),
-                                selectedLabelColor = AmberGold,
-                                containerColor = CardDark,
-                                labelColor = TextCream.copy(alpha = 0.7f)
-                            )
-                        )
-                    }
-                    items(uiState.chapters) { chapter ->
-                        FilterChip(
-                            selected = uiState.currentChapterId == chapter.id,
-                            onClick = { viewModel.selectChapter(chapter.id) },
-                            label = { Text(chapter.name, fontSize = 12.sp, maxLines = 1) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = AmberGold.copy(alpha = 0.3f),
-                                selectedLabelColor = AmberGold,
-                                containerColor = CardDark,
-                                labelColor = TextCream.copy(alpha = 0.7f)
-                            )
-                        )
-                    }
-                }
+                ChapterDropdown(
+                    chapters = uiState.chapters,
+                    selectedChapterId = uiState.currentChapterId,
+                    onChapterSelected = { viewModel.selectChapter(it) }
+                )
             }
 
             HorizontalDivider(color = CardDark)
@@ -234,6 +210,84 @@ private fun BrowseCard(
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ChapterDropdown(
+    chapters: List<Chapter>,
+    selectedChapterId: Long?,
+    onChapterSelected: (Long?) -> Unit
+) {
+    var showDialog by remember { mutableStateOf(false) }
+    val selected = chapters.find { it.id == selectedChapterId }
+
+    OutlinedTextField(
+        value = selected?.name ?: "全部章节",
+        onValueChange = {},
+        readOnly = true,
+        trailingIcon = {
+            IconButton(onClick = { showDialog = true }) {
+                Icon(Icons.Default.KeyboardArrowDown, null, tint = TextCream)
+            }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .clickable { showDialog = true },
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = TextCream,
+            unfocusedTextColor = TextCream,
+            focusedBorderColor = AmberGold,
+            unfocusedBorderColor = CardDark,
+            focusedLabelColor = AmberGold,
+            unfocusedLabelColor = TextCream.copy(alpha = 0.6f),
+            cursorColor = AmberGold,
+            focusedContainerColor = CardDark,
+            unfocusedContainerColor = CardDark
+        ),
+        shape = RoundedCornerShape(10.dp)
+    )
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text("选择章节", color = AmberGold) },
+            text = {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    TextButton(
+                        onClick = { onChapterSelected(null); showDialog = false },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            "全部章节",
+                            color = if (selectedChapterId == null) AmberGold else TextCream,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                    chapters.forEach { chapter ->
+                        TextButton(
+                            onClick = { onChapterSelected(chapter.id); showDialog = false },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                chapter.name,
+                                color = if (chapter.id == selectedChapterId) AmberGold else TextCream,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDialog = false }) {
+                    Text("取消", color = TextCream.copy(alpha = 0.6f))
+                }
+            },
+            containerColor = CardDark,
+            titleContentColor = AmberGold
+        )
+    }
+}
+
 private fun filterChipColors() = FilterChipDefaults.filterChipColors(
     selectedContainerColor = AmberGold,
     selectedLabelColor = InkStoneBlack,
