@@ -31,7 +31,7 @@ import com.mistakenotes.ui.theme.*
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
-    onNavigateToImport: () -> Unit = {},
+    onNavigateToImport: (Long?) -> Unit = {},
     onNavigateToReview: () -> Unit = {},
     onNavigateToAnalysis: () -> Unit = {}
 ) {
@@ -140,7 +140,8 @@ fun HomeScreen(
                                             preReviewedResults = preReviewedResultMap
                                         )
                                         onNavigateToReview()
-                                    }
+                                    },
+                                    onEdit = { onNavigateToImport(card.mistake.id) }
                                 )
                             }
 
@@ -208,7 +209,8 @@ fun HomeScreen(
                                             startIndex = index
                                         )
                                         onNavigateToReview()
-                                    }
+                                    },
+                                    onEdit = { onNavigateToImport(card.mistake.id) }
                                 )
                             }
                         }
@@ -226,7 +228,7 @@ fun HomeScreen(
                     icon = Icons.Default.CameraAlt,
                     title = "拍照录入",
                     description = "拍摄题目快速录入",
-                    onClick = onNavigateToImport,
+                    onClick = { onNavigateToImport(null) },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -281,7 +283,8 @@ private fun SectionHeader(
 @Composable
 private fun TodayCardItem(
     info: TodayCardInfo,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onEdit: (() -> Unit)? = null
 ) {
     Card(
         modifier = Modifier
@@ -371,6 +374,21 @@ private fun TodayCardItem(
                 modifier = Modifier.weight(1f)
             )
 
+            // Edit button
+            if (onEdit != null) {
+                IconButton(
+                    onClick = onEdit,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Edit,
+                        "编辑",
+                        tint = TextCream.copy(alpha = 0.5f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
             Icon(
                 Icons.Default.ChevronRight,
                 null,
@@ -384,7 +402,8 @@ private fun TodayCardItem(
 @Composable
 private fun OverdueCardItem(
     info: OverdueCardInfo,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onEdit: (() -> Unit)? = null
 ) {
     Card(
         modifier = Modifier
@@ -444,6 +463,21 @@ private fun OverdueCardItem(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
+
+            // Edit button
+            if (onEdit != null) {
+                IconButton(
+                    onClick = onEdit,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Edit,
+                        "编辑",
+                        tint = TextCream.copy(alpha = 0.5f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
 
             Icon(
                 Icons.Default.ChevronRight,

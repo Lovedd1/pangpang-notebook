@@ -3,6 +3,7 @@ package com.mistakenotes.ui.screens
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -62,7 +63,7 @@ fun ImportScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("录入错题", color = AmberGold) },
+                title = { Text(if (uiState.isEditMode) "编辑错题" else "录入错题", color = AmberGold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "返回", tint = AmberGold)
@@ -238,11 +239,54 @@ fun ImportScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Save button
+            // Delete button (edit mode only)
+            if (uiState.isEditMode) {
+                var showDeleteConfirm by remember { mutableStateOf(false) }
+                OutlinedButton(
+                    onClick = { showDeleteConfirm = true },
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    enabled = !uiState.isDeleting,
+                    border = BorderStroke(1.dp, ErrorRed.copy(alpha = 0.5f)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    if (uiState.isDeleting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = ErrorRed,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    Text("删除错题", color = ErrorRed, fontSize = 15.sp)
+                }
+
+                if (showDeleteConfirm) {
+                    AlertDialog(
+                        onDismissRequest = { showDeleteConfirm = false },
+                        title = { Text("确认删除", color = AmberGold) },
+                        text = { Text("删除后无法恢复，确定要删除这条错题吗？", color = TextCream) },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                showDeleteConfirm = false
+                                viewModel.deleteMistake()
+                            }) { Text("删除", color = ErrorRed) }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showDeleteConfirm = false }) {
+                                Text("取消", color = TextCream.copy(alpha = 0.6f))
+                            }
+                        },
+                        containerColor = CardDark,
+                        titleContentColor = AmberGold
+                    )
+                }
+            }
+
+            // Save / Update button
             Button(
                 onClick = { viewModel.saveMistake() },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
-                enabled = !uiState.isSaving,
+                enabled = !uiState.isSaving && !uiState.isDeleting,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = AmberGold,
                     contentColor = InkStoneBlack
@@ -256,7 +300,10 @@ fun ImportScreen(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text("保存", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        if (uiState.isEditMode) "更新" else "保存",
+                        style = MaterialTheme.typography.titleMedium
+                    )
                 }
             }
 

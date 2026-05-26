@@ -2,6 +2,7 @@ package com.mistakenotes.ui.screens
 
 import android.content.Context
 import android.net.Uri
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mistakenotes.data.repository.MistakeRepository
@@ -36,21 +37,66 @@ data class ImportUiState(
     val chapters: List<Chapter> = emptyList(),
     val knowledgePoints: List<KnowledgePoint> = emptyList(),
     val isSaving: Boolean = false,
+    val isDeleting: Boolean = false,
     val saveSuccess: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val isEditMode: Boolean = false
 )
 
 @HiltViewModel
 class ImportViewModel @Inject constructor(
     private val repository: MistakeRepository,
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ImportUiState())
     val uiState: StateFlow<ImportUiState> = _uiState.asStateFlow()
+    private val editingMistakeId: Long = savedStateHandle.get<Long>("mistakeId") ?: -1L
 
     init {
         loadSubjects()
+        if (editingMistakeId > 0) {
+            loadMistakeForEditing(editingMistakeId)
+        }
+    }
+
+    private fun loadMistakeForEditing(id: Long) {
+        viewModelScope.launch {
+            val mistake = repository.getMistakeById(id) ?: return@launch
+            val labelLetters = listOf("A", "B", "C", "D", "E", "F", "G", "H")
+
+            // Parse options
+            val entries = mistake.options?.split("|")?.toMutableList() ?: mutableListOf("", "", "", "")
+            while (entries.size < 4) entries.add("")
+
+            // Parse correct answer letters to indices
+            val correctIndices = (mistake.correctAnswer ?: "").mapNotNull { c ->
+                labelLetters.indexOf(c.toString()).takeIf { it >= 0 }
+            }.toSet()
+
+            // Load chapter and knowledge point lists
+            loadChapters(mistake.subjectId)
+            if (mistake.chapterId > 0) {
+                loadKnowledgePoints(mistake.chapterId)
+            }
+
+            _uiState.update {
+                it.copy(
+                    questionText = mistake.questionText ?: "",
+                    subjectId = mistake.subjectId,
+                    chapterId = mistake.chapterId,
+                    knowledgePointId = mistake.knowledgePointId,
+                    questionType = mistake.questionType,
+                    optionEntries = entries,
+                    correctOptionIndices = correctIndices,
+                    imageUri = mistake.questionImagePath?.let { path -> Uri.fromFile(File(path)) },
+                    answerImageUri = mistake.referenceAnswer?.let { path -> Uri.fromFile(File(path)) },
+                    errorMessage = null,
+                    isEditMode = true
+                )
+            }
+        }
     }
 
     private fun loadSubjects() {
@@ -185,8 +231,6 @@ class ImportViewModel @Inject constructor(
 
             try {
                 val now = System.currentTimeMillis()
-                val pastTime = now - 10000 // 10 seconds ago
-                android.util.Log.d("ImportVM", "Creating mistake with now=$now, past=$pastTime")
                 val labelLetters = listOf("A", "B", "C", "D", "E", "F", "G", "H")
 
                 val optionsStr = if (state.questionType != QuestionType.ESSAY) {
@@ -197,14 +241,20 @@ class ImportViewModel @Inject constructor(
                     state.correctOptionIndices.sorted().joinToString("") { labelLetters[it] }
                 } else null
 
-                val localImagePath = state.imageUri?.let { uri ->
-                    copyImageToLocal(uri)
-                }
-                val localAnswerImagePath = state.answerImageUri?.let { uri ->
-                    copyImageToLocal(uri, "answer")
-                }
+                val isEdit = state.isEditMode
+                val existingMistake = if (isEdit) repository.getMistakeById(editingMistakeId) else null
+
+                // Preserve existing images if not replaced
+                val localImagePath = if (state.imageUri != null) {
+                    copyImageToLocal(state.imageUri)
+                } else existingMistake?.questionImagePath
+
+                val localAnswerImagePath = if (state.answerImageUri != null) {
+                    copyImageToLocal(state.answerImageUri, "answer")
+                } else existingMistake?.referenceAnswer
 
                 val mistake = Mistake(
+                    id = if (isEdit) editingMistakeId else 0,
                     title = state.questionText.take(50).ifBlank { "错题" },
                     subjectId = state.subjectId,
                     chapterId = state.chapterId,
@@ -214,27 +264,27 @@ class ImportViewModel @Inject constructor(
                     questionText = state.questionText.takeIf { it.isNotBlank() },
                     options = optionsStr,
                     correctAnswer = correctAnswerStr,
-                    referenceAnswer = localAnswerImagePath
+                    referenceAnswer = localAnswerImagePath,
+                    createdAt = existingMistake?.createdAt ?: now,
+                    isFavorite = existingMistake?.isFavorite ?: false,
+                    isTop = existingMistake?.isTop ?: false
                 )
 
-                val mistakeId = repository.insertMistake(mistake)
-                android.util.Log.d("ImportVM", "inserted mistake with id: $mistakeId")
-
-                // Create initial review record
-                try {
+                if (isEdit) {
+                    repository.updateMistake(mistake)
+                } else {
+                    val mistakeId = repository.insertMistake(mistake)
+                    // Create initial review record for new mistakes
                     val pastTime = now - 10000
-                    val reviewRec = ReviewRecord(
-                        mistakeId = mistakeId,
-                        reviewDate = pastTime,
-                        result = ReviewResult.SKIP,
-                        nextReviewDate = pastTime,
-                        correctCount = 0
+                    repository.insertReviewRecord(
+                        ReviewRecord(
+                            mistakeId = mistakeId,
+                            reviewDate = pastTime,
+                            result = ReviewResult.SKIP,
+                            nextReviewDate = pastTime,
+                            correctCount = 0
+                        )
                     )
-                    android.util.Log.d("ImportVM", "Inserting review record for mistakeId: $mistakeId")
-                    repository.insertReviewRecord(reviewRec)
-                    android.util.Log.d("ImportVM", "Review record inserted successfully")
-                } catch (e: Exception) {
-                    android.util.Log.e("ImportVM", "Failed to insert review record", e)
                 }
 
                 _uiState.update { it.copy(isSaving = false, saveSuccess = true) }
@@ -261,6 +311,26 @@ class ImportViewModel @Inject constructor(
         } catch (e: Exception) {
             android.util.Log.e("ImportVM", "Failed to copy image", e)
             null
+        }
+    }
+
+    fun deleteMistake() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isDeleting = true, errorMessage = null) }
+            try {
+                val mistake = repository.getMistakeById(editingMistakeId)
+                if (mistake != null) {
+                    // Also delete local image files
+                    mistake.questionImagePath?.let { File(it).delete() }
+                    mistake.referenceAnswer?.let { File(it).delete() }
+                    repository.deleteMistake(mistake)
+                }
+                _uiState.update { it.copy(isDeleting = false, saveSuccess = true) }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(isDeleting = false, errorMessage = "删除失败: ${e.message}")
+                }
+            }
         }
     }
 
