@@ -39,26 +39,47 @@ class ReviewViewModel @Inject constructor(
 
     private fun loadReviewQueue() {
         viewModelScope.launch {
-            combine(
-                repository.getAllMistakes(),
-                repository.getAllReviewRecords()
-            ) { mistakes, reviewRecords ->
-                val now = System.currentTimeMillis()
-                val reviewRecordMap = reviewRecords.groupBy { it.mistakeId }
-
-                mistakes.filter { mistake ->
-                    val records = reviewRecordMap[mistake.id] ?: emptyList()
-                    val latestRecord = records.maxByOrNull { it.reviewDate }
-                    val nextReview = latestRecord?.nextReviewDate
-                    nextReview != null && nextReview != -1L && nextReview <= now
+            if (!ReviewSession.isEmpty) {
+                // Use pre-set review session (from HomeScreen)
+                reviewQueue = ReviewSession.queue.toMutableList()
+                currentIndex = ReviewSession.startIndex.coerceIn(0, reviewQueue.size - 1)
+                ReviewSession.clear()
+                if (reviewQueue.isNotEmpty()) {
+                    _uiState.update {
+                        it.copy(currentMistake = reviewQueue[currentIndex], isLoading = false)
+                    }
                 }
-            }.collect { queue ->
+            } else {
+                // Fallback: load all today's cards
+                val queue = combine(
+                    repository.getAllMistakes(),
+                    repository.getAllReviewRecords()
+                ) { mistakes, reviewRecords ->
+                    val cal = java.util.Calendar.getInstance()
+                    cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+                    cal.set(java.util.Calendar.MINUTE, 0)
+                    cal.set(java.util.Calendar.SECOND, 0)
+                    cal.set(java.util.Calendar.MILLISECOND, 0)
+                    val todayStart = cal.timeInMillis
+                    cal.add(java.util.Calendar.DAY_OF_MONTH, 1)
+                    val todayEnd = cal.timeInMillis - 1
+
+                    val reviewRecordMap = reviewRecords.groupBy { it.mistakeId }
+
+                    mistakes.filter { mistake ->
+                        val records = reviewRecordMap[mistake.id] ?: emptyList()
+                        val latestRecord = records.maxByOrNull { it.reviewDate }
+                        val nextReview = latestRecord?.nextReviewDate
+                        nextReview != null && nextReview != -1L && nextReview in todayStart..todayEnd
+                    }
+                }.first()
+
                 reviewQueue = queue.toMutableList()
                 reviewQueue.shuffle()
                 currentIndex = 0
-                if (queue.isNotEmpty()) {
+                if (reviewQueue.isNotEmpty()) {
                     _uiState.update {
-                        it.copy(currentMistake = queue.first(), isLoading = false, reviewComplete = false)
+                        it.copy(currentMistake = reviewQueue.first(), isLoading = false, reviewComplete = false)
                     }
                 } else {
                     _uiState.update { it.copy(isLoading = false, reviewComplete = true) }
@@ -86,9 +107,9 @@ class ReviewViewModel @Inject constructor(
         val correctAnswer = mistake.correctAnswer ?: return
 
         val labelLetters = listOf("A", "B", "C", "D", "E", "F", "G", "H")
-        val correctIndices = correctAnswer.toCharArray()
-            .mapNotNull { c -> labelLetters.indexOf(c.toString()).takeIf { it >= 0 } }
-            .toSet()
+        val correctIndices = correctAnswer.map { c ->
+            labelLetters.indexOf(c.toString())
+        }.filter { it >= 0 }.toSet()
 
         val userIndices = state.selectedOptionIndices
         val isCorrect = userIndices == correctIndices
@@ -151,12 +172,13 @@ class ReviewViewModel @Inject constructor(
 
     fun nextMistake() {
         currentIndex++
-        if (currentIndex < reviewQueue.size) {
+        if (currentIndex >= reviewQueue.size) {
+            currentIndex = 0 // loop back to first card
+        }
+        if (reviewQueue.isNotEmpty()) {
             _uiState.update {
                 ReviewUiState(currentMistake = reviewQueue[currentIndex], isLoading = false)
             }
-        } else {
-            _uiState.update { it.copy(reviewComplete = true, currentMistake = null) }
         }
     }
 }
