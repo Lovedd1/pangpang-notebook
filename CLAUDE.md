@@ -22,6 +22,7 @@ CPA 错题笔记应用 — 核心复习流程（录入→复习→分析）已�
 - **真机调试**：Android Studio 连接设备，运行 `:app` 模块
 - **Sync**：File → Sync Project with Gradle Files（或 Ctrl+Shift+O）
 - **Gradle**：8.9
+- **GitHub**：https://github.com/Lovedd1/pangpang-notebook（默认 push 目标）
 
 ## 目录结构
 
@@ -99,3 +100,19 @@ HomeScreen 设置 → ReviewViewModel 读取后 clear → 后续循环用 ViewMo
 - HomeViewModel 用 `.collect()` 响应式更新列表状态
 - SKIP 结果的 ReviewRecord 不计入"已复习"
 - 数据库用 `fallbackToDestructiveMigration()`，版本2
+
+## 待开发功能
+
+| 优先级 | 功能 | 说明 |
+|--------|------|------|
+| **高** | 知识点管理 | knowledge_points 表空，需 UI 增删改 |
+| **高** | 错题编辑/删除 | 已录入错题无编辑入口 |
+| **高** | 错题浏览 | 按科目/章节筛选查看全部错题 |
+| 中 | 主观题答案录入 | Mistake.referenceAnswer 字段保留待用 |
+| 中 | 收藏/置顶 | isFavorite/isTop 字段已存在，缺 UI |
+| 中 | 搜索题目 | 关键词搜索功能 |
+| v2 | OCR 识别 | Tesseract 拍照自动识别文字 |
+| v2 | AI 评分 | DeepSeek API 主观题智能评分 |
+| v2 | AI 得分点 | AI 自动拆解参考答案得分点 |
+| 体验 | 通知提醒 | 每日待复习推送 |
+| 体验 | 数据备份 | 错题数据导出 |
