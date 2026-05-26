@@ -374,6 +374,7 @@ fun ReviewScreen(
                                 Text("答错了", fontWeight = FontWeight.Bold)
                             }
                         }
+                        }
 
                         OutlinedButton(
                             onClick = { viewModel.skipEssay() },
