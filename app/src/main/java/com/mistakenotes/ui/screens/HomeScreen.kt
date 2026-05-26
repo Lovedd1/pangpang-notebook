@@ -72,7 +72,8 @@ fun HomeScreen(
                             colors = filterChipColors()
                         )
                     }
-                    items(uiState.subjects) { subject ->
+                    val filteredSubjects = uiState.subjects.filter { it.id in uiState.todaySubjectIds }
+                    items(filteredSubjects) { subject ->
                         FilterChip(
                             selected = uiState.currentSubjectId == subject.id,
                             onClick = { viewModel.selectSubject(subject.id) },
@@ -373,17 +374,27 @@ private fun TodayCardItem(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Title
-            Text(
-                text = info.mistake.questionText
-                    ?: info.mistake.title
-                    ?: "(无题目)",
-                color = TextCream,
-                fontSize = 14.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
+            // Title + subject/chapter
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = info.mistake.questionText
+                        ?: info.mistake.title
+                        ?: "(无题目)",
+                    color = TextCream,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (info.subjectName.isNotEmpty()) {
+                    Text(
+                        text = "${info.subjectName} · ${info.chapterName}",
+                        color = TextCream.copy(alpha = 0.4f),
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
 
             // Edit button
             if (onEdit != null) {
@@ -464,16 +475,26 @@ private fun OverdueCardItem(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            Text(
-                text = info.mistake.questionText
-                    ?: info.mistake.title
-                    ?: "(无题目)",
-                color = TextCream,
-                fontSize = 14.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = info.mistake.questionText
+                        ?: info.mistake.title
+                        ?: "(无题目)",
+                    color = TextCream,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (info.subjectName.isNotEmpty()) {
+                    Text(
+                        text = "${info.subjectName} · ${info.chapterName}",
+                        color = TextCream.copy(alpha = 0.4f),
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
 
             // Edit button
             if (onEdit != null) {

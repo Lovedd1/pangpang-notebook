@@ -24,6 +24,7 @@ class MistakeRepository @Inject constructor(
     suspend fun deleteSubject(subject: Subject) = subjectDao.deleteSubject(subject.toEntity())
 
     // Chapter
+    fun getAllChapters(): Flow<List<Chapter>> = chapterDao.getAllChapters().map { list -> list.map { it.toDomain() } }
     fun getChaptersBySubject(subjectId: Long): Flow<List<Chapter>> =
         chapterDao.getChaptersBySubject(subjectId).map { list -> list.map { it.toDomain() } }
     suspend fun insertChapter(chapter: Chapter): Long = chapterDao.insertChapter(chapter.toEntity())
