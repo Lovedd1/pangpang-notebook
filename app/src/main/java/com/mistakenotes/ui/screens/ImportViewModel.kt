@@ -1,5 +1,6 @@
 package com.mistakenotes.ui.screens
 
+import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -12,8 +13,13 @@ import com.mistakenotes.domain.model.ReviewRecord
 import com.mistakenotes.domain.model.ReviewResult
 import com.mistakenotes.domain.model.Subject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 
 data class ImportUiState(
@@ -36,7 +42,8 @@ data class ImportUiState(
 
 @HiltViewModel
 class ImportViewModel @Inject constructor(
-    private val repository: MistakeRepository
+    private val repository: MistakeRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ImportUiState())
@@ -190,13 +197,17 @@ class ImportViewModel @Inject constructor(
                     state.correctOptionIndices.sorted().joinToString("") { labelLetters[it] }
                 } else null
 
+                val localImagePath = state.imageUri?.let { uri ->
+                    copyImageToLocal(uri)
+                }
+
                 val mistake = Mistake(
                     title = state.questionText.take(50).ifBlank { "错题" },
                     subjectId = state.subjectId,
                     chapterId = state.chapterId,
                     knowledgePointId = state.knowledgePointId,
                     questionType = state.questionType,
-                    questionImagePath = state.imageUri?.toString(),
+                    questionImagePath = localImagePath,
                     questionText = state.questionText.takeIf { it.isNotBlank() },
                     options = optionsStr,
                     correctAnswer = correctAnswerStr,
@@ -229,6 +240,24 @@ class ImportViewModel @Inject constructor(
                     it.copy(isSaving = false, errorMessage = "保存失败: ${e.message}")
                 }
             }
+        }
+    }
+
+    private fun copyImageToLocal(uri: Uri): String? {
+        return try {
+            val imagesDir = File(context.filesDir, "question_images")
+            if (!imagesDir.exists()) imagesDir.mkdirs()
+            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+            val destFile = File(imagesDir, "img_$timestamp.jpg")
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                destFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            destFile.absolutePath
+        } catch (e: Exception) {
+            android.util.Log.e("ImportVM", "Failed to copy image", e)
+            null
         }
     }
 

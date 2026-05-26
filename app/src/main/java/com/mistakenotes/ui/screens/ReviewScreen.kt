@@ -1,6 +1,5 @@
 package com.mistakenotes.ui.screens
 
-import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -25,6 +24,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.mistakenotes.domain.model.QuestionType
 import com.mistakenotes.ui.theme.*
+import java.io.File
 
 private val LABELS = listOf("A", "B", "C", "D", "E", "F", "G", "H")
 
@@ -113,7 +113,7 @@ fun ReviewScreen(
                             // Question image
                             if (!mistake.questionImagePath.isNullOrBlank()) {
                                 AsyncImage(
-                                    model = Uri.parse(mistake.questionImagePath),
+                                    model = File(mistake.questionImagePath),
                                     contentDescription = "题目图片",
                                     modifier = Modifier
                                         .fillMaxWidth()

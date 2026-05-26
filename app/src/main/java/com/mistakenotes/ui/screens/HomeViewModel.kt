@@ -70,7 +70,7 @@ class HomeViewModel @Inject constructor(
                     val isDueToday = next != null && next != -1L && next in todayStart..todayEnd
                     val todayRecord = reviewRecordMap[mistake.id]
                         ?.find { it.reviewDate in todayStart..todayEnd }
-                    val isReviewed = todayRecord != null
+                    val isReviewed = todayRecord != null && todayRecord.result != ReviewResult.SKIP
                     if (isDueToday || isReviewed) {
                         mistake to TodayCardInfo(mistake, isReviewed, todayRecord?.result)
                     } else null

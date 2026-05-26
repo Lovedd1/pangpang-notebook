@@ -1,6 +1,7 @@
 package com.mistakenotes.ui.screens
 
 import com.mistakenotes.domain.model.Mistake
+import com.mistakenotes.domain.model.ReviewResult
 
 object ReviewSession {
     var queue: List<Mistake> = emptyList()
