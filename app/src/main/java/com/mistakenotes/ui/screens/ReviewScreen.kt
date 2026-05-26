@@ -1,31 +1,29 @@
 package com.mistakenotes.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.mistakenotes.domain.model.Mistake
 import com.mistakenotes.domain.model.QuestionType
-import com.mistakenotes.ui.canvas.DrawingTool
-import com.mistakenotes.ui.canvas.HandwritingCanvas
-import com.mistakenotes.ui.canvas.HandwritingToolbar
-import com.mistakenotes.ui.canvas.VectorStroke
 import com.mistakenotes.ui.theme.*
+
+private val LABELS = listOf("A", "B", "C", "D", "E", "F", "G", "H")
 
 @Composable
 fun ReviewScreen(
@@ -33,371 +31,364 @@ fun ReviewScreen(
     onNavigateBack: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var selectedTabIndex by remember { mutableIntStateOf(0) }
+    val scrollState = rememberScrollState()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        text = "复习",
-                        color = TextCream,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
+                title = { Text("复习", color = TextCream, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回",
-                            tint = TextCream
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回", tint = TextCream)
                     }
                 },
-                actions = {
-                    IconButton(onClick = { /* fullscreen toggle */ }) {
-                        Icon(
-                            imageVector = Icons.Default.Fullscreen,
-                            contentDescription = "全屏",
-                            tint = TextCream
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = InkStoneBlack
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = InkStoneBlack)
             )
         },
         containerColor = InkStoneBlack
     ) { paddingValues ->
-        android.util.Log.d("ReviewScreen", "composable evaluated: isLoading=${uiState.isLoading}, reviewComplete=${uiState.reviewComplete}, currentMistake=${uiState.currentMistake?.id}")
         when {
             uiState.isLoading -> {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
+                    modifier = Modifier.fillMaxSize().padding(paddingValues),
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator(color = AmberGold)
                 }
             }
             uiState.reviewComplete -> {
-                ReviewCompleteContent(
+                Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues)
-                )
-            }
-            uiState.currentMistake != null -> {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
+                        .padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
-                    // Left side - Question (35%)
-                    QuestionPanel(
-                        mistake = uiState.currentMistake!!,
-                        selectedAnswer = uiState.selectedAnswer,
-                        isCorrect = uiState.isCorrect,
-                        showAnswer = uiState.showAnswer,
-                        onAnswerSelected = { answer ->
-                            viewModel.submitAnswer(answer)
-                        },
-                        modifier = Modifier
-                            .weight(0.35f)
-                            .fillMaxHeight()
-                    )
-
-                    // Right side - Canvas (65%)
-                    CanvasPanel(
-                        strokes = uiState.canvasStrokes,
-                        onStrokeCompleted = { stroke ->
-                            viewModel.onStrokeCompleted(stroke)
-                        },
-                        selectedTabIndex = selectedTabIndex,
-                        onTabSelected = { selectedTabIndex = it },
-                        showSubmitButton = uiState.currentMistake?.questionType == QuestionType.ESSAY && !uiState.showAnswer,
-                        onSubmitEssay = { score ->
-                            viewModel.submitEssayAnswer(score)
-                        },
-                        showReference = uiState.showReference,
-                        referenceAnswer = uiState.currentMistake?.referenceAnswer,
-                        onNextMistake = { viewModel.nextMistake() },
-                        modifier = Modifier
-                            .weight(0.65f)
-                            .fillMaxHeight()
-                    )
+                    Text("", fontSize = 64.sp)
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text("今日复习完成", color = AmberGold, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text("所有待复习题目已完成", color = TextCream.copy(alpha = 0.7f), fontSize = 16.sp)
                 }
             }
-        }
-    }
-}
+            uiState.currentMistake != null -> {
+                val mistake = uiState.currentMistake!!
+                val showResult = uiState.showAnswer
 
-@Composable
-private fun QuestionPanel(
-    mistake: Mistake,
-    selectedAnswer: String?,
-    isCorrect: Boolean?,
-    showAnswer: Boolean,
-    onAnswerSelected: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .background(CardDark)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text(
-            text = mistake.title.ifEmpty { "题目" },
-            color = TextCream,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold
-        )
-
-        mistake.questionText?.let { questionText ->
-            Text(
-                text = questionText,
-                color = TextCream.copy(alpha = 0.9f),
-                fontSize = 14.sp
-            )
-        }
-
-        if (showAnswer && isCorrect != null) {
-            // Result feedback card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isCorrect) SuccessGreen.copy(alpha = 0.2f) else ErrorRed.copy(alpha = 0.2f)
-                )
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text(
-                        text = if (isCorrect) "回答正确" else "回答错误",
-                        color = if (isCorrect) SuccessGreen else ErrorRed,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    if (!isCorrect) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .verticalScroll(scrollState)
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Header: type badge
+                    Row(horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(
-                            text = "正确答案: ${mistake.correctAnswer}",
-                            color = TextCream,
-                            fontSize = 14.sp
+                            text = when (mistake.questionType) {
+                                QuestionType.SINGLE_CHOICE -> "单选题"
+                                QuestionType.MULTI_CHOICE -> "多选题"
+                                QuestionType.ESSAY -> "主观题"
+                            },
+                            color = AmberGold,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
                         )
+                    }
+
+                    // Question card
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = CardDark)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("题目", color = AmberGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            if (!mistake.questionText.isNullOrBlank()) {
+                                Text(
+                                    mistake.questionText,
+                                    color = TextCream,
+                                    fontSize = 16.sp,
+                                    lineHeight = 24.sp
+                                )
+                            }
+                            if (!mistake.title.isNullOrBlank() && mistake.title != mistake.questionText) {
+                                Text(
+                                    mistake.title,
+                                    color = TextCream.copy(alpha = 0.9f),
+                                    fontSize = 15.sp
+                                )
+                            }
+                        }
+                    }
+
+                    // Options for choice questions
+                    if (mistake.questionType != QuestionType.ESSAY) {
+                        val options = mistake.options?.split("|") ?: emptyList()
+
+                        Text("选项", color = TextCream.copy(alpha = 0.6f), fontSize = 14.sp)
+
+                        options.forEachIndexed { index, optionText ->
+                            val label = LABELS.getOrElse(index) { "${index}" }
+                            val displayText = if (optionText.isBlank()) label else "$label. $optionText"
+
+                            val isSelected = index in uiState.selectedOptionIndices
+                            val isCorrectAnswer = showResult && index in uiState.correctIndices
+                            val isWrongSelection = showResult && isSelected && !isCorrectAnswer
+
+                            val bgColor = when {
+                                isCorrectAnswer -> SuccessGreen.copy(alpha = 0.2f)
+                                isWrongSelection -> ErrorRed.copy(alpha = 0.2f)
+                                isSelected -> AmberGold.copy(alpha = 0.15f)
+                                else -> CardDark
+                            }
+
+                            val borderColor = when {
+                                isCorrectAnswer -> SuccessGreen
+                                isWrongSelection -> ErrorRed
+                                isSelected -> AmberGold
+                                else -> Color.Transparent
+                            }
+
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .border(1.dp, borderColor, RoundedCornerShape(10.dp))
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .clickable(enabled = !showResult) { viewModel.toggleOption(index) },
+                                shape = RoundedCornerShape(10.dp),
+                                colors = CardDefaults.cardColors(containerColor = bgColor)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    // Letter badge
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(
+                                                when {
+                                                    isCorrectAnswer -> SuccessGreen
+                                                    isWrongSelection -> ErrorRed
+                                                    isSelected -> AmberGold
+                                                    else -> CardDark
+                                                }
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = label,
+                                            color = if (isSelected || isCorrectAnswer || isWrongSelection)
+                                                Color(0xFF111111) else TextCream,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp
+                                        )
+                                    }
+
+                                    Text(
+                                        text = displayText,
+                                        color = if (optionText.isBlank()) TextCream.copy(alpha = 0.4f) else TextCream,
+                                        fontSize = 15.sp,
+                                        modifier = Modifier.weight(1f)
+                                    )
+
+                                    // Selection indicator
+                                    if (mistake.questionType == QuestionType.SINGLE_CHOICE) {
+                                        // Radio circle
+                                        Box(
+                                            modifier = Modifier
+                                                .size(22.dp)
+                                                .border(
+                                                    2.dp,
+                                                    if (isSelected) AmberGold else TextCream.copy(alpha = 0.3f),
+                                                    RoundedCornerShape(50)
+                                                )
+                                                .clip(RoundedCornerShape(50))
+                                                .then(
+                                                    if (isSelected) Modifier.background(AmberGold) else Modifier
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            if (isSelected) Box(
+                                                modifier = Modifier
+                                                    .size(8.dp)
+                                                    .background(Color(0xFF111111), RoundedCornerShape(50))
+                                            )
+                                        }
+                                    } else {
+                                        // Checkbox square
+                                        Box(
+                                            modifier = Modifier
+                                                .size(22.dp)
+                                                .border(
+                                                    2.dp,
+                                                    if (isSelected) AmberGold else TextCream.copy(alpha = 0.3f),
+                                                    RoundedCornerShape(6.dp)
+                                                )
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .then(
+                                                    if (isSelected) Modifier.background(AmberGold) else Modifier
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            if (isSelected) Text(
+                                                "",
+                                                color = Color(0xFF111111),
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Submit button (before answer revealed)
+                        if (!showResult) {
+                            Button(
+                                onClick = { viewModel.submitAnswer() },
+                                modifier = Modifier.fillMaxWidth().height(52.dp),
+                                enabled = uiState.selectedOptionIndices.isNotEmpty(),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = AmberGold,
+                                    contentColor = InkStoneBlack
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("提交答案", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+
+                    // Essay self-evaluation (before answer)
+                    if (mistake.questionType == QuestionType.ESSAY && !showResult) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = CardDark)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text("主观题不评判", color = TextCream.copy(alpha = 0.5f), fontSize = 13.sp)
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text("请自行对比答案后自评", color = TextCream.copy(alpha = 0.7f), fontSize = 15.sp)
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Button(
+                                onClick = { viewModel.submitEssaySelfEval(true) },
+                                modifier = Modifier.weight(1f).height(52.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = SuccessGreen,
+                                    contentColor = Color(0xFF111111)
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("答对了", fontWeight = FontWeight.Bold)
+                            }
+
+                            Button(
+                                onClick = { viewModel.submitEssaySelfEval(false) },
+                                modifier = Modifier.weight(1f).height(52.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = ErrorRed,
+                                    contentColor = TextCream
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("答错了", fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        OutlinedButton(
+                            onClick = { viewModel.skipEssay() },
+                            modifier = Modifier.fillMaxWidth(),
+                            border = BorderStroke(1.dp, TextCream.copy(alpha = 0.3f)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("跳过", color = TextCream.copy(alpha = 0.6f))
+                        }
+                    }
+
+                    // Result banner (after submission)
+                    if (showResult) {
+                        val isCorrect = uiState.isCorrect
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = when (isCorrect) {
+                                    true -> SuccessGreen.copy(alpha = 0.15f)
+                                    false -> ErrorRed.copy(alpha = 0.15f)
+                                    null -> CardDark
+                                }
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = when (isCorrect) {
+                                        true -> "✅"
+                                        false -> "❌"
+                                        null -> ""
+                                    },
+                                    fontSize = 20.sp
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = when (isCorrect) {
+                                            true -> "回答正确！"
+                                            false -> if (mistake.questionType == QuestionType.ESSAY) "已标记为错误" else "回答错误"
+                                            null -> "已跳过"
+                                        },
+                                        color = when (isCorrect) {
+                                            true -> SuccessGreen
+                                            false -> ErrorRed
+                                            null -> TextCream.copy(alpha = 0.7f)
+                                        },
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp
+                                    )
+                                    if (isCorrect == false && mistake.questionType != QuestionType.ESSAY) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "正确答案: ${mistake.correctAnswer ?: "无"}",
+                                            color = TextCream.copy(alpha = 0.7f),
+                                            fontSize = 14.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Next button
+                        OutlinedButton(
+                            onClick = { viewModel.nextMistake() },
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            border = BorderStroke(1.5.dp, AmberGold),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("下一题 →", color = AmberGold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
         }
-
-        // Options for choice questions
-        if (mistake.questionType == QuestionType.SINGLE_CHOICE ||
-            mistake.questionType == QuestionType.MULTI_CHOICE) {
-            val options = mistake.options?.split("\n") ?: emptyList()
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(options) { option ->
-                    OptionCard(
-                        option = option,
-                        isSelected = selectedAnswer == option,
-                        isCorrectAnswer = showAnswer && option == mistake.correctAnswer,
-                        showResult = showAnswer,
-                        onClick = { onAnswerSelected(option) },
-                        enabled = !showAnswer
-                    )
-                }
-            }
-        }
-
-        // Essay question reference answer
-        if (mistake.questionType == QuestionType.ESSAY && showAnswer && mistake.referenceAnswer != null) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp),
-                colors = CardDefaults.cardColors(containerColor = CardDark.copy(alpha = 0.5f))
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text(
-                        text = "参考答案",
-                        color = AmberGold,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = mistake.referenceAnswer,
-                        color = TextCream.copy(alpha = 0.9f),
-                        fontSize = 13.sp
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun OptionCard(
-    option: String,
-    isSelected: Boolean,
-    isCorrectAnswer: Boolean,
-    showResult: Boolean,
-    onClick: () -> Unit,
-    enabled: Boolean
-) {
-    val backgroundColor = when {
-        showResult && isCorrectAnswer -> SuccessGreen.copy(alpha = 0.2f)
-        showResult && isSelected && !isCorrectAnswer -> ErrorRed.copy(alpha = 0.2f)
-        isSelected -> AmberGold.copy(alpha = 0.3f)
-        else -> CardDark
-    }
-
-    val borderColor = when {
-        showResult && isCorrectAnswer -> SuccessGreen
-        showResult && isSelected && !isCorrectAnswer -> ErrorRed
-        isSelected -> AmberGold
-        else -> Color.Transparent
-    }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, borderColor, RoundedCornerShape(8.dp))
-            .clickable(enabled = enabled, onClick = onClick),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = backgroundColor)
-    ) {
-        Text(
-            text = option,
-            color = TextCream,
-            fontSize = 14.sp,
-            modifier = Modifier.padding(12.dp)
-        )
-    }
-}
-
-@Composable
-private fun CanvasPanel(
-    strokes: List<VectorStroke>,
-    onStrokeCompleted: (VectorStroke) -> Unit,
-    selectedTabIndex: Int,
-    onTabSelected: (Int) -> Unit,
-    showSubmitButton: Boolean,
-    onSubmitEssay: (Int?) -> Unit,
-    showReference: Boolean,
-    referenceAnswer: String?,
-    onNextMistake: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .background(InkStoneBlack)
-    ) {
-        // Tab Row
-        TabRow(
-            selectedTabIndex = selectedTabIndex,
-            containerColor = CardDark,
-            contentColor = TextCream
-        ) {
-            Tab(
-                selected = selectedTabIndex == 0,
-                onClick = { onTabSelected(0) },
-                text = { Text("答题区") }
-            )
-            Tab(
-                selected = selectedTabIndex == 1,
-                onClick = { onTabSelected(1) },
-                text = { Text("草稿纸") }
-            )
-        }
-
-        // Canvas area
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-        ) {
-            HandwritingCanvas(
-                modifier = Modifier.fillMaxSize(),
-                backgroundColor = Color.White,
-                onStrokeCompleted = onStrokeCompleted
-            )
-        }
-
-        // Toolbar
-        HandwritingToolbar(
-            currentTool = DrawingTool.PEN,
-            penColor = Color.Blue,
-            penThickness = 0.3f,
-            canUndo = false,
-            canRedo = false,
-            onToolChange = {},
-            onColorChange = {},
-            onThicknessChange = {},
-            onUndo = {},
-            onRedo = {},
-            onClear = {}
-        )
-
-        // Submit button for essay
-        if (showSubmitButton) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Button(
-                    onClick = { onSubmitEssay(null) },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = AmberGold)
-                ) {
-                    Text("提交", color = InkStoneBlack)
-                }
-            }
-        }
-
-        // Navigation button
-        if (showReference || (strokes.isNotEmpty())) {
-            Button(
-                onClick = onNextMistake,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = AmberGold)
-            ) {
-                Text("下一题", color = InkStoneBlack)
-            }
-        }
-    }
-}
-
-@Composable
-private fun ReviewCompleteContent(
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier.padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = "🎉",
-            fontSize = 64.sp
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-        Text(
-            text = "今日复习完成",
-            color = AmberGold,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            text = "所有待复习题目已完成",
-            color = TextCream.copy(alpha = 0.7f),
-            fontSize = 16.sp
-        )
     }
 }
