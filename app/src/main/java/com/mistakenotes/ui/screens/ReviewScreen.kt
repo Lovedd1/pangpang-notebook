@@ -1,5 +1,6 @@
 package com.mistakenotes.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -35,6 +36,7 @@ fun ReviewScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
+    var showAnswerImage by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -281,24 +283,70 @@ fun ReviewScreen(
                         }
                     }
 
-                    // Essay self-evaluation (before answer)
-                    if (mistake.questionType == QuestionType.ESSAY && !showResult) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = CardDark)
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                    // Essay answer toggle + self-evaluation
+                    if (mistake.questionType == QuestionType.ESSAY) {
+                        // Toggle answer image button
+                        if (!mistake.referenceAnswer.isNullOrBlank()) {
+                            OutlinedButton(
+                                onClick = { showAnswerImage = !showAnswerImage },
+                                modifier = Modifier.fillMaxWidth().height(44.dp),
+                                border = BorderStroke(1.dp, AmberGold.copy(alpha = 0.5f)),
+                                shape = RoundedCornerShape(10.dp)
                             ) {
-                                Text("主观题不评判", color = TextCream.copy(alpha = 0.5f), fontSize = 13.sp)
-                                Spacer(modifier = Modifier.height(12.dp))
-                                Text("请自行对比答案后自评", color = TextCream.copy(alpha = 0.7f), fontSize = 15.sp)
+                                Icon(
+                                    imageVector = if (showAnswerImage) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = null,
+                                    tint = AmberGold,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (showAnswerImage) "隐藏答案" else "查看答案",
+                                    color = AmberGold,
+                                    fontSize = 14.sp
+                                )
                             }
                         }
 
-                        Row(
+                        // Answer image
+                        AnimatedVisibility(visible = showAnswerImage) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = CardDark)
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text("参考答案", color = AmberGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    AsyncImage(
+                                        model = File(mistake.referenceAnswer ?: ""),
+                                        contentDescription = "答案图片",
+                                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)),
+                                        contentScale = ContentScale.FillWidth
+                                    )
+                                }
+                            }
+                        }
+
+                        if (!showResult) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = CardDark)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text("主观题不评判", color = TextCream.copy(alpha = 0.5f), fontSize = 13.sp)
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text("请自行对比答案后自评", color = TextCream.copy(alpha = 0.7f), fontSize = 15.sp)
+                                }
+                            }
+                        }
+
+                        if (!showResult) {
+                            Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {

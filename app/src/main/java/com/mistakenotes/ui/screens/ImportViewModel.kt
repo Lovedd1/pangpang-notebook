@@ -31,7 +31,7 @@ data class ImportUiState(
     val questionType: QuestionType = QuestionType.SINGLE_CHOICE,
     val optionEntries: List<String> = listOf("", "", "", ""),
     val correctOptionIndices: Set<Int> = emptySet(),
-    val referenceAnswer: String = "",
+    val answerImageUri: Uri? = null,
     val subjects: List<Subject> = emptyList(),
     val chapters: List<Chapter> = emptyList(),
     val knowledgePoints: List<KnowledgePoint> = emptyList(),
@@ -163,8 +163,8 @@ class ImportViewModel @Inject constructor(
         }
     }
 
-    fun setReferenceAnswer(answer: String) {
-        _uiState.update { it.copy(referenceAnswer = answer) }
+    fun setAnswerImageUri(uri: Uri?) {
+        _uiState.update { it.copy(answerImageUri = uri) }
     }
 
     fun saveMistake() {
@@ -200,6 +200,9 @@ class ImportViewModel @Inject constructor(
                 val localImagePath = state.imageUri?.let { uri ->
                     copyImageToLocal(uri)
                 }
+                val localAnswerImagePath = state.answerImageUri?.let { uri ->
+                    copyImageToLocal(uri, "answer")
+                }
 
                 val mistake = Mistake(
                     title = state.questionText.take(50).ifBlank { "错题" },
@@ -211,7 +214,7 @@ class ImportViewModel @Inject constructor(
                     questionText = state.questionText.takeIf { it.isNotBlank() },
                     options = optionsStr,
                     correctAnswer = correctAnswerStr,
-                    referenceAnswer = null // Not entering reference answers in this phase
+                    referenceAnswer = localAnswerImagePath
                 )
 
                 val mistakeId = repository.insertMistake(mistake)
@@ -243,12 +246,12 @@ class ImportViewModel @Inject constructor(
         }
     }
 
-    private fun copyImageToLocal(uri: Uri): String? {
+    private fun copyImageToLocal(uri: Uri, prefix: String = "img"): String? {
         return try {
             val imagesDir = File(context.filesDir, "question_images")
             if (!imagesDir.exists()) imagesDir.mkdirs()
             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-            val destFile = File(imagesDir, "img_$timestamp.jpg")
+            val destFile = File(imagesDir, "${prefix}_$timestamp.jpg")
             context.contentResolver.openInputStream(uri)?.use { input ->
                 destFile.outputStream().use { output ->
                     input.copyTo(output)

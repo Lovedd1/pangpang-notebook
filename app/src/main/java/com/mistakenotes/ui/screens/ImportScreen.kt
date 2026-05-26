@@ -166,6 +166,49 @@ fun ImportScreen(
                 colors = textFieldColors()
             )
 
+            // Answer image (essay only)
+            if (uiState.questionType == QuestionType.ESSAY) {
+                val answerImageLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.GetContent()
+                ) { uri: Uri? ->
+                    viewModel.setAnswerImageUri(uri)
+                }
+
+                Text("答案图片", color = TextCream, style = MaterialTheme.typography.titleSmall)
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp)
+                        .clickable { answerImageLauncher.launch("image/*") },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = CardDark)
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (uiState.answerImageUri != null) {
+                            AsyncImage(
+                                model = uiState.answerImageUri,
+                                contentDescription = "答案图片",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Fit
+                            )
+                        } else {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    Icons.Default.Image, null,
+                                    modifier = Modifier.size(36.dp),
+                                    tint = AmberGold.copy(alpha = 0.6f)
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text("点击上传答案图片", color = TextCream.copy(alpha = 0.6f), fontSize = 13.sp)
+                            }
+                        }
+                    }
+                }
+            }
+
             // Options (choice questions only)
             if (uiState.questionType != QuestionType.ESSAY) {
                 Text("选项", color = TextCream, style = MaterialTheme.typography.titleSmall)
