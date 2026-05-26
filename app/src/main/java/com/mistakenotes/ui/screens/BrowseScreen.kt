@@ -1,5 +1,6 @@
 package com.mistakenotes.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -15,11 +16,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.mistakenotes.R
 import com.mistakenotes.domain.model.QuestionType
 import com.mistakenotes.ui.theme.*
 
@@ -196,25 +199,14 @@ private fun BrowseCard(
             // Bottom row: review pattern + counts
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (item.reviewPattern.isNotEmpty()) {
-                    // Style 1: solid rounded squares
                     item.reviewPattern.forEach { c ->
-                        Box(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .padding(1.dp)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(
-                                    if (c == '✓') SuccessGreen else ErrorRed
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = c.toString(),
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (c == '✓') InkStoneBlack else TextCream
-                            )
-                        }
+                        Image(
+                            painter = painterResource(
+                                id = if (c == '✓') R.drawable.ic_correct else R.drawable.ic_wrong
+                            ),
+                            contentDescription = c.toString(),
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 } else {
                     Text(
