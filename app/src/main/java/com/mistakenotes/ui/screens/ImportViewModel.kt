@@ -23,7 +23,8 @@ data class ImportUiState(
     val chapterId: Long? = null,
     val knowledgePointId: Long? = null,
     val questionType: QuestionType = QuestionType.SINGLE_CHOICE,
-    val correctAnswer: String = "",
+    val optionEntries: List<String> = listOf("", "", "", ""),
+    val correctOptionIndices: Set<Int> = emptySet(),
     val referenceAnswer: String = "",
     val subjects: List<Subject> = emptyList(),
     val chapters: List<Chapter> = emptyList(),
@@ -106,11 +107,53 @@ class ImportViewModel @Inject constructor(
     }
 
     fun setQuestionType(type: QuestionType) {
-        _uiState.update { it.copy(questionType = type) }
+        _uiState.update {
+            it.copy(
+                questionType = type,
+                correctOptionIndices = emptySet()
+            )
+        }
     }
 
-    fun setCorrectAnswer(answer: String) {
-        _uiState.update { it.copy(correctAnswer = answer) }
+    fun setOptionText(index: Int, text: String) {
+        val newEntries = _uiState.value.optionEntries.toMutableList()
+        if (index < newEntries.size) {
+            newEntries[index] = text
+            _uiState.update { it.copy(optionEntries = newEntries) }
+        }
+    }
+
+    fun addOption() {
+        _uiState.update {
+            it.copy(optionEntries = it.optionEntries + "")
+        }
+    }
+
+    fun removeOption(index: Int) {
+        _uiState.update {
+            val newEntries = it.optionEntries.toMutableList()
+            if (newEntries.size > 2 && index < newEntries.size) {
+                newEntries.removeAt(index)
+                val newCorrect = it.correctOptionIndices
+                    .filter { i -> i != index }
+                    .map { i -> if (i > index) i - 1 else i }
+                    .toSet()
+                it.copy(optionEntries = newEntries, correctOptionIndices = newCorrect)
+            } else it
+        }
+    }
+
+    fun toggleCorrectOption(index: Int) {
+        _uiState.update {
+            val isSingle = it.questionType == QuestionType.SINGLE_CHOICE
+            val newCorrect = if (isSingle) {
+                setOf(index)
+            } else {
+                val current = it.correctOptionIndices
+                if (index in current) current - index else current + index
+            }
+            it.copy(correctOptionIndices = newCorrect)
+        }
     }
 
     fun setReferenceAnswer(answer: String) {
@@ -137,6 +180,16 @@ class ImportViewModel @Inject constructor(
                 val now = System.currentTimeMillis()
                 val pastTime = now - 10000 // 10 seconds ago
                 android.util.Log.d("ImportVM", "Creating mistake with now=$now, past=$pastTime")
+                val labelLetters = listOf("A", "B", "C", "D", "E", "F", "G", "H")
+
+                val optionsStr = if (state.questionType != QuestionType.ESSAY) {
+                    state.optionEntries.joinToString("|")
+                } else null
+
+                val correctAnswerStr = if (state.questionType != QuestionType.ESSAY) {
+                    state.correctOptionIndices.sorted().joinToString("") { labelLetters[it] }
+                } else null
+
                 val mistake = Mistake(
                     title = state.questionText.take(50).ifBlank { "错题" },
                     subjectId = state.subjectId,
@@ -145,9 +198,9 @@ class ImportViewModel @Inject constructor(
                     questionType = state.questionType,
                     questionImagePath = state.imageUri?.toString(),
                     questionText = state.questionText.takeIf { it.isNotBlank() },
-                    options = null,
-                    correctAnswer = state.correctAnswer.takeIf { it.isNotBlank() },
-                    referenceAnswer = state.referenceAnswer.takeIf { it.isNotBlank() }
+                    options = optionsStr,
+                    correctAnswer = correctAnswerStr,
+                    referenceAnswer = null // Not entering reference answers in this phase
                 )
 
                 val mistakeId = repository.insertMistake(mistake)
