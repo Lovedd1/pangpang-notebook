@@ -32,6 +32,8 @@ class ReviewViewModel @Inject constructor(
 
     private var reviewQueue = mutableListOf<Mistake>()
     private var currentIndex = 0
+    private val reviewedIndices = mutableSetOf<Int>()
+    private val reviewedResults = mutableMapOf<Int, Boolean>() // index -> isCorrect
 
     init {
         loadReviewQueue()
@@ -131,6 +133,8 @@ class ReviewViewModel @Inject constructor(
         val mistake = state.currentMistake ?: return
         val correctAnswer = mistake.correctAnswer ?: return
 
+        reviewedIndices.add(currentIndex)
+
         val labelLetters = listOf("A", "B", "C", "D", "E", "F", "G", "H")
         val correctIndices = correctAnswer.map { c ->
             labelLetters.indexOf(c.toString())
@@ -138,6 +142,7 @@ class ReviewViewModel @Inject constructor(
 
         val userIndices = state.selectedOptionIndices
         val isCorrect = userIndices == correctIndices
+        reviewedResults[currentIndex] = isCorrect
 
         _uiState.update {
             it.copy(
@@ -152,12 +157,15 @@ class ReviewViewModel @Inject constructor(
 
     fun submitEssaySelfEval(isCorrect: Boolean) {
         val mistake = _uiState.value.currentMistake ?: return
+        reviewedIndices.add(currentIndex)
+        reviewedResults[currentIndex] = isCorrect
         _uiState.update { it.copy(showAnswer = true, isCorrect = isCorrect) }
         updateReviewRecord(mistake.id, isCorrect)
     }
 
     fun skipEssay() {
         val mistake = _uiState.value.currentMistake ?: return
+        reviewedIndices.add(currentIndex)
         _uiState.update { it.copy(showAnswer = true, isCorrect = null) }
         updateReviewRecord(mistake.id, false)
     }
@@ -198,11 +206,30 @@ class ReviewViewModel @Inject constructor(
     fun nextMistake() {
         currentIndex++
         if (currentIndex >= reviewQueue.size) {
-            currentIndex = 0 // loop back to first card
+            currentIndex = 0
         }
         if (reviewQueue.isNotEmpty()) {
-            _uiState.update {
-                ReviewUiState(currentMistake = reviewQueue[currentIndex], isLoading = false)
+            val mistake = reviewQueue[currentIndex]
+            if (currentIndex in reviewedIndices) {
+                // Already reviewed in this session — show result
+                val labelLetters = listOf("A", "B", "C", "D", "E", "F", "G", "H")
+                val correctIndices = (mistake.correctAnswer ?: "").map { c ->
+                    labelLetters.indexOf(c.toString())
+                }.filter { it >= 0 }.toSet()
+                _uiState.update {
+                    it.copy(
+                        currentMistake = mistake,
+                        isLoading = false,
+                        showAnswer = true,
+                        correctIndices = correctIndices,
+                        isCorrect = reviewedResults[currentIndex]
+                    )
+                }
+            } else {
+                // Fresh card — normal review
+                _uiState.update {
+                    ReviewUiState(currentMistake = mistake, isLoading = false)
+                }
             }
         }
     }
