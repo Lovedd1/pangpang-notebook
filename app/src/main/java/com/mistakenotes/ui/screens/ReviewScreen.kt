@@ -29,6 +29,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.mistakenotes.R
 import com.mistakenotes.domain.model.QuestionType
+import com.mistakenotes.domain.model.getAnswerImagePaths
+import com.mistakenotes.domain.model.getQuestionImagePaths
 import com.mistakenotes.ui.theme.*
 import java.io.File
 
