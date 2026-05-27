@@ -5,8 +5,11 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -47,7 +50,7 @@ fun ImportScreen(
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        viewModel.setImageUri(uri)
+        uri?.let { viewModel.addImageUri(it) }
     }
 
     LaunchedEffect(uiState.errorMessage) {
@@ -86,35 +89,13 @@ fun ImportScreen(
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Image card
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(180.dp)
-                    .clickable { imagePickerLauncher.launch("image/*") },
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = CardDark)
-            ) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    if (uiState.imageUri != null) {
-                        AsyncImage(
-                            model = uiState.imageUri,
-                            contentDescription = "题目图片",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Fit
-                        )
-                    } else {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                Icons.Default.Image, contentDescription = null,
-                                modifier = Modifier.size(48.dp), tint = AmberGold.copy(alpha = 0.6f)
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("点击选择图片", color = TextCream.copy(alpha = 0.6f))
-                        }
-                    }
-                }
-            }
+            // Multi-image row
+            Text("题目图片", color = TextCream, style = MaterialTheme.typography.titleSmall)
+            MultiImageRow(
+                images = uiState.imageUris,
+                onAdd = { imagePickerLauncher.launch("image/*") },
+                onRemove = { viewModel.removeImageUri(it) }
+            )
 
             // Question type
             Text("题目类型", color = TextCream, style = MaterialTheme.typography.titleSmall)
@@ -181,47 +162,20 @@ fun ImportScreen(
                 colors = textFieldColors()
             )
 
-            // Answer image (essay only)
+            // Answer images (essay only)
             if (uiState.questionType == QuestionType.ESSAY) {
                 val answerImageLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.GetContent()
                 ) { uri: Uri? ->
-                    viewModel.setAnswerImageUri(uri)
+                    uri?.let { viewModel.addAnswerImageUri(it) }
                 }
 
                 Text("答案图片", color = TextCream, style = MaterialTheme.typography.titleSmall)
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(150.dp)
-                        .clickable { answerImageLauncher.launch("image/*") },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = CardDark)
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (uiState.answerImageUri != null) {
-                            AsyncImage(
-                                model = uiState.answerImageUri,
-                                contentDescription = "答案图片",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Fit
-                            )
-                        } else {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    Icons.Default.Image, null,
-                                    modifier = Modifier.size(36.dp),
-                                    tint = AmberGold.copy(alpha = 0.6f)
-                                )
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text("点击上传答案图片", color = TextCream.copy(alpha = 0.6f), fontSize = 13.sp)
-                            }
-                        }
-                    }
-                }
+                MultiImageRow(
+                    images = uiState.answerImageUris,
+                    onAdd = { answerImageLauncher.launch("image/*") },
+                    onRemove = { viewModel.removeAnswerImageUri(it) }
+                )
             }
 
             // Options (choice questions only)
@@ -588,6 +542,81 @@ private fun KnowledgePointDropdown(
             containerColor = CardDark,
             titleContentColor = AmberGold
         )
+    }
+}
+
+// ============================================================
+// Multi-Image Row
+// ============================================================
+
+@Composable
+private fun MultiImageRow(
+    images: List<Uri>,
+    onAdd: () -> Unit,
+    onRemove: (Int) -> Unit
+) {
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        itemsIndexed(images) { index, uri ->
+            Box(
+                modifier = Modifier
+                    .size(width = 120.dp, height = 160.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(CardDark)
+            ) {
+                AsyncImage(
+                    model = uri,
+                    contentDescription = "图片 ${index + 1}",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                IconButton(
+                    onClick = { onRemove(index) },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .size(26.dp)
+                        .offset(x = 4.dp, y = (-4).dp)
+                        .background(
+                            InkStoneBlack.copy(alpha = 0.8f),
+                            RoundedCornerShape(50)
+                        )
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "移除",
+                        tint = ErrorRed,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
+        }
+
+        item {
+            Box(
+                modifier = Modifier
+                    .size(width = 120.dp, height = 160.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .border(1.5.dp, AmberGold.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+                    .clickable { onAdd() },
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = "添加图片",
+                        tint = AmberGold.copy(alpha = 0.6f),
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "添加",
+                        color = AmberGold.copy(alpha = 0.6f),
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        }
     }
 }
 
