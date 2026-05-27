@@ -1,7 +1,10 @@
 package com.mistakenotes.ui.screens
 
 import android.app.Activity
+import android.content.Intent
+import android.graphics.Bitmap
 import android.net.Uri
+import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
@@ -30,7 +33,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.mistakenotes.domain.model.Chapter
-import com.yalantis.ucrop.UCrop
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -54,13 +56,15 @@ fun ImportScreen(
     val context = LocalContext.current
 
     // Question image: pick → crop → add
+    var pendingQDestUri by remember { mutableStateOf<Uri?>(null) }
+
     val imageCropLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            val croppedUri = UCrop.getOutput(result.data!!)
-            croppedUri?.let { viewModel.addImageUri(it) }
+            pendingQDestUri?.let { viewModel.addImageUri(it) }
         }
+        pendingQDestUri = null
     }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -69,13 +73,21 @@ fun ImportScreen(
         uri?.let { sourceUri ->
             val destFile = File(context.cacheDir, "crop_q_${System.currentTimeMillis()}.jpg")
             val destUri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", destFile)
-            val cropIntent = UCrop.of(sourceUri, destUri)
-                .withOptions(UCrop.Options().apply {
-                    setCompressionQuality(90)
-                    setMaxBitmapSize(2048)
-                    setFreeStyleCropEnabled(true)
-                })
-                .getIntent(context)
+            pendingQDestUri = destUri
+            val cropIntent = Intent("com.android.camera.action.CROP").apply {
+                setDataAndType(sourceUri, "image/*")
+                putExtra("crop", "true")
+                putExtra("aspectX", 0)
+                putExtra("aspectY", 0)
+                putExtra("outputX", 2048)
+                putExtra("outputY", 2048)
+                putExtra("scale", true)
+                putExtra("return-data", false)
+                putExtra(MediaStore.EXTRA_OUTPUT, destUri)
+                putExtra("outputFormat", Bitmap.CompressFormat.JPEG.toString())
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            }
             imageCropLauncher.launch(cropIntent)
         }
     }
@@ -191,13 +203,15 @@ fun ImportScreen(
 
             // Answer images (essay only)
             if (uiState.questionType == QuestionType.ESSAY) {
+                var pendingADestUri by remember { mutableStateOf<Uri?>(null) }
+
                 val answerCropLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.StartActivityForResult()
                 ) { result ->
                     if (result.resultCode == Activity.RESULT_OK) {
-                        val croppedUri = UCrop.getOutput(result.data!!)
-                        croppedUri?.let { viewModel.addAnswerImageUri(it) }
+                        pendingADestUri?.let { viewModel.addAnswerImageUri(it) }
                     }
+                    pendingADestUri = null
                 }
 
                 val answerImageLauncher = rememberLauncherForActivityResult(
@@ -206,13 +220,21 @@ fun ImportScreen(
                     uri?.let { sourceUri ->
                         val destFile = File(context.cacheDir, "crop_a_${System.currentTimeMillis()}.jpg")
                         val destUri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", destFile)
-                        val cropIntent = UCrop.of(sourceUri, destUri)
-                            .withOptions(UCrop.Options().apply {
-                                setCompressionQuality(90)
-                                setMaxBitmapSize(2048)
-                                setFreeStyleCropEnabled(true)
-                            })
-                            .getIntent(context)
+                        pendingADestUri = destUri
+                        val cropIntent = Intent("com.android.camera.action.CROP").apply {
+                            setDataAndType(sourceUri, "image/*")
+                            putExtra("crop", "true")
+                            putExtra("aspectX", 0)
+                            putExtra("aspectY", 0)
+                            putExtra("outputX", 2048)
+                            putExtra("outputY", 2048)
+                            putExtra("scale", true)
+                            putExtra("return-data", false)
+                            putExtra(MediaStore.EXTRA_OUTPUT, destUri)
+                            putExtra("outputFormat", Bitmap.CompressFormat.JPEG.toString())
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                        }
                         answerCropLauncher.launch(cropIntent)
                     }
                 }
