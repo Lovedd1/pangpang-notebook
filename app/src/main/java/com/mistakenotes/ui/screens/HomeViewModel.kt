@@ -17,6 +17,7 @@ data class TodayCardInfo(
     val mistake: Mistake,
     val isReviewed: Boolean,
     val lastResult: ReviewResult?,
+    val correctCount: Int = 0,
     val subjectName: String = "",
     val chapterName: String = "",
     val subjectColor: Long = 0xFFD4A574
@@ -25,6 +26,7 @@ data class TodayCardInfo(
 data class OverdueCardInfo(
     val mistake: Mistake,
     val overdueDays: Int,
+    val correctCount: Int = 0,
     val subjectName: String = "",
     val chapterName: String = "",
     val subjectColor: Long = 0xFFD4A574
@@ -95,6 +97,7 @@ class HomeViewModel @Inject constructor(
                     if (isDueToday || isReviewed) {
                         TodayCardInfo(
                             mistake, isReviewed, todayRecord?.result,
+                            correctCount = rec?.correctCount ?: 0,
                             subjectName = nameOf(mistake.subjectId),
                             chapterName = chapterNameOf(mistake.chapterId),
                             subjectColor = colorOf(mistake.subjectId)
@@ -109,6 +112,7 @@ class HomeViewModel @Inject constructor(
                         OverdueCardInfo(
                             mistake,
                             ((todayStart - next) / 86400000L).toInt() + 1,
+                            correctCount = rec?.correctCount ?: 0,
                             subjectName = nameOf(mistake.subjectId),
                             chapterName = chapterNameOf(mistake.chapterId),
                             subjectColor = colorOf(mistake.subjectId)

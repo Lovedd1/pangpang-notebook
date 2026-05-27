@@ -423,6 +423,7 @@ private fun TodayCardItem(
                         )
                     }
                 }
+                ReviewProgressText(correctCount = info.correctCount)
             }
 
             // Edit button
@@ -447,6 +448,19 @@ private fun TodayCardItem(
             )
         }
     }
+}
+
+@Composable
+private fun ReviewProgressText(correctCount: Int) {
+    val (text, color) = when {
+        correctCount >= 4 -> "已掌握" to SuccessGreen.copy(alpha = 0.8f)
+        else -> "第${correctCount + 1}次复习 · 还差${4 - correctCount}次掌握" to AmberGold.copy(alpha = 0.7f)
+    }
+    Text(
+        text = text,
+        color = color,
+        fontSize = 11.sp
+    )
 }
 
 @Composable
@@ -531,6 +545,29 @@ private fun OverdueCardItem(
                         )
                     }
                 }
+            }
+
+            // Edit button
+            if (onEdit != null) {
+                IconButton(
+                    onClick = onEdit,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_edit),
+                        contentDescription = "编辑",
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            Icon(
+                Icons.Default.ChevronRight,
+                null,
+                tint = TextCream.copy(alpha = 0.3f),
+                modifier = Modifier.size(20.dp)
+            )
+                ReviewProgressText(correctCount = info.correctCount)
             }
 
             // Edit button

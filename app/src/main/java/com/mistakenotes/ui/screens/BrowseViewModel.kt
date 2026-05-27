@@ -18,6 +18,7 @@ data class BrowseItem(
     val reviewPattern: String,
     val correctCount: Int,
     val wrongCount: Int,
+    val ebbinghausCount: Int = 0,
     val chapterName: String = "",
     val subjectName: String = ""
 )
@@ -126,8 +127,14 @@ class BrowseViewModel @Inject constructor(
             val correct = records.count { it.result == ReviewResult.CORRECT }
             val wrong = records.count { it.result == ReviewResult.WRONG }
 
+            val ebbinghaus = allRecords
+                .filter { it.mistakeId == mistake.id }
+                .maxByOrNull { it.reviewDate }
+                ?.correctCount ?: 0
+
             BrowseItem(
                 mistake, pattern, correct, wrong,
+                ebbinghausCount = ebbinghaus,
                 chapterName = chapterMap[mistake.chapterId]?.name ?: "",
                 subjectName = subjectMap[mistake.subjectId]?.name ?: ""
             )
