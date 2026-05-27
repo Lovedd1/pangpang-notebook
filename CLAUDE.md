@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+**交流语言**：除代码外，所有输出和回答使用中文。
+
 ## 项目状态
 
 CPA 错题笔记应用 — 核心复习流程（录入→复习→分析）已完成。收藏夹与置顶功能已实现。手写画布已移除，复习改为纯文本交互，主页改为今日待复习+逾期列表。功能稳定，可日常使用。
