@@ -321,30 +321,29 @@ class ImportViewModel @Inject constructor(
                     isTop = existingMistake?.isTop ?: false
                 )
 
+                val fiveDaysMs = 5 * 86400000L
                 if (isEdit) {
                     repository.updateMistake(mistake)
                     // Reset review schedule — delete old records and create fresh one
                     repository.deleteReviewRecordsByMistakeId(editingMistakeId)
-                    val pastTime = now - 10000
                     repository.insertReviewRecord(
                         ReviewRecord(
                             mistakeId = editingMistakeId,
-                            reviewDate = pastTime,
+                            reviewDate = now,
                             result = ReviewResult.SKIP,
-                            nextReviewDate = pastTime,
+                            nextReviewDate = now + fiveDaysMs,
                             correctCount = 0
                         )
                     )
                 } else {
                     val mistakeId = repository.insertMistake(mistake)
-                    // Create initial review record for new mistakes
-                    val pastTime = now - 10000
+                    // Create initial review record — first review due 5 days from now
                     repository.insertReviewRecord(
                         ReviewRecord(
                             mistakeId = mistakeId,
-                            reviewDate = pastTime,
+                            reviewDate = now,
                             result = ReviewResult.SKIP,
-                            nextReviewDate = pastTime,
+                            nextReviewDate = now + fiveDaysMs,
                             correctCount = 0
                         )
                     )
