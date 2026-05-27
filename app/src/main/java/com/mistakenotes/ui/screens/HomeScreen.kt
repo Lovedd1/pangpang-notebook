@@ -545,28 +545,6 @@ private fun OverdueCardItem(
                         )
                     }
                 }
-            }
-
-            // Edit button
-            if (onEdit != null) {
-                IconButton(
-                    onClick = onEdit,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_edit),
-                        contentDescription = "编辑",
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-
-            Icon(
-                Icons.Default.ChevronRight,
-                null,
-                tint = TextCream.copy(alpha = 0.3f),
-                modifier = Modifier.size(20.dp)
-            )
                 ReviewProgressText(correctCount = info.correctCount)
             }
 
