@@ -23,3 +23,9 @@ data class Mistake(
     val isFavorite: Boolean = false,
     val isTop: Boolean = false
 )
+
+fun Mistake.getQuestionImagePaths(): List<String> =
+    questionImagePath?.split("||")?.filter { it.isNotBlank() } ?: emptyList()
+
+fun Mistake.getAnswerImagePaths(): List<String> =
+    referenceAnswer?.split("||")?.filter { it.isNotBlank() } ?: emptyList()
