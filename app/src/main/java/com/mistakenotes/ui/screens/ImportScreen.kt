@@ -1,5 +1,6 @@
 package com.mistakenotes.ui.screens
 
+import android.app.Activity
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,12 +22,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.mistakenotes.domain.model.Chapter
+import com.yalantis.ucrop.UCrop
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -46,11 +50,32 @@ fun ImportScreen(
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+
+    // Question image: pick → crop → add
+    val imageCropLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val croppedUri = UCrop.getOutput(result.data!!)
+            croppedUri?.let { viewModel.addImageUri(it) }
+        }
+    }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        uri?.let { viewModel.addImageUri(it) }
+        uri?.let { sourceUri ->
+            val destFile = File(context.cacheDir, "crop_q_${System.currentTimeMillis()}.jpg")
+            val cropIntent = UCrop.of(sourceUri, Uri.fromFile(destFile))
+                .withOptions(UCrop.Options().apply {
+                    setCompressionQuality(90)
+                    setMaxBitmapSize(2048)
+                    setFreeStyleCropEnabled(true)
+                })
+                .getIntent(context)
+            imageCropLauncher.launch(cropIntent)
+        }
     }
 
     LaunchedEffect(uiState.errorMessage) {
@@ -164,10 +189,29 @@ fun ImportScreen(
 
             // Answer images (essay only)
             if (uiState.questionType == QuestionType.ESSAY) {
+                val answerCropLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.StartActivityForResult()
+                ) { result ->
+                    if (result.resultCode == Activity.RESULT_OK) {
+                        val croppedUri = UCrop.getOutput(result.data!!)
+                        croppedUri?.let { viewModel.addAnswerImageUri(it) }
+                    }
+                }
+
                 val answerImageLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.GetContent()
                 ) { uri: Uri? ->
-                    uri?.let { viewModel.addAnswerImageUri(it) }
+                    uri?.let { sourceUri ->
+                        val destFile = File(context.cacheDir, "crop_a_${System.currentTimeMillis()}.jpg")
+                        val cropIntent = UCrop.of(sourceUri, Uri.fromFile(destFile))
+                            .withOptions(UCrop.Options().apply {
+                                setCompressionQuality(90)
+                                setMaxBitmapSize(2048)
+                                setFreeStyleCropEnabled(true)
+                            })
+                            .getIntent(context)
+                        answerCropLauncher.launch(cropIntent)
+                    }
                 }
 
                 Text("答案图片", color = TextCream, style = MaterialTheme.typography.titleSmall)
