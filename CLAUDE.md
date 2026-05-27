@@ -132,6 +132,7 @@ HomeScreen 设置 → ReviewViewModel 读取后 clear → 后续循环用 ViewMo
 - HomeViewModel 用 `.collect()` 响应式更新列表状态
 - SKIP 结果的 ReviewRecord 不计入"已复习"
 - 数据库用 `fallbackToDestructiveMigration()`，版本2
+- **数据保护**：日常 Run（覆盖安装）不会删除数据；修改数据库 Schema 时必须写 Migration（从当前版本迁到新版本），否则数据会被清空
 - 科目配色在 `onOpen` 中自动更新，旧数据无需迁移
 - 收藏/置顶通过 DAO 的 `updateFavorite`/`updateTop` 直接更新单字段，无需加载完整 Entity
 - BrowseScreen 通过导航参数 `favorites`（BoolType）复用为收藏夹视图
