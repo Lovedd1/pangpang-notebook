@@ -75,7 +75,8 @@ dependencies {
     // Coil for image loading
     implementation("io.coil-kt:coil-compose:2.6.0")
 
-    // UCrop for image cropping
+    // UCrop for image cropping (needs appcompat for resources)
+    implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.github.yalantis:ucrop:2.2.11")
 
     // ExifInterface for image rotation
