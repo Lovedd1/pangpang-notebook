@@ -10,6 +10,8 @@ import com.mistakenotes.domain.model.Chapter
 import com.mistakenotes.domain.model.KnowledgePoint
 import com.mistakenotes.domain.model.Mistake
 import com.mistakenotes.domain.model.QuestionType
+import com.mistakenotes.domain.model.getAnswerImagePaths
+import com.mistakenotes.domain.model.getQuestionImagePaths
 import com.mistakenotes.domain.model.ReviewRecord
 import com.mistakenotes.domain.model.ReviewResult
 import com.mistakenotes.domain.model.Subject
@@ -24,7 +26,7 @@ import java.util.Locale
 import javax.inject.Inject
 
 data class ImportUiState(
-    val imageUri: Uri? = null,
+    val imageUris: List<Uri> = emptyList(),
     val title: String = "",
     val questionText: String = "",
     val subjectId: Long? = null,
@@ -33,7 +35,7 @@ data class ImportUiState(
     val questionType: QuestionType = QuestionType.SINGLE_CHOICE,
     val optionEntries: List<String> = listOf("", "", "", ""),
     val correctOptionIndices: Set<Int> = emptySet(),
-    val answerImageUri: Uri? = null,
+    val answerImageUris: List<Uri> = emptyList(),
     val subjects: List<Subject> = emptyList(),
     val chapters: List<Chapter> = emptyList(),
     val knowledgePoints: List<KnowledgePoint> = emptyList(),
@@ -92,8 +94,14 @@ class ImportViewModel @Inject constructor(
                     questionType = mistake.questionType,
                     optionEntries = entries,
                     correctOptionIndices = correctIndices,
-                    imageUri = mistake.questionImagePath?.let { path -> Uri.fromFile(File(path)) },
-                    answerImageUri = mistake.referenceAnswer?.let { path -> Uri.fromFile(File(path)) },
+                    imageUris = mistake.getQuestionImagePaths().mapNotNull { path ->
+                        val file = File(path)
+                        if (file.exists()) Uri.fromFile(file) else null
+                    },
+                    answerImageUris = mistake.getAnswerImagePaths().mapNotNull { path ->
+                        val file = File(path)
+                        if (file.exists()) Uri.fromFile(file) else null
+                    },
                     errorMessage = null,
                     isEditMode = true
                 )
@@ -109,8 +117,14 @@ class ImportViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
-    fun setImageUri(uri: Uri?) {
-        _uiState.update { it.copy(imageUri = uri) }
+    fun addImageUri(uri: Uri) {
+        _uiState.update { it.copy(imageUris = it.imageUris + uri) }
+    }
+
+    fun removeImageUri(index: Int) {
+        _uiState.update {
+            it.copy(imageUris = it.imageUris.filterIndexed { i, _ -> i != index })
+        }
     }
 
     fun setTitle(text: String) {
@@ -215,8 +229,14 @@ class ImportViewModel @Inject constructor(
         }
     }
 
-    fun setAnswerImageUri(uri: Uri?) {
-        _uiState.update { it.copy(answerImageUri = uri) }
+    fun addAnswerImageUri(uri: Uri) {
+        _uiState.update { it.copy(answerImageUris = it.answerImageUris + uri) }
+    }
+
+    fun removeAnswerImageUri(index: Int) {
+        _uiState.update {
+            it.copy(answerImageUris = it.answerImageUris.filterIndexed { i, _ -> i != index })
+        }
     }
 
     fun saveMistake() {
@@ -265,13 +285,24 @@ class ImportViewModel @Inject constructor(
                 } else state.title
 
                 // Preserve existing images if not replaced
-                val localImagePath = if (state.imageUri != null) {
-                    copyImageToLocal(state.imageUri)
-                } else existingMistake?.questionImagePath
+                val localImagePaths = if (state.imageUris.isNotEmpty()) {
+                    state.imageUris.mapNotNull { copyImageToLocal(it) }
+                } else if (isEdit) {
+                    existingMistake?.getQuestionImagePaths() ?: emptyList()
+                } else {
+                    emptyList()
+                }
 
-                val localAnswerImagePath = if (state.answerImageUri != null) {
-                    copyImageToLocal(state.answerImageUri, "answer")
-                } else existingMistake?.referenceAnswer
+                val localAnswerPaths = if (state.answerImageUris.isNotEmpty()) {
+                    state.answerImageUris.mapNotNull { copyImageToLocal(it, "answer") }
+                } else if (isEdit) {
+                    existingMistake?.getAnswerImagePaths() ?: emptyList()
+                } else {
+                    emptyList()
+                }
+
+                val questionImagePathStr = localImagePaths.joinToString("||").takeIf { it.isNotBlank() }
+                val answerImagePathStr = localAnswerPaths.joinToString("||").takeIf { it.isNotBlank() }
 
                 val mistake = Mistake(
                     id = if (isEdit) editingMistakeId else 0,
@@ -280,11 +311,11 @@ class ImportViewModel @Inject constructor(
                     chapterId = state.chapterId,
                     knowledgePointId = state.knowledgePointId,
                     questionType = state.questionType,
-                    questionImagePath = localImagePath,
+                    questionImagePath = questionImagePathStr,
                     questionText = state.questionText.takeIf { it.isNotBlank() },
                     options = optionsStr,
                     correctAnswer = correctAnswerStr,
-                    referenceAnswer = localAnswerImagePath,
+                    referenceAnswer = answerImagePathStr,
                     createdAt = existingMistake?.createdAt ?: now,
                     isFavorite = existingMistake?.isFavorite ?: false,
                     isTop = existingMistake?.isTop ?: false
@@ -353,8 +384,8 @@ class ImportViewModel @Inject constructor(
                 val mistake = repository.getMistakeById(editingMistakeId)
                 if (mistake != null) {
                     // Also delete local image files
-                    mistake.questionImagePath?.let { File(it).delete() }
-                    mistake.referenceAnswer?.let { File(it).delete() }
+                    mistake.getQuestionImagePaths().forEach { File(it).delete() }
+                    mistake.getAnswerImagePaths().forEach { File(it).delete() }
                     repository.deleteMistake(mistake)
                 }
                 _uiState.update { it.copy(isDeleting = false, saveSuccess = true) }
