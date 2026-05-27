@@ -7,6 +7,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -128,10 +130,14 @@ fun ReviewScreen(
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text("题目", color = AmberGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.height(8.dp))
-                            // Question image
-                            if (!mistake.questionImagePath.isNullOrBlank()) {
+                            // Question images
+                            val questionPaths = mistake.getQuestionImagePaths()
+                            if (mistake.questionType == QuestionType.ESSAY && questionPaths.size > 1) {
+                                MultiImagePager(paths = questionPaths)
+                                Spacer(modifier = Modifier.height(12.dp))
+                            } else if (questionPaths.isNotEmpty()) {
                                 AsyncImage(
-                                    model = File(mistake.questionImagePath),
+                                    model = File(questionPaths.first()),
                                     contentDescription = "题目图片",
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -301,7 +307,8 @@ fun ReviewScreen(
 
                     // Essay answer toggle + self-evaluation
                     if (mistake.questionType == QuestionType.ESSAY) {
-                        val hasAnswer = !mistake.referenceAnswer.isNullOrBlank()
+                        val answerPaths = mistake.getAnswerImagePaths()
+                        val hasAnswer = answerPaths.isNotEmpty()
                         // Answer toggle button — always visible
                         OutlinedButton(
                             onClick = { if (hasAnswer) showAnswerImage = !showAnswerImage },
@@ -331,12 +338,16 @@ fun ReviewScreen(
                                 Column(modifier = Modifier.padding(12.dp)) {
                                     Text("参考答案", color = AmberGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                                     Spacer(modifier = Modifier.height(8.dp))
-                                    AsyncImage(
-                                        model = File(mistake.referenceAnswer ?: ""),
-                                        contentDescription = "答案图片",
-                                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)),
-                                        contentScale = ContentScale.FillWidth
-                                    )
+                                    if (answerPaths.size > 1) {
+                                        MultiImagePager(paths = answerPaths)
+                                    } else if (answerPaths.isNotEmpty()) {
+                                        AsyncImage(
+                                            model = File(answerPaths.first()),
+                                            contentDescription = "答案图片",
+                                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)),
+                                            contentScale = ContentScale.FillWidth
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -479,6 +490,45 @@ fun ReviewScreen(
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MultiImagePager(paths: List<String>) {
+    val pagerState = rememberPagerState(pageCount = { paths.size })
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxWidth()
+        ) { page ->
+            AsyncImage(
+                model = File(paths[page]),
+                contentDescription = "图片 ${page + 1}",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.FillWidth
+            )
+        }
+
+        if (paths.size > 1) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.Center) {
+                repeat(paths.size) { index ->
+                    Box(
+                        modifier = Modifier
+                            .padding(horizontal = 4.dp)
+                            .size(if (pagerState.currentPage == index) 8.dp else 6.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(
+                                if (pagerState.currentPage == index) AmberGold
+                                else TextCream.copy(alpha = 0.3f)
+                            )
+                    )
                 }
             }
         }
