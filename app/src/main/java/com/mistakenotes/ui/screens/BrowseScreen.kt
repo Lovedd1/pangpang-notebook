@@ -203,13 +203,20 @@ private fun BrowseCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Text(
-                        text = "${item.chapterName} · 知识点*",
-                        color = TextCream.copy(alpha = 0.4f),
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                    val metaParts = listOfNotNull(
+                        item.subjectName.takeIf { it.isNotEmpty() },
+                        item.chapterName.takeIf { it.isNotEmpty() },
+                        item.knowledgePointName.takeIf { it.isNotEmpty() }
                     )
+                    if (metaParts.isNotEmpty()) {
+                        Text(
+                            text = metaParts.joinToString(" · "),
+                            color = TextCream.copy(alpha = 0.4f),
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
 

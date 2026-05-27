@@ -20,6 +20,7 @@ data class TodayCardInfo(
     val correctCount: Int = 0,
     val subjectName: String = "",
     val chapterName: String = "",
+    val knowledgePointName: String = "",
     val subjectColor: Long = 0xFFD4A574
 )
 
@@ -29,6 +30,7 @@ data class OverdueCardInfo(
     val correctCount: Int = 0,
     val subjectName: String = "",
     val chapterName: String = "",
+    val knowledgePointName: String = "",
     val subjectColor: Long = 0xFFD4A574
 )
 
@@ -65,8 +67,9 @@ class HomeViewModel @Inject constructor(
                 repository.getAllSubjects(),
                 repository.getAllMistakes(),
                 repository.getAllReviewRecords(),
-                repository.getAllChapters()
-            ) { subjects, mistakes, reviewRecords, chapters ->
+                repository.getAllChapters(),
+                repository.getAllKnowledgePoints()
+            ) { subjects, mistakes, reviewRecords, chapters, knowledgePoints ->
                 val cal = Calendar.getInstance()
                 cal.set(Calendar.HOUR_OF_DAY, 0)
                 cal.set(Calendar.MINUTE, 0)
@@ -78,6 +81,7 @@ class HomeViewModel @Inject constructor(
 
                 val subjectMap = subjects.associateBy { it.id }
                 val chapterMap = chapters.associateBy { it.id }
+                val kpMap = knowledgePoints.associateBy { it.id }
                 val reviewRecordMap = reviewRecords.groupBy { it.mistakeId }
                 val latestByMistake = reviewRecordMap.mapValues { (_, recs) ->
                     recs.maxByOrNull { it.reviewDate }
@@ -85,6 +89,7 @@ class HomeViewModel @Inject constructor(
 
                 fun nameOf(subjectId: Long) = subjectMap[subjectId]?.name ?: ""
                 fun chapterNameOf(chapterId: Long) = chapterMap[chapterId]?.name ?: ""
+                fun kpNameOf(kpId: Long?) = kpId?.let { kpMap[it]?.name } ?: ""
                 fun colorOf(subjectId: Long) = subjectMap[subjectId]?.color ?: 0xFFD4A574
 
                 val todayPairs = mistakes.mapNotNull { mistake ->
@@ -100,6 +105,7 @@ class HomeViewModel @Inject constructor(
                             correctCount = rec?.correctCount ?: 0,
                             subjectName = nameOf(mistake.subjectId),
                             chapterName = chapterNameOf(mistake.chapterId),
+                            knowledgePointName = kpNameOf(mistake.knowledgePointId),
                             subjectColor = colorOf(mistake.subjectId)
                         )
                     } else null
@@ -115,6 +121,7 @@ class HomeViewModel @Inject constructor(
                             correctCount = rec?.correctCount ?: 0,
                             subjectName = nameOf(mistake.subjectId),
                             chapterName = chapterNameOf(mistake.chapterId),
+                            knowledgePointName = kpNameOf(mistake.knowledgePointId),
                             subjectColor = colorOf(mistake.subjectId)
                         )
                     } else null

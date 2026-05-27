@@ -20,7 +20,8 @@ data class BrowseItem(
     val wrongCount: Int,
     val ebbinghausCount: Int = 0,
     val chapterName: String = "",
-    val subjectName: String = ""
+    val subjectName: String = "",
+    val knowledgePointName: String = ""
 )
 
 data class BrowseUiState(
@@ -60,10 +61,12 @@ class BrowseViewModel @Inject constructor(
                 repository.getAllSubjects(),
                 mistakesFlow,
                 repository.getAllReviewRecords(),
-                repository.getAllChapters()
-            ) { subjects, mistakes, records, chapters ->
+                repository.getAllChapters(),
+                repository.getAllKnowledgePoints()
+            ) { subjects, mistakes, records, chapters, knowledgePoints ->
                 subjectMap = subjects.associateBy { it.id }
                 chapterMap = chapters.associateBy { it.id }
+                val kpMap = knowledgePoints.associateBy { it.id }
                 allMistakes = mistakes
                 allRecords = records
                 _uiState.update { it.copy(subjects = subjects, isLoading = false) }
@@ -136,7 +139,8 @@ class BrowseViewModel @Inject constructor(
                 mistake, pattern, correct, wrong,
                 ebbinghausCount = ebbinghaus,
                 chapterName = chapterMap[mistake.chapterId]?.name ?: "",
-                subjectName = subjectMap[mistake.subjectId]?.name ?: ""
+                subjectName = subjectMap[mistake.subjectId]?.name ?: "",
+                knowledgePointName = mistake.knowledgePointId?.let { kpMap[it]?.name } ?: ""
             )
         }.sortedWith(
             compareByDescending<BrowseItem> { it.mistake.isTop }

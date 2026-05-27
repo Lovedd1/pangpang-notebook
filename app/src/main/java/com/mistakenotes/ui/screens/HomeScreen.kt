@@ -394,7 +394,7 @@ private fun TodayCardItem(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Title + subject/chapter
+            // Title + subject/chapter/kp
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = info.mistake.questionText
@@ -405,23 +405,19 @@ private fun TodayCardItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (info.subjectName.isNotEmpty()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(Color(info.subjectColor))
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "${info.subjectName} · ${info.chapterName}",
-                            color = TextCream.copy(alpha = 0.4f),
-                            fontSize = 11.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                val metaParts = listOfNotNull(
+                    info.subjectName.takeIf { it.isNotEmpty() },
+                    info.chapterName.takeIf { it.isNotEmpty() },
+                    info.knowledgePointName.takeIf { it.isNotEmpty() }
+                )
+                if (metaParts.isNotEmpty()) {
+                    Text(
+                        text = metaParts.joinToString(" · "),
+                        color = TextCream.copy(alpha = 0.4f),
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
 
@@ -528,23 +524,19 @@ private fun OverdueCardItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (info.subjectName.isNotEmpty()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(Color(info.subjectColor))
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "${info.subjectName} · ${info.chapterName}",
-                            color = TextCream.copy(alpha = 0.4f),
-                            fontSize = 11.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                val metaParts = listOfNotNull(
+                    info.subjectName.takeIf { it.isNotEmpty() },
+                    info.chapterName.takeIf { it.isNotEmpty() },
+                    info.knowledgePointName.takeIf { it.isNotEmpty() }
+                )
+                if (metaParts.isNotEmpty()) {
+                    Text(
+                        text = metaParts.joinToString(" · "),
+                        color = TextCream.copy(alpha = 0.4f),
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
 
