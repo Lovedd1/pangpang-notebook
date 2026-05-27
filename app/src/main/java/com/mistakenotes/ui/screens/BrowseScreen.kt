@@ -210,20 +210,10 @@ private fun BrowseCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    val cc = item.ebbinghausCount
-                    val (progressText, progressColor) = when {
-                        cc >= 3 -> "已掌握" to SuccessGreen.copy(alpha = 0.8f)
-                        else -> "第${cc + 1}次复习 · 还差${3 - cc}次掌握" to AmberGold.copy(alpha = 0.7f)
-                    }
-                    Text(
-                        text = progressText,
-                        color = progressColor,
-                        fontSize = 11.sp
-                    )
                 }
             }
 
-            // Bottom row: review pattern + counts + actions
+            // Bottom row: review pattern + progress + counts + actions
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (item.reviewPattern.isNotEmpty()) {
                     item.reviewPattern.forEach { c ->
@@ -242,6 +232,19 @@ private fun BrowseCard(
                         color = TextCream.copy(alpha = 0.35f)
                     )
                 }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                val cc = item.ebbinghausCount
+                val (progressText, progressColor) = when {
+                    cc >= 3 -> "已掌握" to SuccessGreen.copy(alpha = 0.8f)
+                    else -> "第${cc + 1}次复习 · 还差${3 - cc}次掌握" to AmberGold.copy(alpha = 0.7f)
+                }
+                Text(
+                    text = progressText,
+                    color = progressColor,
+                    fontSize = 11.sp
+                )
 
                 Spacer(modifier = Modifier.weight(1f))
 
