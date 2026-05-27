@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.ui.draw.scale
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -19,11 +20,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
-import androidx.compose.ui.draw.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mistakenotes.ui.theme.*
@@ -152,12 +153,8 @@ fun CropScreen(
                     contentDescription = "裁剪原图",
                     modifier = Modifier
                         .fillMaxSize()
-                        .graphicsLayer {
-                            translationX = offsetX
-                            translationY = offsetY
-                            scaleX = scale
-                            scaleY = scale
-                        },
+                        .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
+                        .scale(scale),
                     contentScale = ContentScale.Fit
                 )
 
