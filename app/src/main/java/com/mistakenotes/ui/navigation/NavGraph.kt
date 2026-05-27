@@ -14,7 +14,7 @@ sealed class Screen(val route: String) {
     data object Import : Screen("import?mistakeId={mistakeId}")
     data object Review : Screen("review")
     data object Analysis : Screen("analysis")
-    data object Browse : Screen("browse?favorites={favorites}")
+    data object Browse : Screen("browse?favorites={favorites}&mastered={mastered}")
 }
 
 @Composable
@@ -32,8 +32,9 @@ fun AppNavGraph(
                 },
                 onNavigateToReview = { navController.navigate(Screen.Review.route) },
                 onNavigateToAnalysis = { navController.navigate(Screen.Analysis.route) },
-                onNavigateToBrowse = { navController.navigate("browse?favorites=false") },
-                onNavigateToFavorites = { navController.navigate("browse?favorites=true") }
+                onNavigateToBrowse = { navController.navigate("browse?favorites=false&mastered=false") },
+                onNavigateToFavorites = { navController.navigate("browse?favorites=true&mastered=false") },
+                onNavigateToMastered = { navController.navigate("browse?favorites=false&mastered=true") }
             )
         }
 
@@ -69,12 +70,19 @@ fun AppNavGraph(
                 navArgument("favorites") {
                     type = NavType.BoolType
                     defaultValue = false
+                },
+                navArgument("mastered") {
+                    type = NavType.BoolType
+                    defaultValue = false
                 }
             )
         ) {
             BrowseScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToReview = { navController.navigate(Screen.Review.route) }
+                onNavigateToReview = { navController.navigate(Screen.Review.route) },
+                onNavigateToImport = { mistakeId ->
+                    navController.navigate("import?mistakeId=$mistakeId")
+                }
             )
         }
     }

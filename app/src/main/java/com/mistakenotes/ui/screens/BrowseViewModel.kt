@@ -30,7 +30,8 @@ data class BrowseUiState(
     val currentChapterId: Long? = null,
     val items: List<BrowseItem> = emptyList(),
     val isLoading: Boolean = true,
-    val isFavoritesMode: Boolean = false
+    val isFavoritesMode: Boolean = false,
+    val isMasteredMode: Boolean = false
 )
 
 @HiltViewModel
@@ -40,8 +41,9 @@ class BrowseViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val isFavoritesMode: Boolean = savedStateHandle.get<Boolean>("favorites") ?: false
+    private val isMasteredMode: Boolean = savedStateHandle.get<Boolean>("mastered") ?: false
 
-    private val _uiState = MutableStateFlow(BrowseUiState(isFavoritesMode = isFavoritesMode))
+    private val _uiState = MutableStateFlow(BrowseUiState(isFavoritesMode = isFavoritesMode, isMasteredMode = isMasteredMode))
     val uiState: StateFlow<BrowseUiState> = _uiState.asStateFlow()
 
     private var allMistakes = listOf<Mistake>()
@@ -108,7 +110,11 @@ class BrowseViewModel @Inject constructor(
         val filtered = allMistakes.filter { mistake ->
             val matchSubject = state.currentSubjectId == null || mistake.subjectId == state.currentSubjectId
             val matchChapter = state.currentChapterId == null || mistake.chapterId == state.currentChapterId
-            matchSubject && matchChapter
+            val isMastered = if (isMasteredMode) {
+                val latestRec = allRecords.filter { it.mistakeId == mistake.id }.maxByOrNull { it.reviewDate }
+                (latestRec?.correctCount ?: 0) >= 3
+            } else true
+            matchSubject && matchChapter && isMastered
         }
 
         val items = filtered.map { mistake ->

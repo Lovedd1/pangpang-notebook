@@ -35,7 +35,8 @@ import com.mistakenotes.ui.theme.*
 fun BrowseScreen(
     viewModel: BrowseViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit = {},
-    onNavigateToReview: () -> Unit = {}
+    onNavigateToReview: () -> Unit = {},
+    onNavigateToImport: (Long) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -44,7 +45,11 @@ fun BrowseScreen(
             TopAppBar(
                 title = {
                     Text(
-                        if (uiState.isFavoritesMode) "收藏夹" else "错题浏览",
+                        when {
+                            uiState.isMasteredMode -> "已掌握"
+                            uiState.isFavoritesMode -> "收藏夹"
+                            else -> "错题浏览"
+                        },
                         color = AmberGold,
                         fontWeight = FontWeight.Bold
                     )
@@ -116,7 +121,11 @@ fun BrowseScreen(
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            if (uiState.isFavoritesMode) "暂无收藏" else "暂无错题",
+                            when {
+                                uiState.isMasteredMode -> "暂无已掌握题目"
+                                uiState.isFavoritesMode -> "暂无收藏"
+                                else -> "暂无错题"
+                            },
                             color = TextCream.copy(alpha = 0.4f),
                             fontSize = 15.sp
                         )
@@ -132,10 +141,12 @@ fun BrowseScreen(
                         BrowseCard(
                             item = item,
                             isFavoritesMode = uiState.isFavoritesMode,
+                            isMasteredMode = uiState.isMasteredMode,
                             onClick = {
                                 ReviewSession.start(queue = listOf(item.mistake))
                                 onNavigateToReview()
                             },
+                            onEdit = { onNavigateToImport(item.mistake.id) },
                             onToggleFavorite = { viewModel.toggleFavorite(item.mistake) },
                             onToggleTop = { viewModel.toggleTop(item.mistake) }
                         )
@@ -150,7 +161,9 @@ fun BrowseScreen(
 private fun BrowseCard(
     item: BrowseItem,
     isFavoritesMode: Boolean,
+    isMasteredMode: Boolean = false,
     onClick: () -> Unit,
+    onEdit: () -> Unit,
     onToggleFavorite: () -> Unit,
     onToggleTop: () -> Unit
 ) {
@@ -211,36 +224,38 @@ private fun BrowseCard(
 
             // Bottom row: review pattern + progress + counts + actions
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (item.reviewPattern.isNotEmpty()) {
-                    item.reviewPattern.forEach { c ->
-                        Image(
-                            painter = painterResource(
-                                id = if (c == '✓') R.drawable.ic_correct else R.drawable.ic_wrong
-                            ),
-                            contentDescription = c.toString(),
-                            modifier = Modifier.size(20.dp)
+                if (!isMasteredMode) {
+                    if (item.reviewPattern.isNotEmpty()) {
+                        item.reviewPattern.forEach { c ->
+                            Image(
+                                painter = painterResource(
+                                    id = if (c == '✓') R.drawable.ic_correct else R.drawable.ic_wrong
+                                ),
+                                contentDescription = c.toString(),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = "未复习",
+                            fontSize = 13.sp,
+                            color = TextCream.copy(alpha = 0.35f)
                         )
                     }
-                } else {
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    val cc = item.ebbinghausCount
+                    val (progressText, progressColor) = when {
+                        cc >= 3 -> "已掌握" to SuccessGreen.copy(alpha = 0.8f)
+                        else -> "第${cc + 1}次复习 · 还差${3 - cc}次掌握" to AmberGold.copy(alpha = 0.7f)
+                    }
                     Text(
-                        text = "未复习",
-                        fontSize = 13.sp,
-                        color = TextCream.copy(alpha = 0.35f)
+                        text = progressText,
+                        color = progressColor,
+                        fontSize = 11.sp
                     )
                 }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                val cc = item.ebbinghausCount
-                val (progressText, progressColor) = when {
-                    cc >= 3 -> "已掌握" to SuccessGreen.copy(alpha = 0.8f)
-                    else -> "第${cc + 1}次复习 · 还差${3 - cc}次掌握" to AmberGold.copy(alpha = 0.7f)
-                }
-                Text(
-                    text = progressText,
-                    color = progressColor,
-                    fontSize = 11.sp
-                )
 
                 Spacer(modifier = Modifier.weight(1f))
 
@@ -250,6 +265,18 @@ private fun BrowseCard(
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
+
+                // Edit button
+                IconButton(
+                    onClick = onEdit,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_edit),
+                        contentDescription = "编辑",
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
 
                 // Pin button
                 IconButton(

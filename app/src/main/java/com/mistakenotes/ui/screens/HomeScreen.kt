@@ -38,7 +38,8 @@ fun HomeScreen(
     onNavigateToReview: () -> Unit = {},
     onNavigateToAnalysis: () -> Unit = {},
     onNavigateToBrowse: () -> Unit = {},
-    onNavigateToFavorites: () -> Unit = {}
+    onNavigateToFavorites: () -> Unit = {},
+    onNavigateToMastered: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showTodaySection by remember { mutableStateOf(true) }
@@ -267,6 +268,16 @@ fun HomeScreen(
 
             item {
                 QuickActionCard(
+                    icon = Icons.Default.CheckCircle,
+                    title = "已掌握",
+                    description = "查看已掌握的错题",
+                    onClick = onNavigateToMastered,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            item {
+                QuickActionCard(
                     icon = Icons.Default.Analytics,
                     title = "错题分析",
                     description = "查看学习统计数据",
@@ -332,7 +343,17 @@ private fun TodayCardItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Review status badge
-            if (info.isReviewed && info.lastResult != null) {
+            if (info.lastResult == ReviewResult.SKIP) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(AmberGold.copy(alpha = 0.12f))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text("已跳过", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AmberGold.copy(alpha = 0.6f))
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+            } else if (info.isReviewed && info.lastResult != null) {
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
@@ -340,7 +361,7 @@ private fun TodayCardItem(
                             when (info.lastResult) {
                                 ReviewResult.CORRECT -> SuccessGreen.copy(alpha = 0.2f)
                                 ReviewResult.WRONG -> ErrorRed.copy(alpha = 0.2f)
-                                ReviewResult.SKIP -> CardDark
+                                else -> CardDark
                             }
                         )
                         .padding(horizontal = 8.dp, vertical = 4.dp)
@@ -349,14 +370,14 @@ private fun TodayCardItem(
                         text = when (info.lastResult) {
                             ReviewResult.CORRECT -> "✓ 正确"
                             ReviewResult.WRONG -> "✗ 错误"
-                            ReviewResult.SKIP -> "已跳过"
+                            else -> ""
                         },
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = when (info.lastResult) {
                             ReviewResult.CORRECT -> SuccessGreen
                             ReviewResult.WRONG -> ErrorRed
-                            ReviewResult.SKIP -> TextCream.copy(alpha = 0.5f)
+                            else -> TextCream.copy(alpha = 0.5f)
                         }
                     )
                 }
@@ -477,7 +498,7 @@ private fun OverdueCardItem(
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
                 Text(
-                    text = "逾期${if (info.overdueDays <= 1) "今日" else "${info.overdueDays}天"}",
+                    text = "逾期${info.overdueDays}天",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = ErrorRed

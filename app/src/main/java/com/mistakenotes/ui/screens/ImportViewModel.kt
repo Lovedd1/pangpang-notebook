@@ -251,6 +251,10 @@ class ImportViewModel @Inject constructor(
             _uiState.update { it.copy(errorMessage = "请选择章节") }
             return
         }
+        if (state.questionType != QuestionType.ESSAY && state.correctOptionIndices.isEmpty()) {
+            _uiState.update { it.copy(errorMessage = "请选择正确答案") }
+            return
+        }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, errorMessage = null) }
@@ -362,8 +366,7 @@ class ImportViewModel @Inject constructor(
         return try {
             val imagesDir = File(context.filesDir, "question_images")
             if (!imagesDir.exists()) imagesDir.mkdirs()
-            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmssSSS", Locale.US).format(Date())
-            val destFile = File(imagesDir, "${prefix}_$timestamp.jpg")
+            val destFile = File(imagesDir, "${prefix}_${System.nanoTime()}.jpg")
             context.contentResolver.openInputStream(uri)?.use { input ->
                 destFile.outputStream().use { output ->
                     input.copyTo(output)

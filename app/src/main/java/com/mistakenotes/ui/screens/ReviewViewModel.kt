@@ -167,7 +167,32 @@ class ReviewViewModel @Inject constructor(
         val mistake = _uiState.value.currentMistake ?: return
         reviewedIndices.add(currentIndex)
         _uiState.update { it.copy(showAnswer = true, isCorrect = null) }
-        updateReviewRecord(mistake.id, false)
+        skipReviewRecord(mistake.id)
+    }
+
+    private fun skipReviewRecord(mistakeId: Long) {
+        viewModelScope.launch {
+            val records = repository.getReviewRecordsByMistake(mistakeId).first()
+            val latestRecord = records.maxByOrNull { it.reviewDate }
+
+            val cal = java.util.Calendar.getInstance()
+            cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+            cal.set(java.util.Calendar.MINUTE, 0)
+            cal.set(java.util.Calendar.SECOND, 0)
+            cal.set(java.util.Calendar.MILLISECOND, 0)
+            cal.add(java.util.Calendar.DAY_OF_MONTH, 1)
+            val tomorrowStart = cal.timeInMillis
+
+            val newRecord = ReviewRecord(
+                id = 0,
+                mistakeId = mistakeId,
+                reviewDate = System.currentTimeMillis(),
+                result = ReviewResult.SKIP,
+                nextReviewDate = tomorrowStart,
+                correctCount = latestRecord?.correctCount ?: 0
+            )
+            repository.insertReviewRecord(newRecord)
+        }
     }
 
     fun toggleFavorite() {
@@ -189,7 +214,7 @@ class ReviewViewModel @Inject constructor(
             val nextReviewDate = calculateNextReviewDate(newCorrectCount, isCorrect)
 
             val newRecord = ReviewRecord(
-                id = latestRecord?.id ?: 0,
+                id = 0,
                 mistakeId = mistakeId,
                 reviewDate = System.currentTimeMillis(),
                 result = if (isCorrect) ReviewResult.CORRECT else ReviewResult.WRONG,

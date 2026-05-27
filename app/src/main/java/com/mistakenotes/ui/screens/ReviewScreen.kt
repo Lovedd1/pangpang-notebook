@@ -136,7 +136,7 @@ fun ReviewScreen(
                             Spacer(modifier = Modifier.height(8.dp))
                             // Question images
                             val questionPaths = mistake.getQuestionImagePaths()
-                            if (mistake.questionType == QuestionType.ESSAY && questionPaths.size > 1) {
+                            if (questionPaths.size > 1) {
                                 MultiImagePager(paths = questionPaths, maxHeight = maxImageHeight)
                                 Spacer(modifier = Modifier.height(12.dp))
                             } else if (questionPaths.isNotEmpty()) {
@@ -147,7 +147,7 @@ fun ReviewScreen(
                                         .fillMaxWidth()
                                         .heightIn(max = maxImageHeight)
                                         .clip(RoundedCornerShape(8.dp)),
-                                    contentScale = ContentScale.FillWidth
+                                    contentScale = ContentScale.Fit
                                 )
                                 Spacer(modifier = Modifier.height(12.dp))
                             }
@@ -350,7 +350,7 @@ fun ReviewScreen(
                                             model = File(answerPaths.first()),
                                             contentDescription = "答案图片",
                                             modifier = Modifier.fillMaxWidth().heightIn(max = maxImageHeight).clip(RoundedCornerShape(8.dp)),
-                                            contentScale = ContentScale.FillWidth
+                                            contentScale = ContentScale.Fit
                                         )
                                     }
                                 }
@@ -517,7 +517,7 @@ private fun MultiImagePager(paths: List<String>, maxHeight: androidx.compose.ui.
                     .fillMaxWidth()
                     .heightIn(max = maxHeight)
                     .clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.FillWidth
+                contentScale = ContentScale.Fit
             )
         }
 

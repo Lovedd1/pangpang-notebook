@@ -20,7 +20,8 @@ data class TodayCardInfo(
     val correctCount: Int = 0,
     val subjectName: String = "",
     val chapterName: String = "",
-    val subjectColor: Long = 0xFFD4A574
+    val subjectColor: Long = 0xFFD4A574,
+    val skippedAt: Long = 0
 )
 
 data class OverdueCardInfo(
@@ -94,21 +95,30 @@ class HomeViewModel @Inject constructor(
                     val todayRecord = reviewRecordMap[mistake.id]
                         ?.find { it.reviewDate in todayStart..todayEnd }
                     val isReviewed = todayRecord != null && todayRecord.result != ReviewResult.SKIP
-                    if (isDueToday || isReviewed) {
+                    val isSkipped = rec?.result == ReviewResult.SKIP && isDueToday
+                    val tomorrowStart = todayStart + 86400000L
+                    val isSkippedToday = rec?.result == ReviewResult.SKIP && rec?.reviewDate in todayStart..todayEnd && rec?.nextReviewDate == tomorrowStart
+                    val isMastered = (rec?.correctCount ?: 0) >= 3
+                    if ((isDueToday || isReviewed || isSkippedToday) && !isMastered) {
                         TodayCardInfo(
-                            mistake, isReviewed, todayRecord?.result,
+                            mistake, isReviewed,
+                            if (isSkippedToday) ReviewResult.SKIP else todayRecord?.result,
                             correctCount = rec?.correctCount ?: 0,
                             subjectName = nameOf(mistake.subjectId),
                             chapterName = chapterNameOf(mistake.chapterId),
-                            subjectColor = colorOf(mistake.subjectId)
+                            subjectColor = colorOf(mistake.subjectId),
+                            skippedAt = if (isSkipped) rec?.reviewDate ?: 0 else 0
                         )
                     } else null
-                }
+                }.sortedWith(
+                    compareByDescending<TodayCardInfo> { it.skippedAt > 0 }
+                        .thenBy { it.skippedAt }
+                )
 
                 val overduePairs = mistakes.mapNotNull { mistake ->
                     val rec = latestByMistake[mistake.id]
                     val next = rec?.nextReviewDate
-                    if (next != null && next != -1L && next < todayStart) {
+                    if (next != null && next != -1L && next < todayStart && (rec?.correctCount ?: 0) < 3) {
                         OverdueCardInfo(
                             mistake,
                             ((todayStart - next) / 86400000L).toInt() + 1,

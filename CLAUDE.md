@@ -46,7 +46,7 @@ app/src/main/java/com/mistakenotes/
 │   └── DatabaseModule.kt             # Hilt DI（Room + DAO）
 └── ui/
     ├── navigation/
-    │   └── NavGraph.kt               # 5屏导航（Home/Import/Review/Analysis/Browse?favorites=）
+    │   └── NavGraph.kt               # 5屏导航（Home/Import/Review/Analysis/Browse?favorites=&mastered=）
     ├── screens/
     │   ├── HomeScreen.kt             # 主页：科目筛选 + 今日待复习/逾期可展开列表 + 复习进度
     │   ├── HomeViewModel.kt          # 今日/逾期分离逻辑 + cardSubjectIds + correctCount
@@ -69,12 +69,13 @@ app/src/main/java/com/mistakenotes/
 
 - **主页**：科目筛选 Chip（显示有今日卡片+逾期卡片的科目，彩虹配色）、今日待复习列表（已复习/未复习标签+科目/章节信息+复习进度）、逾期列表（逾期天数+降序+复习进度）、总错题/已掌握统计、快捷入口
 - **录入**：多图上传（水平滚动列表+添加/删除）、Compose原生裁剪（拖动定位+四角缩放）、拍照/选图（自动复制到本地）、标题（不填自动生成 `YYYY-MM-DD-NN`）、单选题/多选题/主观题切换、按钮式选项（A~H标签+✓标记正确+×删除）、三级分类（科目→章节→知识点）、主观题答案图片上传、选项以`|`分隔存储、编辑模式+删除功能
-- **复习**：多图 HorizontalPager 翻页（主观题，题目/答案独立翻页+页码指示器）、图片区域限制屏幕2/3高度、单列布局、单选圆形/多选方形、提交后绿色正确/红色错误高亮+结果横幅、主观题自评（答对/答错/跳过）+ 查看答案图片、顶栏收藏按钮
-- **错题浏览**：科目/章节双层筛选、列表按置顶>错误次数>录入时间排序、每条显示复习历史图标+正确/错误计数+复习进度+收藏★+置顶↑、点击进入单题复习
+- **复习**：多图 HorizontalPager 翻页（所有题型，题目/答案独立翻页+页码指示器）、图片区域限制屏幕2/3高度、单列布局、单选圆形/多选方形、提交后绿色正确/红色错误高亮+结果横幅、主观题自评（答对/答错/跳过）+ 查看答案图片、顶栏收藏按钮、跳过安排到明天优先复习
+- **错题浏览**：科目/章节双层筛选、列表按置顶>错误次数>录入时间排序、每条显示复习历史图标+正确/错误计数+复习进度+收藏★+置顶↑+编辑、点击进入单题复习
 - **收藏夹**：复用错题浏览页面，路由参数 `favorites=true`，数据源 `isFavorite=1`，取消收藏自动移出
+- **已掌握**：复用错题浏览页面，路由参数 `mastered=true`，筛选 `correctCount≥3`，隐藏复习历史和进度，仍有编辑/置顶/收藏按钮，答错后归零回到复习循环
 - **置顶**：错题浏览和收藏夹均支持，置顶项排最前+橙色图标+置顶标签
 - **分析**：科目掌握度（进度条+百分比+科目配色）、章节错题分布（按科目分组）、薄弱知识点排行
-- **算法**：5天间隔重复（错一次归零→5天→5天→5天→掌握，共3次正确）
+- **算法**：5天间隔重复（错一次归零→5天→5天→5天→掌握，共3次正确）；跳过保留 correctCount、安排到明天优先；已掌握题目不加入今日/逾期列表
 - **复习进度**：列表项显示"第N次复习·还差X次掌握"或"已掌握"
 
 ## 数据模型
@@ -119,8 +120,10 @@ HomeScreen 设置 → ReviewViewModel 读取后 clear → 后续循环用 ViewMo
 | `ic_pin_on.xml` | 已置顶 | 橙色 #FF6700 |
 | `ic_pin_off.xml` | 未置顶 | 深灰 #2c2c2c |
 | `ic_edit.xml` | 编辑按钮（铅笔+纸张） | AmberGold + TextCream |
-| `ic_correct.xml` | 复习正确标记 | 绿色 #11AA66 |
+| `ic_correct.xml` | 复习正确标记（绿色实心圆+白色对勾） | 绿色 #11AA66 |
 | `ic_wrong.xml` | 复习错误标记 | 红色 #F5222D |
+| `ic_flame.xml` | 收藏夹入口图标（火焰） | 红色 #fc5531 |
+| `ic_globe.xml` | 拍照录入入口图标（浏览器） | 多色原色 |
 
 ## 注意事项
 
@@ -131,13 +134,21 @@ HomeScreen 设置 → ReviewViewModel 读取后 clear → 后续循环用 ViewMo
 - ReviewViewModel 用 `.first()` 快照加载队列，不响应数据库变更
 - HomeViewModel 用 `.collect()` 响应式更新列表状态
 - SKIP 结果的 ReviewRecord 不计入"已复习"
-- 数据库用 `fallbackToDestructiveMigration()`，版本2
+- 无 gradlew：通过 Android Studio 构建，命令行编译不可用
+- 数据库用 `fallbackToDestructiveMigration()`，版本6
 - **数据保护**：日常 Run（覆盖安装）不会删除数据；修改数据库 Schema 时必须写 Migration（从当前版本迁到新版本），否则数据会被清空
 - 科目配色在 `onOpen` 中自动更新，旧数据无需迁移
 - 收藏/置顶通过 DAO 的 `updateFavorite`/`updateTop` 直接更新单字段，无需加载完整 Entity
 - BrowseScreen 通过导航参数 `favorites`（BoolType）复用为收藏夹视图
 - BrowseItem.ebbinghausCount 来自最新 ReviewRecord 的 correctCount（Ebbinghaus连续计数），而非总正确次数
 - 主页科目 Chip 筛选范围 = 今日卡片 ∪ 逾期卡片的科目（`cardSubjectIds`）
+- **数据库迁移**：修改章节预置数据时必须同时写 Migration。策略：`PRAGMA foreign_keys = OFF` → DELETE 旧章节 → INSERT 新章节 → CASE 映射 mistakes.chapterId/knowledge_points.chapterId → `PRAGMA foreign_keys = ON`
+- **裁剪坐标映射**：确认裁剪时必须考虑 `ContentScale.Fit` 的图片偏移量（`imageLeft/Top/Right/Bottom`），用统一缩放比映射到原图像素，不能用分开的 scaleX/scaleY
+- **图片文件名唯一性**：`copyImageToLocal` 用 `System.nanoTime()` 而非 `Date()`（毫秒级时间戳在紧密循环中会冲突）
+- **跳过 vs 初始录入**：两者都产生 SKIP 记录，区别在 `nextReviewDate`——初始录入 = now+5天，用户跳过 = 明天00:00。HomeViewModel 用 `nextReviewDate == tomorrowStart` 区分
+- **复习历史累积**：`ReviewViewModel.updateReviewRecord` 新记录必须 `id = 0`（Room 自增），否则 `OnConflictStrategy.REPLACE` 会覆盖旧记录导致只保留最新一条
+- **裁剪拖动边界**：四角/四边/中心拖动的约束边界是 `imageLeft/Right/Top/Bottom`（图片实际显示区域），不是 `0f`/`containerSize`
+- **复习页图片缩放**：用 `ContentScale.Fit` 完整显示，`FillWidth` 会导致竖长图被截断
 
 ## 待开发功能
 

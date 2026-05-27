@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,6 +35,8 @@ import kotlin.math.roundToInt
 
 private const val MIN_CROP_PX = 60f
 private const val CORNER_SIZE_PX = 44f
+private const val EDGE_BAR_LENGTH_PX = 56f
+private const val EDGE_BAR_THICKNESS_PX = 8f
 
 @Composable
 fun CropScreen(
@@ -62,12 +65,41 @@ fun CropScreen(
     var cropRight by remember { mutableStateOf(-1f) }
     var cropBottom by remember { mutableStateOf(-1f) }
 
-    // One-time init: crop rect covers entire image
+    // Image display bounds within container (for ContentScale.Fit)
+    var imageLeft by remember { mutableStateOf(0f) }
+    var imageTop by remember { mutableStateOf(0f) }
+    var imageRight by remember { mutableStateOf(0f) }
+    var imageBottom by remember { mutableStateOf(0f) }
+
+    // One-time init: compute image bounds + set crop rect to cover image area
     if (cropLeft < 0f && containerSize.width > 0) {
-        cropLeft = 0f
-        cropTop = 0f
-        cropRight = containerSize.width.toFloat()
-        cropBottom = containerSize.height.toFloat()
+        val imgW = sourceBitmap.width.toFloat()
+        val imgH = sourceBitmap.height.toFloat()
+        val imgAspect = imgW / imgH
+        val containerAspect = containerSize.width.toFloat() / containerSize.height.toFloat()
+
+        val displayedW: Float
+        val displayedH: Float
+        if (imgAspect > containerAspect) {
+            displayedW = containerSize.width.toFloat()
+            displayedH = containerSize.width.toFloat() / imgAspect
+        } else {
+            displayedH = containerSize.height.toFloat()
+            displayedW = containerSize.height.toFloat() * imgAspect
+        }
+
+        val offsetX = (containerSize.width - displayedW) / 2f
+        val offsetY = (containerSize.height - displayedH) / 2f
+
+        imageLeft = offsetX
+        imageTop = offsetY
+        imageRight = offsetX + displayedW
+        imageBottom = offsetY + displayedH
+
+        cropLeft = offsetX
+        cropTop = offsetY
+        cropRight = offsetX + displayedW
+        cropBottom = offsetY + displayedH
     }
 
     Column(
@@ -91,12 +123,20 @@ fun CropScreen(
             Text("裁剪图片", color = TextCream, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             TextButton(onClick = {
                 if (containerSize.width <= 0 || containerSize.height <= 0) return@TextButton
-                val scaleX = sourceBitmap.width.toFloat() / containerSize.width
-                val scaleY = sourceBitmap.height.toFloat() / containerSize.height
-                val srcX = (cropLeft * scaleX).roundToInt().coerceIn(0, sourceBitmap.width)
-                val srcY = (cropTop * scaleY).roundToInt().coerceIn(0, sourceBitmap.height)
-                val srcW = ((cropRight - cropLeft) * scaleX).roundToInt().coerceIn(0, sourceBitmap.width - srcX)
-                val srcH = ((cropBottom - cropTop) * scaleY).roundToInt().coerceIn(0, sourceBitmap.height - srcY)
+
+                val displayedW = imageRight - imageLeft
+                val scale = sourceBitmap.width.toFloat() / displayedW
+
+                val cropInImageLeft = (cropLeft - imageLeft).coerceIn(0f, displayedW)
+                val cropInImageTop = (cropTop - imageTop).coerceIn(0f, imageBottom - imageTop)
+                val cropInImageRight = (cropRight - imageLeft).coerceIn(0f, displayedW)
+                val cropInImageBottom = (cropBottom - imageTop).coerceIn(0f, imageBottom - imageTop)
+
+                val srcX = (cropInImageLeft * scale).roundToInt()
+                val srcY = (cropInImageTop * scale).roundToInt()
+                val srcW = ((cropInImageRight - cropInImageLeft) * scale).roundToInt().coerceAtLeast(1)
+                val srcH = ((cropInImageBottom - cropInImageTop) * scale).roundToInt().coerceAtLeast(1)
+
                 if (srcW > 0 && srcH > 0) {
                     val cropped = Bitmap.createBitmap(sourceBitmap, srcX, srcY, srcW, srcH)
                     val outFile = File(context.cacheDir, "crop_${System.currentTimeMillis()}.jpg")
@@ -141,8 +181,8 @@ fun CropScreen(
                                 change.consume()
                                 val w = cropRight - cropLeft
                                 val h = cropBottom - cropTop
-                                val newLeft = (cropLeft + dragAmount.x).coerceIn(0f, containerSize.width - w)
-                                val newTop = (cropTop + dragAmount.y).coerceIn(0f, containerSize.height - h)
+                                val newLeft = (cropLeft + dragAmount.x).coerceIn(imageLeft, imageRight - w)
+                                val newTop = (cropTop + dragAmount.y).coerceIn(imageTop, imageBottom - h)
                                 cropLeft = newLeft
                                 cropTop = newTop
                                 cropRight = newLeft + w
@@ -159,8 +199,8 @@ fun CropScreen(
                         .pointerInput(Unit) {
                             detectDragGestures { change, dragAmount ->
                                 change.consume()
-                                cropLeft = (cropLeft + dragAmount.x).coerceIn(0f, cropRight - MIN_CROP_PX)
-                                cropTop = (cropTop + dragAmount.y).coerceIn(0f, cropBottom - MIN_CROP_PX)
+                                cropLeft = (cropLeft + dragAmount.x).coerceIn(imageLeft, cropRight - MIN_CROP_PX)
+                                cropTop = (cropTop + dragAmount.y).coerceIn(imageTop, cropBottom - MIN_CROP_PX)
                             }
                         }
                         .background(AmberGold, CircleShape)
@@ -174,8 +214,8 @@ fun CropScreen(
                         .pointerInput(Unit) {
                             detectDragGestures { change, dragAmount ->
                                 change.consume()
-                                cropRight = (cropRight + dragAmount.x).coerceIn(cropLeft + MIN_CROP_PX, containerSize.width.toFloat())
-                                cropTop = (cropTop + dragAmount.y).coerceIn(0f, cropBottom - MIN_CROP_PX)
+                                cropRight = (cropRight + dragAmount.x).coerceIn(cropLeft + MIN_CROP_PX, imageRight)
+                                cropTop = (cropTop + dragAmount.y).coerceIn(imageTop, cropBottom - MIN_CROP_PX)
                             }
                         }
                         .background(AmberGold, CircleShape)
@@ -189,8 +229,8 @@ fun CropScreen(
                         .pointerInput(Unit) {
                             detectDragGestures { change, dragAmount ->
                                 change.consume()
-                                cropLeft = (cropLeft + dragAmount.x).coerceIn(0f, cropRight - MIN_CROP_PX)
-                                cropBottom = (cropBottom + dragAmount.y).coerceIn(cropTop + MIN_CROP_PX, containerSize.height.toFloat())
+                                cropLeft = (cropLeft + dragAmount.x).coerceIn(imageLeft, cropRight - MIN_CROP_PX)
+                                cropBottom = (cropBottom + dragAmount.y).coerceIn(cropTop + MIN_CROP_PX, imageBottom)
                             }
                         }
                         .background(AmberGold, CircleShape)
@@ -204,11 +244,84 @@ fun CropScreen(
                         .pointerInput(Unit) {
                             detectDragGestures { change, dragAmount ->
                                 change.consume()
-                                cropRight = (cropRight + dragAmount.x).coerceIn(cropLeft + MIN_CROP_PX, containerSize.width.toFloat())
-                                cropBottom = (cropBottom + dragAmount.y).coerceIn(cropTop + MIN_CROP_PX, containerSize.height.toFloat())
+                                cropRight = (cropRight + dragAmount.x).coerceIn(cropLeft + MIN_CROP_PX, imageRight)
+                                cropBottom = (cropBottom + dragAmount.y).coerceIn(cropTop + MIN_CROP_PX, imageBottom)
                             }
                         }
                         .background(AmberGold, CircleShape)
+                )
+
+                // --- Edge resize handles (bars at midpoints) ---
+                val edgeBarW = (EDGE_BAR_LENGTH_PX / density).dp
+                val edgeBarH = (EDGE_BAR_THICKNESS_PX / density).dp
+                val edgeRadius = edgeBarH / 2
+
+                // Top edge
+                Box(
+                    modifier = Modifier
+                        .offset(
+                            x = ((cropLeft + cropRight) / 2f / density).dp - edgeBarW / 2,
+                            y = (cropTop / density).dp - edgeBarH / 2
+                        )
+                        .size(edgeBarW, edgeBarH)
+                        .pointerInput(Unit) {
+                            detectDragGestures { change, dragAmount ->
+                                change.consume()
+                                cropTop = (cropTop + dragAmount.y).coerceIn(imageTop, cropBottom - MIN_CROP_PX)
+                            }
+                        }
+                        .background(AmberGold, RoundedCornerShape(edgeRadius))
+                )
+
+                // Bottom edge
+                Box(
+                    modifier = Modifier
+                        .offset(
+                            x = ((cropLeft + cropRight) / 2f / density).dp - edgeBarW / 2,
+                            y = (cropBottom / density).dp - edgeBarH / 2
+                        )
+                        .size(edgeBarW, edgeBarH)
+                        .pointerInput(Unit) {
+                            detectDragGestures { change, dragAmount ->
+                                change.consume()
+                                cropBottom = (cropBottom + dragAmount.y).coerceIn(cropTop + MIN_CROP_PX, imageBottom)
+                            }
+                        }
+                        .background(AmberGold, RoundedCornerShape(edgeRadius))
+                )
+
+                // Left edge
+                Box(
+                    modifier = Modifier
+                        .offset(
+                            x = (cropLeft / density).dp - edgeBarH / 2,
+                            y = ((cropTop + cropBottom) / 2f / density).dp - edgeBarW / 2
+                        )
+                        .size(edgeBarH, edgeBarW)
+                        .pointerInput(Unit) {
+                            detectDragGestures { change, dragAmount ->
+                                change.consume()
+                                cropLeft = (cropLeft + dragAmount.x).coerceIn(imageLeft, cropRight - MIN_CROP_PX)
+                            }
+                        }
+                        .background(AmberGold, RoundedCornerShape(edgeRadius))
+                )
+
+                // Right edge
+                Box(
+                    modifier = Modifier
+                        .offset(
+                            x = (cropRight / density).dp - edgeBarH / 2,
+                            y = ((cropTop + cropBottom) / 2f / density).dp - edgeBarW / 2
+                        )
+                        .size(edgeBarH, edgeBarW)
+                        .pointerInput(Unit) {
+                            detectDragGestures { change, dragAmount ->
+                                change.consume()
+                                cropRight = (cropRight + dragAmount.x).coerceIn(cropLeft + MIN_CROP_PX, imageRight)
+                            }
+                        }
+                        .background(AmberGold, RoundedCornerShape(edgeRadius))
                 )
 
                 // Dim overlay + border
@@ -238,7 +351,7 @@ fun CropScreen(
 
         // Hint
         Text(
-            "拖动裁剪框移动位置，拖动四角调整大小",
+            "拖动裁剪框移动位置，拖动四角或四边调整大小",
             color = TextCream.copy(alpha = 0.5f),
             fontSize = 13.sp,
             modifier = Modifier
