@@ -4,6 +4,7 @@ import android.app.Activity
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -67,7 +68,8 @@ fun ImportScreen(
     ) { uri: Uri? ->
         uri?.let { sourceUri ->
             val destFile = File(context.cacheDir, "crop_q_${System.currentTimeMillis()}.jpg")
-            val cropIntent = UCrop.of(sourceUri, Uri.fromFile(destFile))
+            val destUri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", destFile)
+            val cropIntent = UCrop.of(sourceUri, destUri)
                 .withOptions(UCrop.Options().apply {
                     setCompressionQuality(90)
                     setMaxBitmapSize(2048)
@@ -203,7 +205,8 @@ fun ImportScreen(
                 ) { uri: Uri? ->
                     uri?.let { sourceUri ->
                         val destFile = File(context.cacheDir, "crop_a_${System.currentTimeMillis()}.jpg")
-                        val cropIntent = UCrop.of(sourceUri, Uri.fromFile(destFile))
+                        val destUri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", destFile)
+                        val cropIntent = UCrop.of(sourceUri, destUri)
                             .withOptions(UCrop.Options().apply {
                                 setCompressionQuality(90)
                                 setMaxBitmapSize(2048)
