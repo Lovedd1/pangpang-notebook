@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mistakenotes.data.repository.MistakeRepository
 import com.mistakenotes.domain.model.Chapter
-import com.mistakenotes.domain.model.KnowledgePoint
 import com.mistakenotes.domain.model.Mistake
 import com.mistakenotes.domain.model.ReviewResult
 import com.mistakenotes.domain.model.Subject
@@ -21,8 +20,7 @@ data class BrowseItem(
     val wrongCount: Int,
     val ebbinghausCount: Int = 0,
     val chapterName: String = "",
-    val subjectName: String = "",
-    val knowledgePointName: String = ""
+    val subjectName: String = ""
 )
 
 data class BrowseUiState(
@@ -50,7 +48,6 @@ class BrowseViewModel @Inject constructor(
     private var allRecords = listOf<com.mistakenotes.domain.model.ReviewRecord>()
     private var chapterMap = mapOf<Long, Chapter>()
     private var subjectMap = mapOf<Long, Subject>()
-    private var kpMap = mapOf<Long, com.mistakenotes.domain.model.KnowledgePoint>()
 
     init {
         loadData()
@@ -63,12 +60,10 @@ class BrowseViewModel @Inject constructor(
                 repository.getAllSubjects(),
                 mistakesFlow,
                 repository.getAllReviewRecords(),
-                repository.getAllChapters(),
-                repository.getAllKnowledgePoints()
-            ) { subjects, mistakes, records, chapters, knowledgePoints ->
+                repository.getAllChapters()
+            ) { subjects, mistakes, records, chapters ->
                 subjectMap = subjects.associateBy { it.id }
                 chapterMap = chapters.associateBy { it.id }
-                kpMap = knowledgePoints.associateBy { it.id }
                 allMistakes = mistakes
                 allRecords = records
                 _uiState.update { it.copy(subjects = subjects, isLoading = false) }
@@ -141,8 +136,7 @@ class BrowseViewModel @Inject constructor(
                 mistake, pattern, correct, wrong,
                 ebbinghausCount = ebbinghaus,
                 chapterName = chapterMap[mistake.chapterId]?.name ?: "",
-                subjectName = subjectMap[mistake.subjectId]?.name ?: "",
-                knowledgePointName = mistake.knowledgePointId?.let { kpMap[it]?.name } ?: ""
+                subjectName = subjectMap[mistake.subjectId]?.name ?: ""
             )
         }.sortedWith(
             compareByDescending<BrowseItem> { it.mistake.isTop }

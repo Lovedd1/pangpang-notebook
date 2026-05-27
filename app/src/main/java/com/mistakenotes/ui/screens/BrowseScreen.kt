@@ -193,31 +193,20 @@ private fun BrowseCard(
                     }
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = item.mistake.questionText
-                            ?: item.mistake.title
-                            ?: "(无题目)",
-                        color = TextCream,
-                        fontSize = 14.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    val metaParts = listOfNotNull(
-                        item.subjectName.takeIf { it.isNotEmpty() },
-                        item.chapterName.takeIf { it.isNotEmpty() },
-                        item.knowledgePointName.takeIf { it.isNotEmpty() }
-                    )
-                    if (metaParts.isNotEmpty()) {
-                        Text(
-                            text = metaParts.joinToString(" · "),
-                            color = TextCream.copy(alpha = 0.4f),
-                            fontSize = 11.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+
+                val browseTitleText = buildString {
+                    append(item.mistake.questionText ?: item.mistake.title ?: "(无题目)")
+                    append(" · ")
+                    append(item.chapterName)
                 }
+                Text(
+                    text = browseTitleText,
+                    color = TextCream,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
             }
 
             // Bottom row: review pattern + progress + counts + actions

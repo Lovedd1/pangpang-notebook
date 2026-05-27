@@ -394,32 +394,24 @@ private fun TodayCardItem(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Title + subject/chapter/kp
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = info.mistake.questionText
-                        ?: info.mistake.title
-                        ?: "(无题目)",
-                    color = TextCream,
-                    fontSize = 14.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                val metaParts = listOfNotNull(
-                    info.subjectName.takeIf { it.isNotEmpty() },
-                    info.chapterName.takeIf { it.isNotEmpty() },
-                    info.knowledgePointName.takeIf { it.isNotEmpty() }
-                )
-                if (metaParts.isNotEmpty()) {
-                    Text(
-                        text = metaParts.joinToString(" · "),
-                        color = TextCream.copy(alpha = 0.4f),
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+            // Title + subject/chapter (single line)
+            val titleText = buildString {
+                append(info.mistake.questionText ?: info.mistake.title ?: "(无题目)")
+                if (info.subjectName.isNotEmpty()) {
+                    append(" · ")
+                    append(info.subjectName)
+                    append(" · ")
+                    append(info.chapterName)
                 }
             }
+            Text(
+                text = titleText,
+                color = TextCream,
+                fontSize = 14.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
 
             Spacer(modifier = Modifier.width(8.dp))
             ReviewProgressText(correctCount = info.correctCount)
@@ -514,31 +506,24 @@ private fun OverdueCardItem(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = info.mistake.questionText
-                        ?: info.mistake.title
-                        ?: "(无题目)",
-                    color = TextCream,
-                    fontSize = 14.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                val metaParts = listOfNotNull(
-                    info.subjectName.takeIf { it.isNotEmpty() },
-                    info.chapterName.takeIf { it.isNotEmpty() },
-                    info.knowledgePointName.takeIf { it.isNotEmpty() }
-                )
-                if (metaParts.isNotEmpty()) {
-                    Text(
-                        text = metaParts.joinToString(" · "),
-                        color = TextCream.copy(alpha = 0.4f),
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+            // Title + subject/chapter (single line)
+            val overdueTitleText = buildString {
+                append(info.mistake.questionText ?: info.mistake.title ?: "(无题目)")
+                if (info.subjectName.isNotEmpty()) {
+                    append(" · ")
+                    append(info.subjectName)
+                    append(" · ")
+                    append(info.chapterName)
                 }
             }
+            Text(
+                text = overdueTitleText,
+                color = TextCream,
+                fontSize = 14.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
 
             Spacer(modifier = Modifier.width(8.dp))
             ReviewProgressText(correctCount = info.correctCount)

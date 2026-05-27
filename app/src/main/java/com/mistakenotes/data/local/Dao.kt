@@ -52,9 +52,6 @@ interface ChapterDao {
 
 @Dao
 interface KnowledgePointDao {
-    @Query("SELECT * FROM knowledge_points ORDER BY id ASC")
-    fun getAllKnowledgePoints(): Flow<List<KnowledgePointEntity>>
-
     @Query("SELECT * FROM knowledge_points WHERE chapterId = :chapterId ORDER BY id ASC")
     fun getKnowledgePointsByChapter(chapterId: Long): Flow<List<KnowledgePointEntity>>
 
