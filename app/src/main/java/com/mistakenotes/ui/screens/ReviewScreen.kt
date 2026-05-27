@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -43,6 +44,7 @@ fun ReviewScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
+    val maxImageHeight = (LocalConfiguration.current.screenHeightDp * 0.66f).dp
     var showAnswerImage by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -135,7 +137,7 @@ fun ReviewScreen(
                             // Question images
                             val questionPaths = mistake.getQuestionImagePaths()
                             if (mistake.questionType == QuestionType.ESSAY && questionPaths.size > 1) {
-                                MultiImagePager(paths = questionPaths)
+                                MultiImagePager(paths = questionPaths, maxHeight = maxImageHeight)
                                 Spacer(modifier = Modifier.height(12.dp))
                             } else if (questionPaths.isNotEmpty()) {
                                 AsyncImage(
@@ -143,6 +145,7 @@ fun ReviewScreen(
                                     contentDescription = "题目图片",
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .heightIn(max = maxImageHeight)
                                         .clip(RoundedCornerShape(8.dp)),
                                     contentScale = ContentScale.FillWidth
                                 )
@@ -341,12 +344,12 @@ fun ReviewScreen(
                                     Text("参考答案", color = AmberGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                                     Spacer(modifier = Modifier.height(8.dp))
                                     if (answerPaths.size > 1) {
-                                        MultiImagePager(paths = answerPaths)
+                                        MultiImagePager(paths = answerPaths, maxHeight = maxImageHeight)
                                     } else if (answerPaths.isNotEmpty()) {
                                         AsyncImage(
                                             model = File(answerPaths.first()),
                                             contentDescription = "答案图片",
-                                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)),
+                                            modifier = Modifier.fillMaxWidth().heightIn(max = maxImageHeight).clip(RoundedCornerShape(8.dp)),
                                             contentScale = ContentScale.FillWidth
                                         )
                                     }
@@ -499,7 +502,7 @@ fun ReviewScreen(
 }
 
 @Composable
-private fun MultiImagePager(paths: List<String>) {
+private fun MultiImagePager(paths: List<String>, maxHeight: androidx.compose.ui.unit.Dp) {
     val pagerState = rememberPagerState(pageCount = { paths.size })
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -512,6 +515,7 @@ private fun MultiImagePager(paths: List<String>) {
                 contentDescription = "图片 ${page + 1}",
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(max = maxHeight)
                     .clip(RoundedCornerShape(8.dp)),
                 contentScale = ContentScale.FillWidth
             )

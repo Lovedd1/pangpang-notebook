@@ -56,13 +56,19 @@ fun CropScreen(
     var containerSize by remember { mutableStateOf(IntSize(0, 0)) }
     val density = context.resources.displayMetrics.density
 
-    // Initial crop rect: centered square, 70% of container
-    val initSize = (minOf(containerSize.width, containerSize.height) * 0.7f).roundToInt()
-        .coerceAtLeast(MIN_CROP_PX.roundToInt())
-    var cropLeft by remember { mutableStateOf((containerSize.width - initSize) / 2f) }
-    var cropTop by remember { mutableStateOf((containerSize.height - initSize) / 2f) }
-    var cropRight by remember { mutableStateOf(cropLeft + initSize) }
-    var cropBottom by remember { mutableStateOf(cropTop + initSize) }
+    // Crop rect — initialized once to cover full image
+    var cropLeft by remember { mutableStateOf(-1f) }
+    var cropTop by remember { mutableStateOf(-1f) }
+    var cropRight by remember { mutableStateOf(-1f) }
+    var cropBottom by remember { mutableStateOf(-1f) }
+
+    // One-time init: crop rect covers entire image
+    if (cropLeft < 0f && containerSize.width > 0) {
+        cropLeft = 0f
+        cropTop = 0f
+        cropRight = containerSize.width.toFloat()
+        cropBottom = containerSize.height.toFloat()
+    }
 
     Column(
         modifier = Modifier
