@@ -454,8 +454,8 @@ private fun TodayCardItem(
 @Composable
 private fun ReviewProgressText(correctCount: Int) {
     val (text, color) = when {
-        correctCount >= 4 -> "已掌握" to SuccessGreen.copy(alpha = 0.8f)
-        else -> "第${correctCount + 1}次复习 · 还差${4 - correctCount}次掌握" to AmberGold.copy(alpha = 0.7f)
+        correctCount >= 3 -> "已掌握" to SuccessGreen.copy(alpha = 0.8f)
+        else -> "第${correctCount + 1}次复习 · 还差${3 - correctCount}次掌握" to AmberGold.copy(alpha = 0.7f)
     }
     Text(
         text = text,

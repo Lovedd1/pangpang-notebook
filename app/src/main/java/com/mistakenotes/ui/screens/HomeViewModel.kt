@@ -121,7 +121,7 @@ class HomeViewModel @Inject constructor(
                 }.sortedByDescending { it.overdueDays }
 
                 val mastered = latestByMistake.count { (_, rec) ->
-                    rec?.nextReviewDate == -1L || (rec?.correctCount ?: 0) >= 4
+                    rec?.nextReviewDate == -1L || (rec?.correctCount ?: 0) >= 3
                 }
 
                 // Cache unfiltered data

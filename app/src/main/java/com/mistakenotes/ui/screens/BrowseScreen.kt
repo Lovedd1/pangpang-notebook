@@ -212,8 +212,8 @@ private fun BrowseCard(
                     )
                     val cc = item.ebbinghausCount
                     val (progressText, progressColor) = when {
-                        cc >= 4 -> "已掌握" to SuccessGreen.copy(alpha = 0.8f)
-                        else -> "第${cc + 1}次复习 · 还差${4 - cc}次掌握" to AmberGold.copy(alpha = 0.7f)
+                        cc >= 3 -> "已掌握" to SuccessGreen.copy(alpha = 0.8f)
+                        else -> "第${cc + 1}次复习 · 还差${3 - cc}次掌握" to AmberGold.copy(alpha = 0.7f)
                     }
                     Text(
                         text = progressText,

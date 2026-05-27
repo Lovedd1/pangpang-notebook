@@ -202,14 +202,12 @@ class ReviewViewModel @Inject constructor(
 
     private fun calculateNextReviewDate(correctCount: Int, isCorrect: Boolean): Long {
         val now = System.currentTimeMillis()
-        val oneDay = 86400000L
+        val fiveDays = 5 * 86400000L
         return when {
-            !isCorrect -> now + oneDay
-            correctCount == 1 -> now + oneDay
-            correctCount == 2 -> now + (3 * oneDay)
-            correctCount == 3 -> now + (7 * oneDay)
-            correctCount >= 4 -> -1
-            else -> now + oneDay
+            !isCorrect -> now + fiveDays
+            correctCount in 1..2 -> now + fiveDays
+            correctCount >= 3 -> -1
+            else -> now + fiveDays
         }
     }
 
