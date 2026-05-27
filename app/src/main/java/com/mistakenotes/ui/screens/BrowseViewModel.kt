@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mistakenotes.data.repository.MistakeRepository
 import com.mistakenotes.domain.model.Chapter
+import com.mistakenotes.domain.model.KnowledgePoint
 import com.mistakenotes.domain.model.Mistake
 import com.mistakenotes.domain.model.ReviewResult
 import com.mistakenotes.domain.model.Subject
@@ -49,6 +50,7 @@ class BrowseViewModel @Inject constructor(
     private var allRecords = listOf<com.mistakenotes.domain.model.ReviewRecord>()
     private var chapterMap = mapOf<Long, Chapter>()
     private var subjectMap = mapOf<Long, Subject>()
+    private var kpMap = mapOf<Long, com.mistakenotes.domain.model.KnowledgePoint>()
 
     init {
         loadData()
@@ -66,7 +68,7 @@ class BrowseViewModel @Inject constructor(
             ) { subjects, mistakes, records, chapters, knowledgePoints ->
                 subjectMap = subjects.associateBy { it.id }
                 chapterMap = chapters.associateBy { it.id }
-                val kpMap = knowledgePoints.associateBy { it.id }
+                kpMap = knowledgePoints.associateBy { it.id }
                 allMistakes = mistakes
                 allRecords = records
                 _uiState.update { it.copy(subjects = subjects, isLoading = false) }
