@@ -423,10 +423,11 @@ private fun TodayCardItem(
                         )
                     }
                 }
-                ReviewProgressText(correctCount = info.correctCount)
             }
 
-            // Edit button
+            Spacer(modifier = Modifier.width(8.dp))
+            ReviewProgressText(correctCount = info.correctCount)
+
             if (onEdit != null) {
                 IconButton(
                     onClick = onEdit,
@@ -545,10 +546,11 @@ private fun OverdueCardItem(
                         )
                     }
                 }
-                ReviewProgressText(correctCount = info.correctCount)
             }
 
-            // Edit button
+            Spacer(modifier = Modifier.width(8.dp))
+            ReviewProgressText(correctCount = info.correctCount)
+
             if (onEdit != null) {
                 IconButton(
                     onClick = onEdit,
