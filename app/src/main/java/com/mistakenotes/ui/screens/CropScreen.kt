@@ -130,23 +130,23 @@ fun CropScreen(
 
             // Crop overlay with drag support
             if (containerSize.width > 0) {
-                val cropW = cropRight - cropLeft
-                val cropH = cropBottom - cropTop
                 val halfCorner = (CORNER_SIZE_PX / density).dp / 2
 
-                // Center drag area (move)
+                // Center drag area (move only, size preserved)
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .pointerInput(Unit) {
                             detectDragGestures { change, dragAmount ->
                                 change.consume()
-                                val newLeft = (cropLeft + dragAmount.x).coerceIn(0f, containerSize.width - cropW)
-                                val newTop = (cropTop + dragAmount.y).coerceIn(0f, containerSize.height - cropH)
+                                val w = cropRight - cropLeft
+                                val h = cropBottom - cropTop
+                                val newLeft = (cropLeft + dragAmount.x).coerceIn(0f, containerSize.width - w)
+                                val newTop = (cropTop + dragAmount.y).coerceIn(0f, containerSize.height - h)
                                 cropLeft = newLeft
                                 cropTop = newTop
-                                cropRight = newLeft + cropW
-                                cropBottom = newTop + cropH
+                                cropRight = newLeft + w
+                                cropBottom = newTop + h
                             }
                         }
                 )
@@ -215,7 +215,7 @@ fun CropScreen(
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val cropRect = Rect(
                         Offset(cropLeft, cropTop),
-                        Size(cropW, cropH)
+                        Size(cropRight - cropLeft, cropBottom - cropTop)
                     )
                     drawRect(Color.Black.copy(alpha = 0.45f))
                     clipRect(
