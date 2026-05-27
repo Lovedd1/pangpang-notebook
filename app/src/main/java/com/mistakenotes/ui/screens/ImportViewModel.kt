@@ -363,7 +363,7 @@ class ImportViewModel @Inject constructor(
         return try {
             val imagesDir = File(context.filesDir, "question_images")
             if (!imagesDir.exists()) imagesDir.mkdirs()
-            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmssSSS", Locale.US).format(Date())
             val destFile = File(imagesDir, "${prefix}_$timestamp.jpg")
             context.contentResolver.openInputStream(uri)?.use { input ->
                 destFile.outputStream().use { output ->
