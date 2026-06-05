@@ -51,6 +51,7 @@ fun ReviewScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val currentIndexValue by viewModel.currentIndexFlow.collectAsState()
+    val reviewQueue by viewModel.reviewQueueFlow.collectAsState()
     val scrollState = rememberScrollState()
     val maxImageHeight = (LocalConfiguration.current.screenHeightDp * 0.66f).dp
     var showAnswerImage by remember { mutableStateOf(false) }
@@ -579,7 +580,7 @@ fun ReviewScreen(
         )
     }
 
-    // Bottom sheet: question list for quick jump (Fix 5)
+    // Bottom sheet: question list for quick jump — grouped by type
     if (showQuestionList && uiState.currentMistake != null) {
         ModalBottomSheet(
             onDismissRequest = { showQuestionList = false },
@@ -598,53 +599,75 @@ fun ReviewScreen(
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                // Question grid (6 columns)
-                val total = viewModel.queueSize
-                val columns = 6
-                val rows = (total + columns - 1) / columns
+                // Group by question type: single → multi → essay
+                val indexedQueue = reviewQueue.mapIndexed { i, m -> i to m }
+                val typeOrder = listOf(QuestionType.SINGLE_CHOICE, QuestionType.MULTI_CHOICE, QuestionType.ESSAY)
+                val typeLabels = mapOf(
+                    QuestionType.SINGLE_CHOICE to "单选",
+                    QuestionType.MULTI_CHOICE to "多选",
+                    QuestionType.ESSAY to "主观题"
+                )
 
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    for (row in 0 until rows) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            for (col in 0 until columns) {
-                                val index = row * columns + col
-                                if (index < total) {
-                                    val result = viewModel.reviewedResultsMap[index]
-                                    val isCurrent = index == currentIndexValue
+                for (qt in typeOrder) {
+                    val group = indexedQueue.filter { it.second.questionType == qt }
+                    if (group.isEmpty()) continue
 
-                                    val (bg, fg) = when {
-                                        isCurrent -> AmberGold to InkStoneBlack
-                                        result == true -> SuccessGreen.copy(alpha = 0.3f) to SuccessGreen
-                                        result == false -> ErrorRed.copy(alpha = 0.3f) to ErrorRed
-                                        else -> CardDark to TextCream.copy(alpha = 0.5f)
+                    // Type header
+                    Text(
+                        text = "${typeLabels[qt]} (${group.size}题)",
+                        color = TextCream.copy(alpha = 0.6f),
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 6.dp)
+                    )
+
+                    // Grid: 6 columns, small blocks
+                    val columns = 6
+                    val rows = (group.size + columns - 1) / columns
+
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        for (row in 0 until rows) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                for (col in 0 until columns) {
+                                    val idx = row * columns + col
+                                    if (idx < group.size) {
+                                        val (originalIndex, _) = group[idx]
+                                        val result = viewModel.reviewedResultsMap[originalIndex]
+                                        val isCurrent = originalIndex == currentIndexValue
+
+                                        val (bg, fg) = when {
+                                            isCurrent -> AmberGold to InkStoneBlack
+                                            result == true -> SuccessGreen.copy(alpha = 0.3f) to SuccessGreen
+                                            result == false -> ErrorRed.copy(alpha = 0.3f) to ErrorRed
+                                            else -> CardDark to TextCream.copy(alpha = 0.5f)
+                                        }
+
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .aspectRatio(1f)
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(bg)
+                                                .clickable {
+                                                    viewModel.jumpTo(originalIndex)
+                                                    showQuestionList = false
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "${originalIndex + 1}",
+                                                color = fg,
+                                                fontSize = 12.sp,
+                                                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal
+                                            )
+                                        }
+                                    } else {
+                                        Spacer(modifier = Modifier.weight(1f))
                                     }
-
-                                    Box(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .aspectRatio(1f)
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(bg)
-                                            .clickable {
-                                                viewModel.jumpTo(index)
-                                                showQuestionList = false
-                                            },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = "${index + 1}",
-                                            color = fg,
-                                            fontSize = 14.sp,
-                                            fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal
-                                        )
-                                    }
-                                } else {
-                                    Spacer(modifier = Modifier.weight(1f))
                                 }
                             }
                         }
