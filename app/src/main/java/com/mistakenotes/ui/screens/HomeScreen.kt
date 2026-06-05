@@ -121,8 +121,8 @@ fun HomeScreen(
 
             item {
                 QuestionTypeFilter(
-                    selected = uiState.selectedQuestionTypes,
-                    onSelectionChange = { viewModel.selectQuestionTypes(it) }
+                    selected = uiState.todayQuestionTypes,
+                    onSelectionChange = { viewModel.selectTodayQuestionTypes(it) }
                 )
             }
 
@@ -213,8 +213,8 @@ fun HomeScreen(
 
             item {
                 QuestionTypeFilter(
-                    selected = uiState.selectedQuestionTypes,
-                    onSelectionChange = { viewModel.selectQuestionTypes(it) }
+                    selected = uiState.overdueQuestionTypes,
+                    onSelectionChange = { viewModel.selectOverdueQuestionTypes(it) }
                 )
             }
 

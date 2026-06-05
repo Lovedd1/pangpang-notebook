@@ -42,7 +42,8 @@ data class HomeUiState(
     val totalMistakes: Int = 0,
     val masteredCount: Int = 0,
     val isLoading: Boolean = true,
-    val selectedQuestionTypes: Set<com.mistakenotes.domain.model.QuestionType> = emptySet()
+    val todayQuestionTypes: Set<com.mistakenotes.domain.model.QuestionType> = emptySet(),
+    val overdueQuestionTypes: Set<com.mistakenotes.domain.model.QuestionType> = emptySet()
 )
 
 @HiltViewModel
@@ -96,9 +97,9 @@ class HomeViewModel @Inject constructor(
                     val todayRecord = reviewRecordMap[mistake.id]
                         ?.find { it.reviewDate in todayStart..todayEnd }
                     val isReviewed = todayRecord != null && todayRecord.result != ReviewResult.SKIP
-                    val isSkipped = rec?.result == ReviewResult.SKIP && isDueToday
                     val tomorrowStart = todayStart + 86400000L
                     val isSkippedToday = rec?.result == ReviewResult.SKIP && rec?.reviewDate in todayStart..todayEnd && rec?.nextReviewDate == tomorrowStart
+                    val isSkipped = isSkippedToday
                     val isMastered = (rec?.correctCount ?: 0) >= 3
                     if ((isDueToday || isReviewed || isSkippedToday) && !isMastered) {
                         TodayCardInfo(
@@ -153,31 +154,38 @@ class HomeViewModel @Inject constructor(
         emitFilteredState()
     }
 
-    fun selectQuestionTypes(types: Set<com.mistakenotes.domain.model.QuestionType>) {
-        _uiState.update { it.copy(selectedQuestionTypes = types) }
+    fun selectTodayQuestionTypes(types: Set<com.mistakenotes.domain.model.QuestionType>) {
+        _uiState.update { it.copy(todayQuestionTypes = types) }
+        emitFilteredState()
+    }
+
+    fun selectOverdueQuestionTypes(types: Set<com.mistakenotes.domain.model.QuestionType>) {
+        _uiState.update { it.copy(overdueQuestionTypes = types) }
         emitFilteredState()
     }
 
     private fun emitFilteredState() {
         val sel = _uiState.value.currentSubjectId
-        val typeSel = _uiState.value.selectedQuestionTypes
-        fun typeOk(qt: com.mistakenotes.domain.model.QuestionType) =
-            typeSel.isEmpty() || qt in typeSel
+        val todayTypeSel = _uiState.value.todayQuestionTypes
+        val overdueTypeSel = _uiState.value.overdueQuestionTypes
+        fun typeOk(qt: com.mistakenotes.domain.model.QuestionType, sel: Set<com.mistakenotes.domain.model.QuestionType>) =
+            sel.isEmpty() || qt in sel
 
         _uiState.value = HomeUiState(
             subjects = cachedSubjects,
             currentSubjectId = sel,
             todayCards = allTodayCards
                 .filter { sel == null || it.mistake.subjectId == sel }
-                .filter { typeOk(it.mistake.questionType) },
+                .filter { typeOk(it.mistake.questionType, todayTypeSel) },
             overdueCards = allOverdueCards
                 .filter { sel == null || it.mistake.subjectId == sel }
-                .filter { typeOk(it.mistake.questionType) },
+                .filter { typeOk(it.mistake.questionType, overdueTypeSel) },
             cardSubjectIds = cachedCardSubjIds,
             totalMistakes = cachedTotalMistakes,
             masteredCount = cachedMastered,
             isLoading = false,
-            selectedQuestionTypes = typeSel
+            todayQuestionTypes = todayTypeSel,
+            overdueQuestionTypes = overdueTypeSel
         )
     }
 }
