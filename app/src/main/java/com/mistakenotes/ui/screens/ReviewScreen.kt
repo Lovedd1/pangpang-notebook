@@ -668,12 +668,12 @@ fun ReviewScreen(
                                             isCurrent -> AmberGold to InkStoneBlack
                                             result == true -> SuccessGreen.copy(alpha = 0.3f) to SuccessGreen
                                             result == false -> ErrorRed.copy(alpha = 0.3f) to ErrorRed
-                                            else -> CardDark to TextCream.copy(alpha = 0.5f)
+                                            else -> InkStoneBlack to TextCream.copy(alpha = 0.5f)
                                         }
 
                                         Box(
                                             modifier = Modifier
-                                                .size(100.dp)
+                                                .size(60.dp)
                                                 .clip(RoundedCornerShape(8.dp))
                                                 .background(bg)
                                                 .clickable {
