@@ -326,8 +326,8 @@ fun HomeScreen(
 
                                                             Box(
                                                                 modifier = Modifier
-                                                                    .size(10.dp)
-                                                                    .clip(RoundedCornerShape(2.dp))
+                                                                    .size(100.dp)
+                                                                    .clip(RoundedCornerShape(8.dp))
                                                                     .background(CardDark)
                                                                     .clickable {
                                                                         ReviewSession.start(
@@ -341,7 +341,7 @@ fun HomeScreen(
                                                                 Text(
                                                                     text = "$blockNumber",
                                                                     color = TextCream.copy(alpha = 0.7f),
-                                                                    fontSize = 8.sp
+                                                                    fontSize = 28.sp
                                                                 )
                                                             }
                                                             blockNumber++

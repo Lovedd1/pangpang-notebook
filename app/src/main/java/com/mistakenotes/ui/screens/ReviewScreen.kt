@@ -673,8 +673,8 @@ fun ReviewScreen(
 
                                         Box(
                                             modifier = Modifier
-                                                .size(10.dp)
-                                                .clip(RoundedCornerShape(2.dp))
+                                                .size(100.dp)
+                                                .clip(RoundedCornerShape(8.dp))
                                                 .background(bg)
                                                 .clickable {
                                                     viewModel.jumpTo(originalIndex)
@@ -685,7 +685,7 @@ fun ReviewScreen(
                                             Text(
                                                 text = "${originalIndex + 1}",
                                                 color = fg,
-                                                fontSize = 7.sp,
+                                                fontSize = 28.sp,
                                                 fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal
                                             )
                                         }
