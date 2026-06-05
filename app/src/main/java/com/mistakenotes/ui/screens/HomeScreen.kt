@@ -29,6 +29,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.mistakenotes.R
 import com.mistakenotes.domain.model.QuestionType
 import com.mistakenotes.domain.model.ReviewResult
+import com.mistakenotes.ui.components.QuestionTypeFilter
 import com.mistakenotes.ui.theme.*
 
 @Composable
@@ -119,6 +120,13 @@ fun HomeScreen(
             }
 
             item {
+                QuestionTypeFilter(
+                    selected = uiState.selectedQuestionTypes,
+                    onSelectionChange = { viewModel.selectQuestionTypes(it) }
+                )
+            }
+
+            item {
                 AnimatedVisibility(
                     visible = showTodaySection,
                     enter = expandVertically(),
@@ -200,6 +208,13 @@ fun HomeScreen(
                     count = uiState.overdueCards.size,
                     expanded = showOverdueSection,
                     onToggle = { showOverdueSection = !showOverdueSection }
+                )
+            }
+
+            item {
+                QuestionTypeFilter(
+                    selected = uiState.selectedQuestionTypes,
+                    onSelectionChange = { viewModel.selectQuestionTypes(it) }
                 )
             }
 

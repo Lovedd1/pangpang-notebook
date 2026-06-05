@@ -41,7 +41,8 @@ data class HomeUiState(
     val cardSubjectIds: Set<Long> = emptySet(),
     val totalMistakes: Int = 0,
     val masteredCount: Int = 0,
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    val selectedQuestionTypes: Set<com.mistakenotes.domain.model.QuestionType> = emptySet()
 )
 
 @HiltViewModel
@@ -152,17 +153,31 @@ class HomeViewModel @Inject constructor(
         emitFilteredState()
     }
 
+    fun selectQuestionTypes(types: Set<com.mistakenotes.domain.model.QuestionType>) {
+        _uiState.update { it.copy(selectedQuestionTypes = types) }
+        emitFilteredState()
+    }
+
     private fun emitFilteredState() {
         val sel = _uiState.value.currentSubjectId
+        val typeSel = _uiState.value.selectedQuestionTypes
+        fun typeOk(qt: com.mistakenotes.domain.model.QuestionType) =
+            typeSel.isEmpty() || qt in typeSel
+
         _uiState.value = HomeUiState(
             subjects = cachedSubjects,
             currentSubjectId = sel,
-            todayCards = if (sel != null) allTodayCards.filter { it.mistake.subjectId == sel } else allTodayCards,
-            overdueCards = if (sel != null) allOverdueCards.filter { it.mistake.subjectId == sel } else allOverdueCards,
+            todayCards = allTodayCards
+                .filter { sel == null || it.mistake.subjectId == sel }
+                .filter { typeOk(it.mistake.questionType) },
+            overdueCards = allOverdueCards
+                .filter { sel == null || it.mistake.subjectId == sel }
+                .filter { typeOk(it.mistake.questionType) },
             cardSubjectIds = cachedCardSubjIds,
             totalMistakes = cachedTotalMistakes,
             masteredCount = cachedMastered,
-            isLoading = false
+            isLoading = false,
+            selectedQuestionTypes = typeSel
         )
     }
 }
