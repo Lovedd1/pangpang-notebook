@@ -691,7 +691,6 @@ fun ReviewScreen(
                                             )
                                         }
                                     }
-                                    }
                                 }
                             }
                         }
@@ -699,7 +698,6 @@ fun ReviewScreen(
                 }
             }
         }
-    }
 
     // Fullscreen image preview
     previewFile?.let { file ->
