@@ -33,6 +33,7 @@ import java.util.Locale
 import com.mistakenotes.domain.model.KnowledgePoint
 import com.mistakenotes.domain.model.QuestionType
 import com.mistakenotes.domain.model.Subject
+import com.mistakenotes.ui.components.EntryDateRow
 import com.mistakenotes.ui.theme.*
 
 private val LABELS = listOf("A", "B", "C", "D", "E", "F", "G", "H")
@@ -57,6 +58,15 @@ fun ImportScreen(
         uri?.let {
             cropTarget = it
             cropIsAnswer = false
+        }
+    }
+
+    val answerImageLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            cropTarget = it
+            cropIsAnswer = true
         }
     }
 
@@ -149,6 +159,12 @@ fun ImportScreen(
                 onKnowledgePointSelected = { viewModel.setKnowledgePoint(it) }
             )
 
+            // Entry date
+            EntryDateRow(
+                entryDate = uiState.entryDate,
+                onDateSelected = { viewModel.setEntryDate(it) }
+            )
+
             // Title
             OutlinedTextField(
                 value = uiState.title,
@@ -169,24 +185,17 @@ fun ImportScreen(
                 colors = textFieldColors()
             )
 
-            // Answer images (essay only)
-            if (uiState.questionType == QuestionType.ESSAY) {
-                val answerImageLauncher = rememberLauncherForActivityResult(
-                    contract = ActivityResultContracts.GetContent()
-                ) { uri: Uri? ->
-                    uri?.let {
-                        cropTarget = it
-                        cropIsAnswer = true
-                    }
-                }
-
-                Text("答案图片", color = TextCream, style = MaterialTheme.typography.titleSmall)
-                MultiImageRow(
-                    images = uiState.answerImageUris,
-                    onAdd = { answerImageLauncher.launch("image/*") },
-                    onRemove = { viewModel.removeAnswerImageUri(it) }
-                )
-            }
+            // Answer images (all question types)
+            Text(
+                text = if (uiState.questionType == QuestionType.ESSAY) "参考答案" else "答案/解析",
+                color = TextCream,
+                style = MaterialTheme.typography.titleSmall
+            )
+            MultiImageRow(
+                images = uiState.answerImageUris,
+                onAdd = { answerImageLauncher.launch("image/*") },
+                onRemove = { viewModel.removeAnswerImageUri(it) }
+            )
 
             // Options (choice questions only)
             if (uiState.questionType != QuestionType.ESSAY) {
