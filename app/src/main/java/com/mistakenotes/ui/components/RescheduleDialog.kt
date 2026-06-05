@@ -2,9 +2,6 @@ package com.mistakenotes.ui.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,9 +13,10 @@ import com.mistakenotes.ui.theme.AmberGold
 import com.mistakenotes.ui.theme.CardDark
 import com.mistakenotes.ui.theme.InkStoneBlack
 import com.mistakenotes.ui.theme.TextCream
+import kotlin.math.roundToInt
 
 /**
- * 重新安排复习：1~10 天步进器，默认 7
+ * 重新安排复习：1~10 天滑动选择，默认 7
  * @param initialDays 初始值（默认 7）
  * @param onConfirm 确认回调，参数为天数（1-10）
  * @param onDismiss 关闭回调
@@ -30,53 +28,54 @@ fun RescheduleDialog(
     onConfirm: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var days by remember { mutableStateOf(initialDays.coerceIn(1, 10)) }
+    var sliderValue by remember { mutableStateOf(initialDays.coerceIn(1, 10).toFloat()) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("N 天后复习", color = AmberGold) },
         text = {
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                IconButton(
-                    onClick = { if (days > 1) days-- },
-                    enabled = days > 1
-                ) {
-                    Icon(
-                        Icons.Default.Remove,
-                        contentDescription = "减少",
-                        tint = if (days > 1) AmberGold else TextCream.copy(alpha = 0.3f)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(16.dp))
-
+                // Current value display
                 Text(
-                    text = "$days 天",
+                    text = "${sliderValue.roundToInt()} 天",
                     color = TextCream,
-                    fontSize = 28.sp,
+                    fontSize = 32.sp,
                     fontWeight = FontWeight.Bold
                 )
 
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                IconButton(
-                    onClick = { if (days < 10) days++ },
-                    enabled = days < 10
-                ) {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = "增加",
-                        tint = if (days < 10) AmberGold else TextCream.copy(alpha = 0.3f)
+                // Slider
+                Slider(
+                    value = sliderValue,
+                    onValueChange = { sliderValue = it },
+                    valueRange = 1f..10f,
+                    steps = 8, // 10 - 1 - 1 = 8 tick marks
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = SliderDefaults.colors(
+                        thumbColor = AmberGold,
+                        activeTrackColor = AmberGold,
+                        inactiveTrackColor = CardDark,
+                        activeTickColor = AmberGold,
+                        inactiveTickColor = TextCream.copy(alpha = 0.3f)
                     )
+                )
+
+                // Min/max labels
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("1 天", color = TextCream.copy(alpha = 0.4f), fontSize = 12.sp)
+                    Text("10 天", color = TextCream.copy(alpha = 0.4f), fontSize = 12.sp)
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(days); onDismiss() }) {
+            TextButton(onClick = { onConfirm(sliderValue.roundToInt()); onDismiss() }) {
                 Text("确认", color = AmberGold, fontWeight = FontWeight.Bold)
             }
         },
