@@ -34,6 +34,7 @@ import com.mistakenotes.domain.model.QuestionType
 import com.mistakenotes.domain.model.ReviewResult
 import com.mistakenotes.domain.model.getAnswerImagePaths
 import com.mistakenotes.domain.model.getQuestionImagePaths
+import com.mistakenotes.ui.components.AdaptiveImage
 import com.mistakenotes.ui.components.ImagePreviewDialog
 import com.mistakenotes.ui.components.JumpToQuestionDialog
 import com.mistakenotes.ui.theme.*
@@ -165,17 +166,15 @@ fun ReviewScreen(
                             // Question images
                             val questionPaths = mistake.getQuestionImagePaths()
                             if (questionPaths.size > 1) {
-                                MultiImagePager(paths = questionPaths, maxHeight = maxImageHeight)
+                                QuestionImagePager(
+                                    paths = questionPaths,
+                                    onImageClick = { path -> previewFile = File(path) }
+                                )
                                 Spacer(modifier = Modifier.height(12.dp))
                             } else if (questionPaths.isNotEmpty()) {
-                                AsyncImage(
-                                    model = File(questionPaths.first()),
-                                    contentDescription = "题目图片",
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .heightIn(max = maxImageHeight)
-                                        .clip(RoundedCornerShape(8.dp)),
-                                    contentScale = ContentScale.Fit
+                                AdaptiveImage(
+                                    file = File(questionPaths.first()),
+                                    onClick = { previewFile = File(questionPaths.first()) }
                                 )
                                 Spacer(modifier = Modifier.height(12.dp))
                             }
@@ -372,13 +371,14 @@ fun ReviewScreen(
                                     Text("参考答案", color = AmberGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                                     Spacer(modifier = Modifier.height(8.dp))
                                     if (answerPaths.size > 1) {
-                                        MultiImagePager(paths = answerPaths, maxHeight = maxImageHeight)
+                                        QuestionImagePager(
+                                            paths = answerPaths,
+                                            onImageClick = { path -> previewFile = File(path) }
+                                        )
                                     } else if (answerPaths.isNotEmpty()) {
-                                        AsyncImage(
-                                            model = File(answerPaths.first()),
-                                            contentDescription = "答案图片",
-                                            modifier = Modifier.fillMaxWidth().heightIn(max = maxImageHeight).clip(RoundedCornerShape(8.dp)),
-                                            contentScale = ContentScale.Fit
+                                        AdaptiveImage(
+                                            file = File(answerPaths.first()),
+                                            onClick = { previewFile = File(answerPaths.first()) }
                                         )
                                     }
                                 }
@@ -572,7 +572,10 @@ fun ReviewScreen(
 }
 
 @Composable
-private fun MultiImagePager(paths: List<String>, maxHeight: androidx.compose.ui.unit.Dp) {
+private fun QuestionImagePager(
+    paths: List<String>,
+    onImageClick: (String) -> Unit
+) {
     val pagerState = rememberPagerState(pageCount = { paths.size })
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -580,14 +583,9 @@ private fun MultiImagePager(paths: List<String>, maxHeight: androidx.compose.ui.
             state = pagerState,
             modifier = Modifier.fillMaxWidth()
         ) { page ->
-            AsyncImage(
-                model = File(paths[page]),
-                contentDescription = "图片 ${page + 1}",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = maxHeight)
-                    .clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Fit
+            AdaptiveImage(
+                file = File(paths[page]),
+                onClick = { onImageClick(paths[page]) }
             )
         }
 
