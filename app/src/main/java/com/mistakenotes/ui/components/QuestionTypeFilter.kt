@@ -3,7 +3,6 @@ package com.mistakenotes.ui.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,6 +30,14 @@ private val QuestionTypeOptions = listOf(
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
+/**
+ * 3 chip 多选：单选/多选/主观题。
+ * 空集 = 不过滤（全部显示）。调用方在过滤逻辑中需将"空集"判定为"不过滤"。
+ *
+ * @param selected 当前选中的题型集合
+ * @param onSelectionChange 选中状态变化回调
+ * @param modifier 外部 modifier
+ */
 @Composable
 fun QuestionTypeFilter(
     selected: Set<QuestionType>,
