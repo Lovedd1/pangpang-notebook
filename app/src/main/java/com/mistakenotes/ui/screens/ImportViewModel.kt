@@ -275,7 +275,8 @@ class ImportViewModel @Inject constructor(
                 }
                 val today00 = cal.timeInMillis
                 val entryDateMs = state.entryDate ?: today00
-                val finalNextReviewDate = entryDateMs + 5 * 86400000L
+                // First review is always 5 days from today (actual entry), not from the mistake date
+                val finalNextReviewDate = today00 + 5 * 86400000L
 
                 val labelLetters = listOf("A", "B", "C", "D", "E", "F", "G", "H")
 
@@ -350,7 +351,7 @@ class ImportViewModel @Inject constructor(
                     repository.insertReviewRecord(
                         ReviewRecord(
                             mistakeId = editingMistakeId,
-                            reviewDate = entryDateMs,
+                            reviewDate = now,
                             result = ReviewResult.SKIP,
                             nextReviewDate = finalNextReviewDate,
                             correctCount = 0
@@ -358,11 +359,11 @@ class ImportViewModel @Inject constructor(
                     )
                 } else {
                     val mistakeId = repository.insertMistake(mistake)
-                    // Create initial review record — first review due 5 days from entry
+                    // Create initial review record — first review due 5 days from today
                     repository.insertReviewRecord(
                         ReviewRecord(
                             mistakeId = mistakeId,
-                            reviewDate = entryDateMs,
+                            reviewDate = now,
                             result = ReviewResult.SKIP,
                             nextReviewDate = finalNextReviewDate,
                             correctCount = 0

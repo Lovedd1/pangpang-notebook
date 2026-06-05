@@ -45,6 +45,7 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showTodaySection by remember { mutableStateOf(true) }
     var showOverdueSection by remember { mutableStateOf(true) }
+    val overExpandStates = remember { mutableStateMapOf<Int, Boolean>() }
 
     Scaffold(
         topBar = {
@@ -224,22 +225,136 @@ fun HomeScreen(
                     enter = expandVertically(),
                     exit = shrinkVertically()
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         if (uiState.overdueCards.isEmpty()) {
                             EmptyHint("暂无逾期题目")
                         } else {
-                            uiState.overdueCards.forEachIndexed { index, card ->
-                                OverdueCardItem(
-                                    info = card,
-                                    onClick = {
-                                        ReviewSession.start(
-                                            queue = uiState.overdueCards.map { it.mistake },
-                                            startIndex = index
+                            // Group by overdueDays, descending
+                            val grouped = uiState.overdueCards.groupBy { it.overdueDays }
+                            val sortedDays = grouped.keys.sortedDescending()
+                            // Build flat indexed list for startIndex lookup
+                            val flatList = uiState.overdueCards.map { it.mistake }
+
+                            sortedDays.forEach { days ->
+                                val dayGroup = grouped[days] ?: return@forEach
+                                val isExpanded = overExpandStates[days] ?: false
+
+                                // Day-group header
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(CardDark)
+                                        .clickable { overExpandStates[days] = !isExpanded }
+                                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(5.dp))
+                                            .background(ErrorRed.copy(alpha = 0.2f))
+                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    ) {
+                                        Text(
+                                            "逾期${days}天",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = ErrorRed
                                         )
-                                        onNavigateToReview()
-                                    },
-                                    onEdit = { onNavigateToImport(card.mistake.id) }
-                                )
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        "(${dayGroup.size}题)",
+                                        color = TextCream.copy(alpha = 0.4f),
+                                        fontSize = 12.sp
+                                    )
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    Icon(
+                                        imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp
+                                            else Icons.Default.KeyboardArrowDown,
+                                        contentDescription = null,
+                                        tint = TextCream.copy(alpha = 0.4f),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+
+                                // Expanded: type sub-groups
+                                AnimatedVisibility(visible = isExpanded,
+                                    enter = expandVertically(),
+                                    exit = shrinkVertically()
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(start = 8.dp, top = 4.dp, bottom = 8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        // Sub-group by question type
+                                        val typeOrder = listOf(QuestionType.SINGLE_CHOICE, QuestionType.MULTI_CHOICE, QuestionType.ESSAY)
+                                        val typeLabels = mapOf(
+                                            QuestionType.SINGLE_CHOICE to "单选",
+                                            QuestionType.MULTI_CHOICE to "多选",
+                                            QuestionType.ESSAY to "主观题"
+                                        )
+                                        // Running counter across type groups within this day group
+                                        var blockNumber = 1
+
+                                        for (qt in typeOrder) {
+                                            val typeGroup = dayGroup.filter { it.mistake.questionType == qt }
+                                            if (typeGroup.isEmpty()) continue
+
+                                            // Type label
+                                            Text(
+                                                text = "${typeLabels[qt]} (${typeGroup.size})",
+                                                color = TextCream.copy(alpha = 0.5f),
+                                                fontSize = 11.sp,
+                                                modifier = Modifier.padding(bottom = 2.dp)
+                                            )
+
+                                            // Question number grid (6 cols, small blocks)
+                                            val cols = 6
+                                            val rows = (typeGroup.size + cols - 1) / cols
+                                            for (row in 0 until rows) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                                ) {
+                                                    for (col in 0 until cols) {
+                                                        val idx = row * cols + col
+                                                        if (idx < typeGroup.size) {
+                                                            val card = typeGroup[idx]
+                                                            // Find original index in flat overdue list
+                                                            val originalIdx = flatList.indexOf(card.mistake)
+
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .weight(1f)
+                                                                    .aspectRatio(1f)
+                                                                    .clip(RoundedCornerShape(5.dp))
+                                                                    .background(CardDark)
+                                                                    .clickable {
+                                                                        ReviewSession.start(
+                                                                            queue = flatList,
+                                                                            startIndex = originalIdx
+                                                                        )
+                                                                        onNavigateToReview()
+                                                                    },
+                                                                contentAlignment = Alignment.Center
+                                                            ) {
+                                                                Text(
+                                                                    text = "$blockNumber",
+                                                                    color = TextCream.copy(alpha = 0.7f),
+                                                                    fontSize = 11.sp
+                                                                )
+                                                            }
+                                                            blockNumber++
+                                                        } else {
+                                                            Spacer(modifier = Modifier.weight(1f))
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
