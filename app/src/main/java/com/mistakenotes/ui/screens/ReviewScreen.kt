@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,8 +31,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.mistakenotes.R
 import com.mistakenotes.domain.model.QuestionType
+import com.mistakenotes.domain.model.ReviewResult
 import com.mistakenotes.domain.model.getAnswerImagePaths
 import com.mistakenotes.domain.model.getQuestionImagePaths
+import com.mistakenotes.ui.components.ImagePreviewDialog
+import com.mistakenotes.ui.components.JumpToQuestionDialog
 import com.mistakenotes.ui.theme.*
 import java.io.File
 
@@ -43,14 +47,28 @@ fun ReviewScreen(
     onNavigateBack: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val currentIndexValue by viewModel.currentIndexFlow.collectAsState()
     val scrollState = rememberScrollState()
     val maxImageHeight = (LocalConfiguration.current.screenHeightDp * 0.66f).dp
     var showAnswerImage by remember { mutableStateOf(false) }
+    var showJumpDialog by remember { mutableStateOf(false) }
+    var showMasteredConfirm by remember { mutableStateOf(false) }
+    var previewFile by remember { mutableStateOf<java.io.File?>(null) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("复习", color = TextCream, fontWeight = FontWeight.Bold) },
+                title = {
+                    val displayText = if (uiState.currentMistake != null) {
+                        "${currentIndexValue + 1} / ${viewModel.queueSize}"
+                    } else "复习"
+                    Text(
+                        text = displayText,
+                        color = TextCream,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.clickable { showJumpDialog = true }
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回", tint = TextCream)
@@ -66,6 +84,16 @@ fun ReviewScreen(
                                 contentDescription = if (uiState.currentMistake!!.isFavorite) "取消收藏" else "收藏",
                                 modifier = Modifier.size(22.dp)
                             )
+                        }
+                        if (uiState.showAnswer) {
+                            IconButton(onClick = { showMasteredConfirm = true }) {
+                                Icon(
+                                    Icons.Default.CheckCircle,
+                                    contentDescription = "已掌握",
+                                    tint = AmberGold,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
                     }
                 },
@@ -498,6 +526,48 @@ fun ReviewScreen(
                 }
             }
         }
+    }
+
+    // Jump to question dialog
+    if (showJumpDialog && uiState.currentMistake != null) {
+        JumpToQuestionDialog(
+            total = viewModel.queueSize,
+            currentIndex = currentIndexValue,
+            results = viewModel.reviewedResultsMap.mapValues {
+                if (it.value) ReviewResult.CORRECT else ReviewResult.WRONG
+            },
+            onJump = { viewModel.jumpTo(it) },
+            onDismiss = { showJumpDialog = false }
+        )
+    }
+
+    // Mark as mastered confirmation
+    if (showMasteredConfirm) {
+        AlertDialog(
+            onDismissRequest = { showMasteredConfirm = false },
+            title = { Text("标记为已掌握？", color = AmberGold) },
+            text = { Text("明天起该题不再进入今日/逾期列表。", color = TextCream) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showMasteredConfirm = false
+                    uiState.currentMistake?.id?.let { viewModel.markAsMastered(it) }
+                }) {
+                    Text("确认", color = AmberGold, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showMasteredConfirm = false }) {
+                    Text("取消", color = TextCream)
+                }
+            },
+            containerColor = CardDark,
+            titleContentColor = AmberGold
+        )
+    }
+
+    // Fullscreen image preview
+    previewFile?.let { file ->
+        ImagePreviewDialog(file = file, onDismiss = { previewFile = null })
     }
 }
 
