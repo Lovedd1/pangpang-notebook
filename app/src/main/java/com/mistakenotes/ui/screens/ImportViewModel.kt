@@ -350,7 +350,7 @@ class ImportViewModel @Inject constructor(
                     repository.insertReviewRecord(
                         ReviewRecord(
                             mistakeId = editingMistakeId,
-                            reviewDate = now,
+                            reviewDate = entryDateMs,
                             result = ReviewResult.SKIP,
                             nextReviewDate = finalNextReviewDate,
                             correctCount = 0
@@ -362,7 +362,7 @@ class ImportViewModel @Inject constructor(
                     repository.insertReviewRecord(
                         ReviewRecord(
                             mistakeId = mistakeId,
-                            reviewDate = now,
+                            reviewDate = entryDateMs,
                             result = ReviewResult.SKIP,
                             nextReviewDate = finalNextReviewDate,
                             correctCount = 0
