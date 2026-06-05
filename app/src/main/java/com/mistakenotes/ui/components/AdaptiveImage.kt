@@ -114,6 +114,7 @@ fun AdaptiveImage(
                     .width(finalWidth)
                     .height(finalHeight)
                     .clip(RoundedCornerShape(8.dp))
+                    .align(Alignment.Center)
             ) {
                 AsyncImage(
                     model = file,

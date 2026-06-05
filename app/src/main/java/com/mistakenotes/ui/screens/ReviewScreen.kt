@@ -54,16 +54,12 @@ fun ReviewScreen(
     val reviewQueue by viewModel.reviewQueueFlow.collectAsState()
     val scrollState = rememberScrollState()
     val maxImageHeight = (LocalConfiguration.current.screenHeightDp * 0.66f).dp
-    var showAnswerImage by remember { mutableStateOf(false) }
+    // Per-question answer image visibility (independent per question)
+    val answerImageVisible = remember { mutableStateMapOf<Int, Boolean>() }
     var showJumpDialog by remember { mutableStateOf(false) }
     var showQuestionList by remember { mutableStateOf(false) }
     var showMasteredConfirm by remember { mutableStateOf(false) }
     var previewFile by remember { mutableStateOf<java.io.File?>(null) }
-
-    // Reset answer image visibility when navigating to a different question
-    LaunchedEffect(currentIndexValue) {
-        showAnswerImage = false
-    }
 
     Scaffold(
         topBar = {
@@ -150,10 +146,33 @@ fun ReviewScreen(
                 val mistake = uiState.currentMistake!!
                 val showResult = uiState.showAnswer
 
+                val pagerState = rememberPagerState(
+                    initialPage = currentIndexValue,
+                    pageCount = { viewModel.queueSize }
+                )
+
+                // Sync pager when external navigation happens (bottom sheet, next btn)
+                LaunchedEffect(currentIndexValue) {
+                    if (pagerState.currentPage != currentIndexValue) {
+                        pagerState.animateScrollToPage(currentIndexValue)
+                    }
+                }
+
+                // Sync ViewModel when user swipes pager
+                LaunchedEffect(pagerState.currentPage) {
+                    if (pagerState.currentPage != currentIndexValue) {
+                        viewModel.jumpTo(pagerState.currentPage)
+                    }
+                }
+
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize().padding(paddingValues),
+                    beyondBoundsPageCount = 0
+                ) { page ->
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(paddingValues)
                         .verticalScroll(scrollState)
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -358,21 +377,22 @@ fun ReviewScreen(
                     // Answer images section (all question types)
                     val answerPaths = mistake.getAnswerImagePaths()
                     val hasAnswer = answerPaths.isNotEmpty()
+                    val isAnswerShown = answerImageVisible[currentIndexValue] ?: false
                     if (hasAnswer) {
                         OutlinedButton(
-                            onClick = { showAnswerImage = !showAnswerImage },
+                            onClick = { answerImageVisible[currentIndexValue] = !isAnswerShown },
                             modifier = Modifier.fillMaxWidth().height(44.dp),
                             border = BorderStroke(1.dp, AmberGold.copy(alpha = 0.5f)),
                             shape = RoundedCornerShape(10.dp)
                         ) {
                             Text(
-                                text = if (showAnswerImage) "隐藏答案" else "查看答案",
+                                text = if (isAnswerShown) "隐藏答案" else "查看答案",
                                 color = AmberGold,
                                 fontSize = 14.sp
                             )
                         }
 
-                        AnimatedVisibility(visible = showAnswerImage) {
+                        AnimatedVisibility(visible = isAnswerShown) {
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
@@ -543,7 +563,8 @@ fun ReviewScreen(
                             }
                         }
                     }
-                }
+                } // Column
+                } // HorizontalPager
             }
         }
     }
@@ -653,9 +674,8 @@ fun ReviewScreen(
 
                                         Box(
                                             modifier = Modifier
-                                                .weight(1f)
-                                                .aspectRatio(1f)
-                                                .clip(RoundedCornerShape(6.dp))
+                                                .size(10.dp)
+                                                .clip(RoundedCornerShape(2.dp))
                                                 .background(bg)
                                                 .clickable {
                                                     viewModel.jumpTo(originalIndex)
@@ -666,12 +686,11 @@ fun ReviewScreen(
                                             Text(
                                                 text = "${originalIndex + 1}",
                                                 color = fg,
-                                                fontSize = 12.sp,
+                                                fontSize = 7.sp,
                                                 fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal
                                             )
                                         }
-                                    } else {
-                                        Spacer(modifier = Modifier.weight(1f))
+                                    }
                                     }
                                 }
                             }

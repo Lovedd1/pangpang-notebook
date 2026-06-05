@@ -123,7 +123,7 @@ class HomeViewModel @Inject constructor(
                     if (next != null && next != -1L && next < todayStart && (rec?.correctCount ?: 0) < 3) {
                         OverdueCardInfo(
                             mistake,
-                            ((todayStart - next) / 86400000L).toInt() + 1,
+                            ((todayStart - next) / 86400000L).toInt(),
                             correctCount = rec?.correctCount ?: 0,
                             subjectName = nameOf(mistake.subjectId),
                             chapterName = chapterNameOf(mistake.chapterId),

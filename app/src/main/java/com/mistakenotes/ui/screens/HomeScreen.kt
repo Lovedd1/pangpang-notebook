@@ -326,9 +326,8 @@ fun HomeScreen(
 
                                                             Box(
                                                                 modifier = Modifier
-                                                                    .weight(1f)
-                                                                    .aspectRatio(1f)
-                                                                    .clip(RoundedCornerShape(5.dp))
+                                                                    .size(10.dp)
+                                                                    .clip(RoundedCornerShape(2.dp))
                                                                     .background(CardDark)
                                                                     .clickable {
                                                                         ReviewSession.start(
@@ -342,13 +341,12 @@ fun HomeScreen(
                                                                 Text(
                                                                     text = "$blockNumber",
                                                                     color = TextCream.copy(alpha = 0.7f),
-                                                                    fontSize = 11.sp
+                                                                    fontSize = 8.sp
                                                                 )
                                                             }
                                                             blockNumber++
-                                                        } else {
-                                                            Spacer(modifier = Modifier.weight(1f))
                                                         }
+                                                        // Fixed-size blocks: empty cells just skipped
                                                     }
                                                 }
                                             }
