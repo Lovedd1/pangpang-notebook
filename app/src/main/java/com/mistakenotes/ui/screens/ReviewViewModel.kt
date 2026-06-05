@@ -30,8 +30,13 @@ class ReviewViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ReviewUiState())
     val uiState: StateFlow<ReviewUiState> = _uiState.asStateFlow()
 
-    private var reviewQueue = mutableListOf<Mistake>()
-    private var currentIndex = 0
+    private val _reviewQueue = MutableStateFlow<List<Mistake>>(emptyList())
+    private val _currentIndex = MutableStateFlow(0)
+    val reviewQueueFlow: StateFlow<List<Mistake>> = _reviewQueue.asStateFlow()
+    val currentIndexFlow: StateFlow<Int> = _currentIndex.asStateFlow()
+    val queueSize: Int get() = _reviewQueue.value.size
+    val reviewedResultsMap: Map<Int, Boolean> get() = reviewedResults.toMap()
+
     private val reviewedIndices = mutableSetOf<Int>()
     private val reviewedResults = mutableMapOf<Int, Boolean>() // index -> isCorrect
 
@@ -43,13 +48,13 @@ class ReviewViewModel @Inject constructor(
         viewModelScope.launch {
             if (!ReviewSession.isEmpty) {
                 // Use pre-set review session (from HomeScreen)
-                reviewQueue = ReviewSession.queue.toMutableList()
-                currentIndex = ReviewSession.startIndex.coerceIn(0, reviewQueue.size - 1)
+                _reviewQueue.value = ReviewSession.queue.toMutableList()
+                _currentIndex.value = ReviewSession.startIndex.coerceIn(0, _reviewQueue.value.size - 1)
                 val viewResult = ReviewSession.isViewingResult
                 ReviewSession.clear()
 
-                if (reviewQueue.isNotEmpty()) {
-                    val mistake = reviewQueue[currentIndex]
+                if (_reviewQueue.value.isNotEmpty()) {
+                    val mistake = _reviewQueue.value[_currentIndex.value]
                     if (viewResult) {
                         // Show previous result directly
                         val labelLetters = listOf("A", "B", "C", "D", "E", "F", "G", "H")
@@ -101,16 +106,44 @@ class ReviewViewModel @Inject constructor(
                     }
                 }.first()
 
-                reviewQueue = queue.toMutableList()
-                reviewQueue.shuffle()
-                currentIndex = 0
-                if (reviewQueue.isNotEmpty()) {
+                _reviewQueue.value = queue.toMutableList()
+                _reviewQueue.value = _reviewQueue.value.shuffled()
+                _currentIndex.value = 0
+                if (_reviewQueue.value.isNotEmpty()) {
                     _uiState.update {
-                        it.copy(currentMistake = reviewQueue.first(), isLoading = false, reviewComplete = false)
+                        it.copy(currentMistake = _reviewQueue.value.first(), isLoading = false, reviewComplete = false)
                     }
                 } else {
                     _uiState.update { it.copy(isLoading = false, reviewComplete = true) }
                 }
+            }
+        }
+    }
+
+    private fun loadMistakeAtCurrentIndex() {
+        if (_reviewQueue.value.isEmpty()) return
+        val mistake = _reviewQueue.value[_currentIndex.value]
+        val isPreReviewed = _currentIndex.value in ReviewSession.preReviewedIndices
+        if (_currentIndex.value in reviewedIndices || isPreReviewed) {
+            // Already reviewed — show result
+            val labelLetters = listOf("A", "B", "C", "D", "E", "F", "G", "H")
+            val correctIndices = (mistake.correctAnswer ?: "").map { c ->
+                labelLetters.indexOf(c.toString())
+            }.filter { it >= 0 }.toSet()
+            _uiState.update {
+                it.copy(
+                    currentMistake = mistake,
+                    isLoading = false,
+                    showAnswer = true,
+                    correctIndices = correctIndices,
+                    isCorrect = reviewedResults[_currentIndex.value]
+                        ?: ReviewSession.preReviewedResults[_currentIndex.value]
+                )
+            }
+        } else {
+            // Fresh card
+            _uiState.update {
+                ReviewUiState(currentMistake = mistake, isLoading = false)
             }
         }
     }
@@ -133,7 +166,7 @@ class ReviewViewModel @Inject constructor(
         val mistake = state.currentMistake ?: return
         val correctAnswer = mistake.correctAnswer ?: return
 
-        reviewedIndices.add(currentIndex)
+        reviewedIndices.add(_currentIndex.value)
 
         val labelLetters = listOf("A", "B", "C", "D", "E", "F", "G", "H")
         val correctIndices = correctAnswer.map { c ->
@@ -142,7 +175,7 @@ class ReviewViewModel @Inject constructor(
 
         val userIndices = state.selectedOptionIndices
         val isCorrect = userIndices == correctIndices
-        reviewedResults[currentIndex] = isCorrect
+        reviewedResults[_currentIndex.value] = isCorrect
 
         _uiState.update {
             it.copy(
@@ -157,15 +190,15 @@ class ReviewViewModel @Inject constructor(
 
     fun submitEssaySelfEval(isCorrect: Boolean) {
         val mistake = _uiState.value.currentMistake ?: return
-        reviewedIndices.add(currentIndex)
-        reviewedResults[currentIndex] = isCorrect
+        reviewedIndices.add(_currentIndex.value)
+        reviewedResults[_currentIndex.value] = isCorrect
         _uiState.update { it.copy(showAnswer = true, isCorrect = isCorrect) }
         updateReviewRecord(mistake.id, isCorrect)
     }
 
     fun skipEssay() {
         val mistake = _uiState.value.currentMistake ?: return
-        reviewedIndices.add(currentIndex)
+        reviewedIndices.add(_currentIndex.value)
         _uiState.update { it.copy(showAnswer = true, isCorrect = null) }
         skipReviewRecord(mistake.id)
     }
@@ -237,35 +270,39 @@ class ReviewViewModel @Inject constructor(
     }
 
     fun nextMistake() {
-        currentIndex++
-        if (currentIndex >= reviewQueue.size) {
-            currentIndex = 0
+        _currentIndex.value++
+        if (_currentIndex.value >= _reviewQueue.value.size) {
+            _currentIndex.value = 0
         }
-        if (reviewQueue.isNotEmpty()) {
-            val mistake = reviewQueue[currentIndex]
-            val isPreReviewed = currentIndex in ReviewSession.preReviewedIndices
-            if (currentIndex in reviewedIndices || isPreReviewed) {
-                // Already reviewed in this session — show result
-                val labelLetters = listOf("A", "B", "C", "D", "E", "F", "G", "H")
-                val correctIndices = (mistake.correctAnswer ?: "").map { c ->
-                    labelLetters.indexOf(c.toString())
-                }.filter { it >= 0 }.toSet()
-                _uiState.update {
-                    it.copy(
-                        currentMistake = mistake,
-                        isLoading = false,
-                        showAnswer = true,
-                        correctIndices = correctIndices,
-                        isCorrect = reviewedResults[currentIndex]
-                            ?: ReviewSession.preReviewedResults[currentIndex]
-                    )
-                }
-            } else {
-                // Fresh card — normal review
-                _uiState.update {
-                    ReviewUiState(currentMistake = mistake, isLoading = false)
-                }
+        loadMistakeAtCurrentIndex()
+    }
+
+    fun jumpTo(index: Int) {
+        if (_reviewQueue.value.isEmpty()) return
+        _currentIndex.value = index.coerceIn(0, _reviewQueue.value.size - 1)
+        loadMistakeAtCurrentIndex()
+    }
+
+    fun markAsMastered(mistakeId: Long) {
+        viewModelScope.launch {
+            val cal = java.util.Calendar.getInstance().apply {
+                set(java.util.Calendar.HOUR_OF_DAY, 0)
+                set(java.util.Calendar.MINUTE, 0)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+                add(java.util.Calendar.DAY_OF_MONTH, 1)
             }
+            val tomorrowStart = cal.timeInMillis
+            repository.insertReviewRecord(
+                ReviewRecord(
+                    id = 0,
+                    mistakeId = mistakeId,
+                    reviewDate = System.currentTimeMillis(),
+                    result = ReviewResult.CORRECT,
+                    nextReviewDate = tomorrowStart,
+                    correctCount = 3
+                )
+            )
         }
     }
 }
