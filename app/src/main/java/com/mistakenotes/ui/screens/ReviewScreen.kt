@@ -52,12 +52,6 @@ fun ReviewScreen(
     val uiState by viewModel.uiState.collectAsState()
     val currentIndexValue by viewModel.currentIndexFlow.collectAsState()
     val reviewQueue by viewModel.reviewQueueFlow.collectAsState()
-
-    // Reset answer image visibility when navigating to a different question
-    LaunchedEffect(currentIndexValue) {
-        showAnswerImage = false
-    }
-
     val scrollState = rememberScrollState()
     val maxImageHeight = (LocalConfiguration.current.screenHeightDp * 0.66f).dp
     var showAnswerImage by remember { mutableStateOf(false) }
@@ -65,6 +59,11 @@ fun ReviewScreen(
     var showQuestionList by remember { mutableStateOf(false) }
     var showMasteredConfirm by remember { mutableStateOf(false) }
     var previewFile by remember { mutableStateOf<java.io.File?>(null) }
+
+    // Reset answer image visibility when navigating to a different question
+    LaunchedEffect(currentIndexValue) {
+        showAnswerImage = false
+    }
 
     Scaffold(
         topBar = {
