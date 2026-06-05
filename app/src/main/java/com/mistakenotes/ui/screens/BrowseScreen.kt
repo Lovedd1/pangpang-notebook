@@ -28,6 +28,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.mistakenotes.R
 import com.mistakenotes.domain.model.Chapter
 import com.mistakenotes.domain.model.QuestionType
+import com.mistakenotes.ui.components.QuestionTypeFilter
+import com.mistakenotes.ui.components.RescheduleDialog
 import com.mistakenotes.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,6 +41,7 @@ fun BrowseScreen(
     onNavigateToImport: (Long) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var rescheduleTarget by remember { mutableStateOf<Long?>(null) }
 
     Scaffold(
         topBar = {
@@ -105,6 +108,11 @@ fun BrowseScreen(
                 )
             }
 
+            QuestionTypeFilter(
+                selected = uiState.selectedQuestionTypes,
+                onSelectionChange = { viewModel.selectQuestionTypes(it) }
+            )
+
             HorizontalDivider(color = CardDark)
 
             // List
@@ -148,12 +156,27 @@ fun BrowseScreen(
                             },
                             onEdit = { onNavigateToImport(item.mistake.id) },
                             onToggleFavorite = { viewModel.toggleFavorite(item.mistake) },
-                            onToggleTop = { viewModel.toggleTop(item.mistake) }
+                            onToggleTop = { viewModel.toggleTop(item.mistake) },
+                            onReschedule = if (uiState.isMasteredMode) {
+                                { rescheduleTarget = item.mistake.id }
+                            } else null
                         )
                     }
                 }
             }
         }
+    }
+
+    // Reschedule dialog
+    rescheduleTarget?.let { mistakeId ->
+        RescheduleDialog(
+            initialDays = 7,
+            onConfirm = { days ->
+                viewModel.reschedule(mistakeId, days)
+                rescheduleTarget = null
+            },
+            onDismiss = { rescheduleTarget = null }
+        )
     }
 }
 
@@ -165,7 +188,8 @@ private fun BrowseCard(
     onClick: () -> Unit,
     onEdit: () -> Unit,
     onToggleFavorite: () -> Unit,
-    onToggleTop: () -> Unit
+    onToggleTop: () -> Unit,
+    onReschedule: (() -> Unit)? = null
 ) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
@@ -276,6 +300,21 @@ private fun BrowseCard(
                         contentDescription = "编辑",
                         modifier = Modifier.size(18.dp)
                     )
+                }
+
+                // Reschedule button (mastered mode only)
+                if (isMasteredMode && onReschedule != null) {
+                    IconButton(
+                        onClick = onReschedule,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Schedule,
+                            contentDescription = "重新安排复习",
+                            tint = AmberGold,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
 
                 // Pin button

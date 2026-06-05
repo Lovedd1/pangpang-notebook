@@ -31,7 +31,8 @@ data class BrowseUiState(
     val items: List<BrowseItem> = emptyList(),
     val isLoading: Boolean = true,
     val isFavoritesMode: Boolean = false,
-    val isMasteredMode: Boolean = false
+    val isMasteredMode: Boolean = false,
+    val selectedQuestionTypes: Set<com.mistakenotes.domain.model.QuestionType> = emptySet()
 )
 
 @HiltViewModel
@@ -93,6 +94,11 @@ class BrowseViewModel @Inject constructor(
         buildBrowseItems()
     }
 
+    fun selectQuestionTypes(types: Set<com.mistakenotes.domain.model.QuestionType>) {
+        _uiState.update { it.copy(selectedQuestionTypes = types) }
+        buildBrowseItems()
+    }
+
     fun toggleFavorite(mistake: Mistake) {
         viewModelScope.launch {
             repository.setFavorite(mistake.id, !mistake.isFavorite)
@@ -105,6 +111,28 @@ class BrowseViewModel @Inject constructor(
         }
     }
 
+    fun reschedule(mistakeId: Long, days: Int) {
+        viewModelScope.launch {
+            val cal = java.util.Calendar.getInstance().apply {
+                set(java.util.Calendar.HOUR_OF_DAY, 0)
+                set(java.util.Calendar.MINUTE, 0)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }
+            val target = cal.timeInMillis + days * 86400000L
+            repository.insertReviewRecord(
+                com.mistakenotes.domain.model.ReviewRecord(
+                    id = 0,
+                    mistakeId = mistakeId,
+                    reviewDate = System.currentTimeMillis(),
+                    result = com.mistakenotes.domain.model.ReviewResult.SKIP,
+                    nextReviewDate = target,
+                    correctCount = 0
+                )
+            )
+        }
+    }
+
     private fun buildBrowseItems() {
         val state = _uiState.value
         val filtered = allMistakes.filter { mistake ->
@@ -114,7 +142,9 @@ class BrowseViewModel @Inject constructor(
                 val latestRec = allRecords.filter { it.mistakeId == mistake.id }.maxByOrNull { it.reviewDate }
                 (latestRec?.correctCount ?: 0) >= 3
             } else true
-            matchSubject && matchChapter && isMastered
+            val matchType = state.selectedQuestionTypes.isEmpty() ||
+                mistake.questionType in state.selectedQuestionTypes
+            matchSubject && matchChapter && isMastered && matchType
         }
 
         val items = filtered.map { mistake ->
