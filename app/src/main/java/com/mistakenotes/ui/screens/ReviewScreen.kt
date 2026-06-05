@@ -167,8 +167,7 @@ fun ReviewScreen(
 
                 HorizontalPager(
                     state = pagerState,
-                    modifier = Modifier.fillMaxSize().padding(paddingValues),
-                    beyondBoundsPageCount = 0
+                    modifier = Modifier.fillMaxSize().padding(paddingValues)
                 ) { page ->
                 Column(
                     modifier = Modifier
