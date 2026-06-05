@@ -43,7 +43,8 @@ data class ImportUiState(
     val isDeleting: Boolean = false,
     val saveSuccess: Boolean = false,
     val errorMessage: String? = null,
-    val isEditMode: Boolean = false
+    val isEditMode: Boolean = false,
+    val entryDate: Long? = null
 )
 
 @HiltViewModel
@@ -103,7 +104,8 @@ class ImportViewModel @Inject constructor(
                         if (file.exists()) Uri.fromFile(file) else null
                     },
                     errorMessage = null,
-                    isEditMode = true
+                    isEditMode = true,
+                    entryDate = mistake.createdAt
                 )
             }
         }
@@ -177,6 +179,10 @@ class ImportViewModel @Inject constructor(
 
     fun setKnowledgePoint(knowledgePointId: Long) {
         _uiState.update { it.copy(knowledgePointId = knowledgePointId) }
+    }
+
+    fun setEntryDate(epochMillis: Long) {
+        _uiState.update { it.copy(entryDate = epochMillis) }
     }
 
     fun setQuestionType(type: QuestionType) {
@@ -261,6 +267,16 @@ class ImportViewModel @Inject constructor(
 
             try {
                 val now = System.currentTimeMillis()
+
+                // Calculate entryDate (user-selected, defaults to today)
+                val cal = java.util.Calendar.getInstance().apply {
+                    set(java.util.Calendar.HOUR_OF_DAY, 0); set(java.util.Calendar.MINUTE, 0)
+                    set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0)
+                }
+                val today00 = cal.timeInMillis
+                val entryDateMs = state.entryDate ?: today00
+                val finalNextReviewDate = entryDateMs + 5 * 86400000L
+
                 val labelLetters = listOf("A", "B", "C", "D", "E", "F", "G", "H")
 
                 val optionsStr = if (state.questionType != QuestionType.ESSAY) {
@@ -276,15 +292,17 @@ class ImportViewModel @Inject constructor(
 
                 // Auto-generate title if blank
                 val finalTitle = if (state.title.isBlank()) {
-                    val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-                    val cal = java.util.Calendar.getInstance()
-                    cal.set(java.util.Calendar.HOUR_OF_DAY, 0); cal.set(java.util.Calendar.MINUTE, 0)
-                    cal.set(java.util.Calendar.SECOND, 0); cal.set(java.util.Calendar.MILLISECOND, 0)
-                    val todayStart = cal.timeInMillis
-                    cal.add(java.util.Calendar.DAY_OF_MONTH, 1)
-                    val todayEnd = cal.timeInMillis - 1
+                    val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(entryDateMs))
+                    val entryCal = java.util.Calendar.getInstance().apply {
+                        timeInMillis = entryDateMs
+                        set(java.util.Calendar.HOUR_OF_DAY, 0); set(java.util.Calendar.MINUTE, 0)
+                        set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0)
+                    }
+                    val entryDayStart = entryCal.timeInMillis
+                    entryCal.add(java.util.Calendar.DAY_OF_MONTH, 1)
+                    val entryDayEnd = entryCal.timeInMillis - 1
                     val todayCount = repository.getAllMistakes().first()
-                        .count { it.createdAt in todayStart..todayEnd } + 1
+                        .count { it.createdAt in entryDayStart..entryDayEnd } + 1
                     "$dateStr-${todayCount.toString().padStart(2, '0')}"
                 } else state.title
 
@@ -320,12 +338,11 @@ class ImportViewModel @Inject constructor(
                     options = optionsStr,
                     correctAnswer = correctAnswerStr,
                     referenceAnswer = answerImagePathStr,
-                    createdAt = existingMistake?.createdAt ?: now,
+                    createdAt = existingMistake?.createdAt ?: entryDateMs,
                     isFavorite = existingMistake?.isFavorite ?: false,
                     isTop = existingMistake?.isTop ?: false
                 )
 
-                val fiveDaysMs = 5 * 86400000L
                 if (isEdit) {
                     repository.updateMistake(mistake)
                     // Reset review schedule — delete old records and create fresh one
@@ -335,19 +352,19 @@ class ImportViewModel @Inject constructor(
                             mistakeId = editingMistakeId,
                             reviewDate = now,
                             result = ReviewResult.SKIP,
-                            nextReviewDate = now + fiveDaysMs,
+                            nextReviewDate = finalNextReviewDate,
                             correctCount = 0
                         )
                     )
                 } else {
                     val mistakeId = repository.insertMistake(mistake)
-                    // Create initial review record — first review due 5 days from now
+                    // Create initial review record — first review due 5 days from entry
                     repository.insertReviewRecord(
                         ReviewRecord(
                             mistakeId = mistakeId,
                             reviewDate = now,
                             result = ReviewResult.SKIP,
-                            nextReviewDate = now + fiveDaysMs,
+                            nextReviewDate = finalNextReviewDate,
                             correctCount = 0
                         )
                     )
