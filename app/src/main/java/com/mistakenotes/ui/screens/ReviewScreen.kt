@@ -15,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,6 +43,7 @@ import java.io.File
 
 private val LABELS = listOf("A", "B", "C", "D", "E", "F", "G", "H")
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReviewScreen(
     viewModel: ReviewViewModel = hiltViewModel(),
@@ -53,6 +55,7 @@ fun ReviewScreen(
     val maxImageHeight = (LocalConfiguration.current.screenHeightDp * 0.66f).dp
     var showAnswerImage by remember { mutableStateOf(false) }
     var showJumpDialog by remember { mutableStateOf(false) }
+    var showQuestionList by remember { mutableStateOf(false) }
     var showMasteredConfirm by remember { mutableStateOf(false) }
     var previewFile by remember { mutableStateOf<java.io.File?>(null) }
 
@@ -77,6 +80,16 @@ fun ReviewScreen(
                 },
                 actions = {
                     if (uiState.currentMistake != null) {
+                        // Question list button
+                        IconButton(onClick = { showQuestionList = true }) {
+                            Icon(
+                                Icons.Default.List,
+                                contentDescription = "选题",
+                                tint = AmberGold,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                        // Favorite button
                         IconButton(onClick = { viewModel.toggleFavorite() }) {
                             Image(
                                 painter = painterResource(
@@ -86,15 +99,14 @@ fun ReviewScreen(
                                 modifier = Modifier.size(22.dp)
                             )
                         }
-                        if (uiState.showAnswer) {
-                            IconButton(onClick = { showMasteredConfirm = true }) {
-                                Icon(
-                                    Icons.Default.CheckCircle,
-                                    contentDescription = "已掌握",
-                                    tint = AmberGold,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
+                        // Mastered button — always visible
+                        IconButton(onClick = { showMasteredConfirm = true }) {
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = "已掌握",
+                                tint = AmberGold,
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
                     }
                 },
@@ -337,45 +349,43 @@ fun ReviewScreen(
                         }
                     }
 
-                    // Essay answer toggle + self-evaluation
-                    if (mistake.questionType == QuestionType.ESSAY) {
-                        val answerPaths = mistake.getAnswerImagePaths()
-                        val hasAnswer = answerPaths.isNotEmpty()
-                        // Answer toggle button — always visible
+                    // Answer images section (all question types)
+                    val answerPaths = mistake.getAnswerImagePaths()
+                    val hasAnswer = answerPaths.isNotEmpty()
+                    if (hasAnswer) {
                         OutlinedButton(
-                            onClick = { if (hasAnswer) showAnswerImage = !showAnswerImage },
-                            enabled = hasAnswer,
+                            onClick = { showAnswerImage = !showAnswerImage },
                             modifier = Modifier.fillMaxWidth().height(44.dp),
                             border = BorderStroke(1.dp, AmberGold.copy(alpha = 0.5f)),
                             shape = RoundedCornerShape(10.dp)
                         ) {
                             Text(
-                                text = when {
-                                    !hasAnswer -> "暂无答案"
-                                    showAnswerImage -> "隐藏答案"
-                                    else -> "查看答案"
-                                },
-                                color = if (hasAnswer) AmberGold else TextCream.copy(alpha = 0.3f),
+                                text = if (showAnswerImage) "隐藏答案" else "查看答案",
+                                color = AmberGold,
                                 fontSize = 14.sp
                             )
                         }
 
-                        // Answer image
-                        AnimatedVisibility(visible = showAnswerImage && hasAnswer) {
+                        AnimatedVisibility(visible = showAnswerImage) {
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
                                 colors = CardDefaults.cardColors(containerColor = CardDark)
                             ) {
                                 Column(modifier = Modifier.padding(12.dp)) {
-                                    Text("参考答案", color = AmberGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        text = if (mistake.questionType == QuestionType.ESSAY) "参考答案" else "答案/解析",
+                                        color = AmberGold,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
                                     Spacer(modifier = Modifier.height(8.dp))
                                     if (answerPaths.size > 1) {
                                         QuestionImagePager(
                                             paths = answerPaths,
                                             onImageClick = { path -> previewFile = File(path) }
                                         )
-                                    } else if (answerPaths.isNotEmpty()) {
+                                    } else {
                                         AdaptiveImage(
                                             file = File(answerPaths.first()),
                                             onClick = { previewFile = File(answerPaths.first()) }
@@ -384,6 +394,10 @@ fun ReviewScreen(
                                 }
                             }
                         }
+                    }
+
+                    // Essay self-evaluation (essay only)
+                    if (mistake.questionType == QuestionType.ESSAY) {
 
                         if (!showResult) {
                             Card(
@@ -563,6 +577,81 @@ fun ReviewScreen(
             containerColor = CardDark,
             titleContentColor = AmberGold
         )
+    }
+
+    // Bottom sheet: question list for quick jump (Fix 5)
+    if (showQuestionList && uiState.currentMistake != null) {
+        ModalBottomSheet(
+            onDismissRequest = { showQuestionList = false },
+            containerColor = CardDark,
+            dragHandle = { BottomSheetDefaults.DragHandle(color = TextCream.copy(alpha = 0.3f)) }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 32.dp)
+            ) {
+                Text(
+                    "选择题目",
+                    color = AmberGold,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Question grid (6 columns)
+                val total = viewModel.queueSize
+                val columns = 6
+                val rows = (total + columns - 1) / columns
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    for (row in 0 until rows) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            for (col in 0 until columns) {
+                                val index = row * columns + col
+                                if (index < total) {
+                                    val result = viewModel.reviewedResultsMap[index]
+                                    val isCurrent = index == currentIndexValue
+
+                                    val (bg, fg) = when {
+                                        isCurrent -> AmberGold to InkStoneBlack
+                                        result == true -> SuccessGreen.copy(alpha = 0.3f) to SuccessGreen
+                                        result == false -> ErrorRed.copy(alpha = 0.3f) to ErrorRed
+                                        else -> CardDark to TextCream.copy(alpha = 0.5f)
+                                    }
+
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .aspectRatio(1f)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(bg)
+                                            .clickable {
+                                                viewModel.jumpTo(index)
+                                                showQuestionList = false
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "${index + 1}",
+                                            color = fg,
+                                            fontSize = 14.sp,
+                                            fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    }
+                                } else {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // Fullscreen image preview
