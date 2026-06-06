@@ -126,7 +126,17 @@
 | `formulas` | List<String> | 公式数组 | 召回加权 |
 | `commonPitfalls` | List<String> | 易错点 | 召回加权 |
 
-**存储方式**：**assets/json/accounting_knowledge_points.json**（APK 内置，只读）。运行时加载到内存做关键词索引。Room `knowledge_points` 表**不预置**——由用户在 ImportScreen 选过一次后逐步填入。
+**存储方式**：**assets/json/accounting_knowledge_points.json**（APK 内置，只读）。运行时加载到内存做关键词索引。
+
+**Room 同步机制（用自然键，零 schema 变更）**：RAG 分类返回 JSON 中的 `id`（如 5）后：
+- ImportViewModel 用 `chapterId + name` 作为**自然键**查 Room `knowledge_points`（**不新增任何字段/索引**）
+- 没有则 INSERT 新行（id 由 Room autoGenerate 分配；`name` 和 `chapterId` 从 JSON copy）
+- 有则复用其 Room id
+- 用 Room id 写入 `_uiState.knowledgePointId`，触发 `ImportScreen` 刷新
+
+这样用户后续在该章节下录入题时，知识点下拉里已经能看到之前 RAG 用过的条目。
+
+**去重逻辑实现在 `MistakeRepository.upsertKnowledgePoint(chapterId, name): Long`**，先 SELECT 再 INSERT。因为分类在 `viewModelScope` 单 coroutine 内运行，**无并发竞争**，不需要 DB 级 UNIQUE 索引。
 
 ### 关键词召回算法
 
@@ -279,13 +289,16 @@ object ClassifierModule {
 
 ```
 真实分类器失败（OCR 空 / 网络挂 / LLM 错） 
-   ↓ 自动回退
-MockClassifier（避免 UI 卡死）
+   ↓ 内部捕获（不抛异常）
+ClassifyResult.failed(reason)   // chapterId = -1
+   ↓ ImportViewModel 识别
+_uiState.ragStatus = ERROR + Snackbar
    ↓ 用户看到
-"AI 归类失败，已切到手动模式" Snackbar
+"AI 归类失败：${reason}，请手动选择" Snackbar
+   下拉留空，不阻塞保存
 ```
 
-实现：`DeepSeekKnowledgeClassifier.classify` 内部 `try/catch` 所有异常，**不抛出**，返回"失败标记"的 `ClassifyResult`（`chapterId = -1`），UI 端识别后走 mock fallback 路径。
+实现：`DeepSeekKnowledgeClassifier.classify` 内部 `try/catch` 所有异常，**不抛出**，返回"失败标记"的 `ClassifyResult`（`chapterId = -1`），UI 端识别后走 §4 Case 5 路径。MockClassifier **不参与失败容错**——它是无 Key 时的默认实现，不是失败回退。
 
 ---
 
@@ -621,6 +634,7 @@ class KeywordRecallTest {
 - `app/build.gradle.kts`：加 `com.google.mlkit:text-recognition-chinese` + `retrofit2` + `moshi` 依赖
 - `app/src/main/java/com/mistakenotes/ui/screens/ImportScreen.kt`：加 LOADING Spinner + ERROR Snackbar
 - `app/src/main/java/com/mistakenotes/ui/screens/ImportViewModel.kt`：加 `ragStatus` 状态机 + 取消逻辑 + RAG 触发
+- `app/src/main/java/com/mistakenotes/data/repository/MistakeRepository.kt`：加 `upsertKnowledgePoint(chapterId, name): Long`（自然键去重）
 
 **不入仓（本地工具）**：
 - `tools/extract_pdf.py`
