@@ -3,6 +3,8 @@ package com.mistakenotes.di
 import com.mistakenotes.data.rag.ApiKeyProvider
 import com.mistakenotes.data.rag.DeepSeekApi
 import com.mistakenotes.data.rag.DeepSeekKnowledgeClassifier
+import com.mistakenotes.data.rag.KnowledgeBase
+import com.mistakenotes.data.rag.KnowledgeBaseLoader
 import com.mistakenotes.data.rag.KnowledgeClassifier
 import com.mistakenotes.data.rag.MockKnowledgeClassifier
 import dagger.Module
@@ -35,6 +37,11 @@ object ClassifierModule {
         real: Provider<DeepSeekKnowledgeClassifier>,
         keyStore: ApiKeyProvider
     ): KnowledgeClassifier = if (keyStore.hasKeySync()) real.get() else mock.get()
+
+    @Provides
+    @Singleton
+    fun provideKnowledgeBase(loader: KnowledgeBaseLoader): KnowledgeBase =
+        loader.load()
 
     @Provides
     @Singleton
