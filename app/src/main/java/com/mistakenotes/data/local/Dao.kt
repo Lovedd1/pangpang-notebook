@@ -55,6 +55,9 @@ interface KnowledgePointDao {
     @Query("SELECT * FROM knowledge_points WHERE chapterId = :chapterId ORDER BY id ASC")
     fun getKnowledgePointsByChapter(chapterId: Long): Flow<List<KnowledgePointEntity>>
 
+    @Query("SELECT * FROM knowledge_points WHERE chapterId = :chapterId ORDER BY id ASC")
+    suspend fun getAllByChapterSync(chapterId: Long): List<KnowledgePointEntity>
+
     @Query("SELECT * FROM knowledge_points WHERE id = :id")
     suspend fun getKnowledgePointById(id: Long): KnowledgePointEntity?
 

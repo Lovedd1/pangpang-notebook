@@ -35,6 +35,23 @@ class MistakeRepository @Inject constructor(
         knowledgePointDao.getKnowledgePointsByChapter(chapterId).map { list -> list.map { it.toDomain() } }
     suspend fun insertKnowledgePoint(kp: KnowledgePoint): Long = knowledgePointDao.insertKnowledgePoint(kp.toEntity())
 
+    /**
+     * 按 (chapterId, name) 自然键 upsert 知识点
+     * - 不存在则 INSERT（name + chapterId + isPreset=false）
+     * - 存在则返回已有 id
+     * RAG 分类后用此方法确保下拉里能看到
+     */
+    suspend fun upsertKnowledgePoint(chapterId: Long, name: String): Long {
+        // 1) 先查
+        val existing = knowledgePointDao.getAllByChapterSync(chapterId)
+            .firstOrNull { it.name == name }
+        if (existing != null) return existing.id
+        // 2) 再插
+        return knowledgePointDao.insertKnowledgePoint(
+            KnowledgePointEntity(chapterId = chapterId, name = name, isPreset = false)
+        )
+    }
+
     // Mistake
     fun getAllMistakes(): Flow<List<Mistake>> = mistakeDao.getAllMistakes().map { list ->
         list.map { it.toDomain() }
