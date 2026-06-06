@@ -35,8 +35,8 @@
 
 ### 架构原则
 
-- **接口优先**：`KnowledgeClassifier` 接口隔离实现，UI/ViewModel 不知道也不关心背后是 Mock、DeepSeek-VL 还是 ML Kit+DeepSeek
-- **可降级**：整链路（OCR → 召回 → LLM）任何一步失败，自动 fallback 到 Mock 或手动模式
+- **接口优先**：`KnowledgeClassifier` 接口隔离实现，UI/ViewModel 不知道也不关心背后是 Mock 还是 ML Kit+DeepSeek
+- **可降级**：整链路（OCR → 召回 → LLM）任何一步失败，**不抛异常**，返回 `ClassifyResult.failed(reason)`；UI 端识别后 Snackbar 提示 + 下拉留空 + 不阻塞保存
 - **用户优先**：RAG 永远不覆盖用户已手动修改的值
 - **可解释**：`ClassifyResult.reasoning` 字段记录"为什么这么分类"，UI 可展开
 
