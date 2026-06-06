@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mistakenotes.data.rag.KnowledgeBase
 import com.mistakenotes.data.rag.KnowledgeClassifier
 import com.mistakenotes.data.repository.MistakeRepository
 import com.mistakenotes.domain.model.Chapter
@@ -61,6 +62,7 @@ class ImportViewModel @Inject constructor(
     private val repository: MistakeRepository,
     @ApplicationContext private val context: Context,
     private val classifier: KnowledgeClassifier,  // ← 新增
+    private val knowledgeBase: KnowledgeBase,  // ← 新增
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -163,13 +165,25 @@ class ImportViewModel @Inject constructor(
                         )
                     }
                 } else {
+                    // 守护：用户可能已经手动改了下拉
+                    if (_uiState.value.chapterId != null) {
+                        _uiState.update { it.copy(ragStatus = RagStatus.DONE) }
+                        return@launch
+                    }
+                    // 自动 upsert 知识点到 Room（自然键去重）
+                    val kpName = lookupKnowledgePointName(result.knowledgePointId)
+                    val roomKpId = if (kpName != null) {
+                        repository.upsertKnowledgePoint(result.chapterId, kpName)
+                    } else -1L
                     _uiState.update {
                         it.copy(
                             chapterId = result.chapterId,
-                            knowledgePointId = result.knowledgePointId,
+                            knowledgePointId = if (roomKpId > 0) roomKpId else null,
                             ragStatus = RagStatus.DONE
                         )
                     }
+                    // 刷新下拉里的知识点列表
+                    loadKnowledgePoints(result.chapterId)
                 }
             } catch (e: CancellationException) {
                 // 用户取消，正常路径
@@ -499,6 +513,16 @@ class ImportViewModel @Inject constructor(
 
     fun clearRagError() {
         _uiState.update { it.copy(ragStatus = RagStatus.IDLE, ragErrorMessage = null) }
+    }
+
+    /**
+     * 从当前加载的知识库 JSON 找 JSON id 对应的 name
+     * （用于 RAG 分类后 upsert 到 Room）
+     */
+    private fun lookupKnowledgePointName(jsonId: Long): String? {
+        // 知识库已通过 KnowledgeBaseLoader 加载到内存
+        // 这里通过 Hilt 注入的知识库查找
+        return knowledgeBase?.points?.firstOrNull { it.id == jsonId }?.name
     }
 
     fun resetState() {
