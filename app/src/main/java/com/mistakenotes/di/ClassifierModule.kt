@@ -1,6 +1,7 @@
 package com.mistakenotes.di
 
 import com.mistakenotes.data.rag.ApiKeyProvider
+import com.mistakenotes.data.rag.DeepSeekApi
 import com.mistakenotes.data.rag.DeepSeekKnowledgeClassifier
 import com.mistakenotes.data.rag.KnowledgeClassifier
 import com.mistakenotes.data.rag.MockKnowledgeClassifier
@@ -8,6 +9,9 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import kotlinx.serialization.json.Json
+import okhttp3.MediaType.Companion.toMediaType
+import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import javax.inject.Provider
 import javax.inject.Singleton
 
@@ -31,4 +35,28 @@ object ClassifierModule {
         real: Provider<DeepSeekKnowledgeClassifier>,
         keyStore: ApiKeyProvider
     ): KnowledgeClassifier = if (keyStore.hasKeySync()) real.get() else mock.get()
+
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(): okhttp3.OkHttpClient =
+        okhttp3.OkHttpClient.Builder()
+            .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+
+    @Provides
+    @Singleton
+    fun provideRetrofit(client: okhttp3.OkHttpClient): retrofit2.Retrofit =
+        retrofit2.Retrofit.Builder()
+            .baseUrl("https://api.deepseek.com/")
+            .client(client)
+            .addConverterFactory(
+                kotlinx.serialization.json.Json.asConverterFactory("application/json".toMediaType())
+            )
+            .build()
+
+    @Provides
+    @Singleton
+    fun provideDeepSeekApi(retrofit: retrofit2.Retrofit): DeepSeekApi =
+        retrofit.create(DeepSeekApi::class.java)
 }
