@@ -28,7 +28,7 @@ interface KnowledgeClassifier {
  * @param chapterId 章节 ID；`< 0` 表示失败（见 [isFailed]）
  * @param knowledgePointId 知识点 ID；失败时为 `-1`
  * @param confidence 0~1；`< 0.5` 时 UI 高亮"建议复核"
- * @param reasoning 分类原因（可空）；UI 可展开"为什么这么分类"
+ * @param reasoning 分类原因；空串表示"无推理"
  */
 data class ClassifyResult(
     val chapterId: Long,
