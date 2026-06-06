@@ -139,7 +139,8 @@ HomeScreen 设置 → ReviewViewModel 读取后 clear → 后续循环用 ViewMo
 - 图片存储在 `context.filesDir/question_images/`，不是原始 content:// URI
 - 多图路径用 `||` 分隔，通过 `Mistake.getQuestionImagePaths()` / `getAnswerImagePaths()` 解析
 - 录入时裁剪输出到 cacheDir，保存时 `copyImageToLocal` 复制到永久存储
-- 初始录入 `nextReviewDate = now + 5天`，不是立刻/今天
+- 初始录入 `nextReviewDate = entryDate + 5天`——用用户选的错题日期起算，不是 now；回填 6/1 录入的题目首次复习落在 6/6，不是 today+5
+- **编辑模式 createdAt**：构造 `Mistake` 时 `createdAt` 直接用 `entryDateMs`（`loadMistakeForEditing` 已预填为原始 createdAt），不要用 `existingMistake?.createdAt` 兜底，否则 DatePicker 改动丢失
 - ReviewViewModel 用 `.first()` 快照加载队列，不响应数据库变更
 - HomeViewModel 用 `.collect()` 响应式更新列表状态
 - SKIP 结果的 ReviewRecord 不计入"已复习"
@@ -154,7 +155,7 @@ HomeScreen 设置 → ReviewViewModel 读取后 clear → 后续循环用 ViewMo
 - **数据库迁移**：修改章节预置数据时必须同时写 Migration。策略：`PRAGMA foreign_keys = OFF` → DELETE 旧章节 → INSERT 新章节 → CASE 映射 mistakes.chapterId/knowledge_points.chapterId → `PRAGMA foreign_keys = ON`
 - **裁剪坐标映射**：确认裁剪时必须考虑 `ContentScale.Fit` 的图片偏移量（`imageLeft/Top/Right/Bottom`），用统一缩放比映射到原图像素，不能用分开的 scaleX/scaleY
 - **图片文件名唯一性**：`copyImageToLocal` 用 `System.nanoTime()` 而非 `Date()`（毫秒级时间戳在紧密循环中会冲突）
-- **跳过 vs 初始录入**：两者都产生 SKIP 记录，区别在 `nextReviewDate`——初始录入 = now+5天，用户跳过 = 明天00:00。HomeViewModel 用 `nextReviewDate == tomorrowStart` 区分
+- **跳过 vs 初始录入**：两者都产生 SKIP 记录，区别在 `nextReviewDate`——初始录入 = entryDate+5d，用户跳过 = 明天00:00。HomeViewModel 用 `nextReviewDate == tomorrowStart` + `reviewDate in today` + `result == SKIP` 三条件判用户主动跳过（`isSkippedToday`），满足时把 `skippedAt` 置为 reviewDate。**UI 渲染"已跳过" badge 必须用 `info.skippedAt > 0`，不能用 `lastResult == SKIP`**——录入/编辑也会写 SKIP 记录但 `nextReviewDate` 是 entryDate+5d，会被误判
 - **复习历史累积**：`ReviewViewModel.updateReviewRecord` 新记录必须 `id = 0`（Room 自增），否则 `OnConflictStrategy.REPLACE` 会覆盖旧记录导致只保留最新一条
 - **裁剪拖动边界**：四角/四边/中心拖动的约束边界是 `imageLeft/Right/Top/Bottom`（图片实际显示区域），不是 `0f`/`containerSize`
 - **复习页图片缩放**：用 `ContentScale.Fit` 完整显示，`FillWidth` 会导致竖长图被截断
@@ -163,10 +164,13 @@ HomeScreen 设置 → ReviewViewModel 读取后 clear → 后续循环用 ViewMo
 - **题型筛选独立**：主页今日和逾期各自独立的题型 Chip（`todayQuestionTypes` / `overdueQuestionTypes`），互不影响
 - **逾期列表分组**：逾期按天数降序分组，点击展开后按单选→多选→主观二级分组，方块网格显示题号
 - **左右滑动切题**：复习页用 `HorizontalPager` 包裹内容，左右滑动切换上/下一题，与底栏"下一题"按钮和选题弹窗协同
-- **录入时间语义**：`createdAt` = 用户选择的录入日期，`nextReviewDate` = 今天 + 5 天（第一次复习从录入 App 的日期起算），`reviewDate` = 当前保存时间
+- **录入时间语义**：`createdAt` = 用户选择的录入日期，`nextReviewDate` = entryDate + 5 天（从错题日期起算 5 天后首次复习），`reviewDate` = 当前保存时间
 - **已掌握按钮**：复习页顶栏金色 ✓✓ 始终可见（不依赖提交状态），点击弹出确认对话框
 - **选题弹窗**：顶栏 📋 按钮 → `ModalBottomSheet`，按题型分组显示方块网格，方块 100dp，未选中背景 `InkStoneBlack` 与弹窗 `CardDark` 区分
 - **RescheduleDialog**：已掌握列表 🕐 按钮 → `Slider` 滑动选择 1-10 天
+- **HorizontalPager page lambda 的 per-page state**：必须以 lambda 接收的 `page` 参数作 key（如 `mutableStateMapOf<Int, Boolean>()[page]`），不能用 ViewModel 的全局 `currentIndexValue`——后者在 swipe settle 后才更新，期间是滞后旧值；且 HorizontalPager 会预渲染相邻页，错误 key 会让相邻页共享 / 互相覆盖 state
+- **逾期复习按天分组**：点逾期题块时 `ReviewSession.queue = 当天 dayGroup.map { it.mistake }`（按 typeOrder：单选→多选→主观题 排序后的 dayMistakes），`startIndex = dayList.indexOf(card)`。**不是** `uiState.overdueCards.map { it.mistake }`（flatList），否则把不同逾期天数混在同一个复习队列
+- **可折叠区块的筛选 chips**：filter 控件放在 `AnimatedVisibility` 内的 `Column` 顶部（紧跟 header），**不要**作为独立 `item { ... }` 放在 `AnimatedVisibility` 外——否则折叠时 chips 不消失，且 LazyColumn 多一个永远可见的行
 
 ## 待开发功能
 

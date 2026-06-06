@@ -275,8 +275,11 @@ class ImportViewModel @Inject constructor(
                 }
                 val today00 = cal.timeInMillis
                 val entryDateMs = state.entryDate ?: today00
-                // First review is always 5 days from today (actual entry), not from the mistake date
-                val finalNextReviewDate = today00 + 5 * 86400000L
+                // First review is 5 days from the user-selected entry date, not from
+                // the actual save time. This way backdated imports follow the schedule
+                // starting from when the mistake was actually made, so an entry on
+                // 6/1 with a 5-day cycle lands on 6/6, not on "today + 5".
+                val finalNextReviewDate = entryDateMs + 5 * 86400000L
 
                 val labelLetters = listOf("A", "B", "C", "D", "E", "F", "G", "H")
 
@@ -339,7 +342,11 @@ class ImportViewModel @Inject constructor(
                     options = optionsStr,
                     correctAnswer = correctAnswerStr,
                     referenceAnswer = answerImagePathStr,
-                    createdAt = existingMistake?.createdAt ?: entryDateMs,
+                    // Use the (possibly user-edited) entryDateMs in BOTH new and edit
+                    // modes. In edit mode loadMistakeForEditing() pre-fills state.entryDate
+                    // with the original createdAt, so unchanged edits preserve the date
+                    // and DatePicker changes are honored.
+                    createdAt = entryDateMs,
                     isFavorite = existingMistake?.isFavorite ?: false,
                     isTop = existingMistake?.isTop ?: false
                 )

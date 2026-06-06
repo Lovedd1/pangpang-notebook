@@ -47,9 +47,13 @@ fun AdaptiveImage(
     val density = LocalDensity.current
     val context = LocalContext.current
 
-    // 默认上限 = 屏幕高度 * 0.66
+    // 默认上限 = 屏幕高度 * 0.85
+    // 0.66 在 A4 类纵向图（宽高比 ~0.707）下会被卡到比自然高度更矮，
+    // 导致图片在 400dp 宽的卡里只渲染到 ~373dp，左右各留 30dp 黑边。
+    // 提到 0.85 后 A4 图自然高度（~611dp @ 800dp 屏）不再被限，可以填满
+    // 卡片宽度；比 A4 更瘦长的图也能多出纵向空间。
     val resolvedMaxHeight = maxHeight
-        ?: with(density) { (configuration.screenHeightDp * 0.66f).dp }
+        ?: with(density) { (configuration.screenHeightDp * 0.85f).dp }
 
     var ratio by remember(file.path) { mutableStateOf<Float?>(null) }
 

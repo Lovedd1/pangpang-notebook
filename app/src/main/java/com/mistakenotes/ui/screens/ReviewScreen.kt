@@ -374,12 +374,16 @@ fun ReviewScreen(
                     }
 
                     // Answer images section (all question types)
+                    // Key answer visibility by `page` (this pager page's own index),
+                    // NOT by currentIndexValue — the latter is global and changes during
+                    // swipe, which would leak one question's "show answer" state onto
+                    // adjacent pages. Per-page key keeps each question independent.
                     val answerPaths = mistake.getAnswerImagePaths()
                     val hasAnswer = answerPaths.isNotEmpty()
-                    val isAnswerShown = answerImageVisible[currentIndexValue] ?: false
+                    val isAnswerShown = answerImageVisible[page] ?: false
                     if (hasAnswer) {
                         OutlinedButton(
-                            onClick = { answerImageVisible[currentIndexValue] = !isAnswerShown },
+                            onClick = { answerImageVisible[page] = !isAnswerShown },
                             modifier = Modifier.fillMaxWidth().height(44.dp),
                             border = BorderStroke(1.dp, AmberGold.copy(alpha = 0.5f)),
                             shape = RoundedCornerShape(10.dp)

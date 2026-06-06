@@ -121,19 +121,18 @@ fun HomeScreen(
             }
 
             item {
-                QuestionTypeFilter(
-                    selected = uiState.todayQuestionTypes,
-                    onSelectionChange = { viewModel.selectTodayQuestionTypes(it) }
-                )
-            }
-
-            item {
                 AnimatedVisibility(
                     visible = showTodaySection,
                     enter = expandVertically(),
                     exit = shrinkVertically()
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        // Type filter lives INSIDE the expanded section so it
+                        // collapses with the cards when the user toggles the header.
+                        QuestionTypeFilter(
+                            selected = uiState.todayQuestionTypes,
+                            onSelectionChange = { viewModel.selectTodayQuestionTypes(it) }
+                        )
                         if (uiState.todayCards.isEmpty()) {
                             EmptyHint("暂无今日待复习题目")
                         } else {
@@ -213,31 +212,47 @@ fun HomeScreen(
             }
 
             item {
-                QuestionTypeFilter(
-                    selected = uiState.overdueQuestionTypes,
-                    onSelectionChange = { viewModel.selectOverdueQuestionTypes(it) }
-                )
-            }
-
-            item {
                 AnimatedVisibility(
                     visible = showOverdueSection,
                     enter = expandVertically(),
                     exit = shrinkVertically()
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        // Type filter lives INSIDE the expanded section so it
+                        // collapses with the cards when the user toggles the header.
+                        QuestionTypeFilter(
+                            selected = uiState.overdueQuestionTypes,
+                            onSelectionChange = { viewModel.selectOverdueQuestionTypes(it) }
+                        )
                         if (uiState.overdueCards.isEmpty()) {
                             EmptyHint("暂无逾期题目")
                         } else {
                             // Group by overdueDays, descending
                             val grouped = uiState.overdueCards.groupBy { it.overdueDays }
                             val sortedDays = grouped.keys.sortedDescending()
-                            // Build flat indexed list for startIndex lookup
-                            val flatList = uiState.overdueCards.map { it.mistake }
+                            // Type order used both for the "开始复习" queue build and
+                            // the per-type sub-group display, so hoist it once.
+                            val typeOrder = listOf(QuestionType.SINGLE_CHOICE, QuestionType.MULTI_CHOICE, QuestionType.ESSAY)
+                            val typeLabels = mapOf(
+                                QuestionType.SINGLE_CHOICE to "单选",
+                                QuestionType.MULTI_CHOICE to "多选",
+                                QuestionType.ESSAY to "主观题"
+                            )
 
                             sortedDays.forEach { days ->
                                 val dayGroup = grouped[days] ?: return@forEach
                                 val isExpanded = overExpandStates[days] ?: false
+
+                                // Ordered day list (by type, then by dayGroup order).
+                                // This becomes the per-day review queue — each overdue
+                                // day is its own review session, so the user only
+                                // sees/swipes through that day's questions, not all
+                                // overdue days combined.
+                                val dayList = mutableListOf<OverdueCardInfo>()
+                                for (qt in typeOrder) {
+                                    dayGroup.filter { it.mistake.questionType == qt }.forEach { dayList.add(it) }
+                                }
+                                val dayMistakes = dayList.map { it.mistake }
 
                                 // Day-group header
                                 Row(
@@ -269,6 +284,27 @@ fun HomeScreen(
                                         fontSize = 12.sp
                                     )
                                     Spacer(modifier = Modifier.weight(1f))
+                                    // "开始复习" — starts review for THIS day group only.
+                                    // TextButton's clickable intercepts taps so the row's
+                                    // expand/collapse click is not fired when the button
+                                    // is tapped.
+                                    TextButton(
+                                        onClick = {
+                                            ReviewSession.start(
+                                                queue = dayMistakes,
+                                                startIndex = 0
+                                            )
+                                            onNavigateToReview()
+                                        },
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            "开始复习",
+                                            color = AmberGold,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
                                     Icon(
                                         imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp
                                             else Icons.Default.KeyboardArrowDown,
@@ -287,13 +323,6 @@ fun HomeScreen(
                                         modifier = Modifier.padding(start = 8.dp, top = 4.dp, bottom = 8.dp),
                                         verticalArrangement = Arrangement.spacedBy(6.dp)
                                     ) {
-                                        // Sub-group by question type
-                                        val typeOrder = listOf(QuestionType.SINGLE_CHOICE, QuestionType.MULTI_CHOICE, QuestionType.ESSAY)
-                                        val typeLabels = mapOf(
-                                            QuestionType.SINGLE_CHOICE to "单选",
-                                            QuestionType.MULTI_CHOICE to "多选",
-                                            QuestionType.ESSAY to "主观题"
-                                        )
                                         // Running counter across type groups within this day group
                                         var blockNumber = 1
 
@@ -321,18 +350,18 @@ fun HomeScreen(
                                                         val idx = row * cols + col
                                                         if (idx < typeGroup.size) {
                                                             val card = typeGroup[idx]
-                                                            // Find original index in flat overdue list
-                                                            val originalIdx = flatList.indexOf(card.mistake)
+                                                            // Start index within THIS day's queue
+                                                            val startIdx = dayList.indexOf(card)
 
                                                             Box(
                                                                 modifier = Modifier
-                                                                    .size(100.dp)
+                                                                    .size(60.dp)
                                                                     .clip(RoundedCornerShape(8.dp))
                                                                     .background(CardDark)
                                                                     .clickable {
                                                                         ReviewSession.start(
-                                                                            queue = flatList,
-                                                                            startIndex = originalIdx
+                                                                            queue = dayMistakes,
+                                                                            startIndex = startIdx
                                                                         )
                                                                         onNavigateToReview()
                                                                     },
@@ -471,7 +500,13 @@ private fun TodayCardItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Review status badge
-            if (info.lastResult == ReviewResult.SKIP) {
+            // "已跳过" must mean the user actually clicked skip in the review page,
+            // NOT a system-generated SKIP record (from import / edit-reset). The
+            // latter sets rec.result = SKIP too, so checking lastResult alone is
+            // ambiguous. skippedAt > 0 is set only by HomeViewModel when
+            // isSkippedToday is true (rec.nextReviewDate == tomorrowStart, which
+            // is the unique signature of a user-initiated skip in review).
+            if (info.skippedAt > 0) {
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
