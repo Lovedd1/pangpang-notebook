@@ -78,6 +78,13 @@ fun ImportScreen(
         }
     }
 
+    LaunchedEffect(uiState.ragErrorMessage) {
+        uiState.ragErrorMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            viewModel.clearRagError()
+        }
+    }
+
     LaunchedEffect(uiState.saveSuccess) {
         if (uiState.saveSuccess) {
             onNavigateBack()
