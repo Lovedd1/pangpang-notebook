@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mistakenotes.data.rag.KnowledgeClassifier
 import com.mistakenotes.data.repository.MistakeRepository
 import com.mistakenotes.domain.model.Chapter
 import com.mistakenotes.domain.model.KnowledgePoint
@@ -17,6 +18,8 @@ import com.mistakenotes.domain.model.ReviewResult
 import com.mistakenotes.domain.model.Subject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.io.File
@@ -24,6 +27,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
+
+/** RAG 分类状态机 */
+enum class RagStatus { IDLE, LOADING, DONE, ERROR }
 
 data class ImportUiState(
     val imageUris: List<Uri> = emptyList(),
@@ -44,19 +50,24 @@ data class ImportUiState(
     val saveSuccess: Boolean = false,
     val errorMessage: String? = null,
     val isEditMode: Boolean = false,
-    val entryDate: Long? = null
+    val entryDate: Long? = null,
+    // ====== 新增 RAG 状态 ======
+    val ragStatus: RagStatus = RagStatus.IDLE,
+    val ragErrorMessage: String? = null
 )
 
 @HiltViewModel
 class ImportViewModel @Inject constructor(
     private val repository: MistakeRepository,
     @ApplicationContext private val context: Context,
+    private val classifier: KnowledgeClassifier,  // ← 新增
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ImportUiState())
     val uiState: StateFlow<ImportUiState> = _uiState.asStateFlow()
     private val editingMistakeId: Long = savedStateHandle.get<Long>("mistakeId") ?: -1L
+    private val _pendingClassifyJob = MutableStateFlow<Job?>(null)
 
     init {
         loadSubjects()
@@ -120,12 +131,68 @@ class ImportViewModel @Inject constructor(
     }
 
     fun addImageUri(uri: Uri) {
+        val isFirst = _uiState.value.imageUris.isEmpty()
         _uiState.update { it.copy(imageUris = it.imageUris + uri) }
+        if (isFirst) {
+            triggerRagClassification(uri)
+        }
+    }
+
+    private fun triggerRagClassification(uri: Uri) {
+        // 取消上一个未完成的任务
+        _pendingClassifyJob.value?.cancel()
+
+        _uiState.update { it.copy(ragStatus = RagStatus.LOADING, ragErrorMessage = null) }
+
+        _pendingClassifyJob.value = viewModelScope.launch {
+            try {
+                val result = classifier.classify(uri)
+                // 守护：用户可能已经删除/替换了这张图
+                if (_uiState.value.imageUris.firstOrNull() != uri) return@launch
+                // 守护：用户可能已经手动选了下拉
+                if (_uiState.value.chapterId != null || _uiState.value.knowledgePointId != null) {
+                    _uiState.update { it.copy(ragStatus = RagStatus.DONE) }
+                    return@launch
+                }
+
+                if (result.isFailed) {
+                    _uiState.update {
+                        it.copy(
+                            ragStatus = RagStatus.ERROR,
+                            ragErrorMessage = "AI 归类失败：${result.reasoning}，请手动选择"
+                        )
+                    }
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            chapterId = result.chapterId,
+                            knowledgePointId = result.knowledgePointId,
+                            ragStatus = RagStatus.DONE
+                        )
+                    }
+                }
+            } catch (e: CancellationException) {
+                // 用户取消，正常路径
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        ragStatus = RagStatus.ERROR,
+                        ragErrorMessage = "AI 归类失败：${e.message ?: "未知错误"}，请手动选择"
+                    )
+                }
+            }
+        }
     }
 
     fun removeImageUri(index: Int) {
         _uiState.update {
             it.copy(imageUris = it.imageUris.filterIndexed { i, _ -> i != index })
+        }
+        // 如果删的是第一张图且当前有 pending RAG 任务，取消
+        if (index == 0) {
+            _pendingClassifyJob.value?.cancel()
+            _pendingClassifyJob.value = null
+            _uiState.update { it.copy(ragStatus = RagStatus.IDLE, ragErrorMessage = null) }
         }
     }
 
@@ -246,6 +313,8 @@ class ImportViewModel @Inject constructor(
     }
 
     fun saveMistake() {
+        _pendingClassifyJob.value?.cancel()  // ← 加这一行
+        _pendingClassifyJob.value = null
         val state = _uiState.value
 
         // Validation
@@ -426,6 +495,10 @@ class ImportViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.update { it.copy(errorMessage = null) }
+    }
+
+    fun clearRagError() {
+        _uiState.update { it.copy(ragStatus = RagStatus.IDLE, ragErrorMessage = null) }
     }
 
     fun resetState() {
