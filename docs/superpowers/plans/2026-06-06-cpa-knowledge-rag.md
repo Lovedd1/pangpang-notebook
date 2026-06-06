@@ -93,7 +93,11 @@ plugins {
     // Retrofit + OkHttp（DeepSeek API 调用）
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.jakewharton.retrofit:retrofit2-kotlinx-serialization-converter:1.0.0")
+    implementation("com.squareup.retrofit2:converter-kotlinx-serialization:2.11.0")
+
+    // kotlinx-coroutines (Retrofit suspend 函数所需)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 
     // kotlinx-serialization（JSON 解析）
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
@@ -1656,9 +1660,7 @@ git commit -m "feat(rag): DeepSeekApi Retrofit 接口 + DTOs"
             .baseUrl("https://api.deepseek.com/")
             .client(client)
             .addConverterFactory(
-                com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory(
-                    kotlinx.serialization.json.Json.asConverterFactory("application/json".toMediaType())
-                )
+                kotlinx.serialization.json.Json.asConverterFactory("application/json".toMediaType())
             )
             .build()
 
@@ -1676,6 +1678,8 @@ import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 ```
+
+> 注：使用 Retrofit 2.11.0 官方 `converter-kotlinx-serialization`（自 Retrofit 2.10 起官方自带，包名 `retrofit2.converter.kotlinx.serialization`），无需 Jake Wharton 第三方 converter。
 
 > 注：`com.jakewharton.retrofit:retrofit2-kotlinx-serialization-converter:1.0.0` 包名是 `retrofit2.converter.kotlinx.serialization`。
 
