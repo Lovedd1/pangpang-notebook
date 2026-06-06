@@ -18,6 +18,8 @@ CPA 错题笔记应用 — 核心复习流程（录入→复习→分析）已�
 - **图片加载**：Coil 2.6.0
 - **导航**：Navigation Compose 2.8.0
 - **Compose BOM**：2025.02.00
+- **RAG 知识库**（CPA 会计）：Google ML Kit 端侧 OCR（中文）+ Retrofit 2.11.0 + kotlinx-serialization 1.7.3 + DeepSeek API
+- **Python 工具**（不入仓，工具链）：pdfplumber + openai
 
 ## 构建与运行
 
@@ -38,12 +40,22 @@ app/src/main/java/com/mistakenotes/
 │   │   └── Entities.kt              # 数据库实体
 │   └── repository/
 │       └── MistakeRepository.kt      # 数据仓库（Entity↔Domain映射，含setFavorite/setTop）
+│   ├── rag/
+│   │   ├── KnowledgeClassifier.kt     # 分类器接口 + ClassifyResult
+│   │   ├── MockKnowledgeClassifier.kt # 无 API Key 时用
+│   │   ├── DeepSeekKnowledgeClassifier.kt # OCR + 召回 + DeepSeek 精排
+│   │   ├── OcrEngine.kt               # ML Kit 端侧 OCR
+│   │   ├── KnowledgeBase.kt           # 内存知识库 + recall()
+│   │   ├── KnowledgeBaseLoader.kt     # 从 assets 加载
+│   │   ├── DeepSeekApi.kt             # Retrofit + DTOs
+│   │   └── ApiKeyProvider.kt          # DataStore 包装
 ├── domain/model/
 │   ├── Subject.kt, Chapter.kt, KnowledgePoint.kt
 │   ├── Mistake.kt                    # 错题（含isFavorite/isTop、getQuestionImagePaths/getAnswerImagePaths）
 │   └── ReviewRecord.kt               # 复习记录（含correctCount）
 ├── di/
-│   └── DatabaseModule.kt             # Hilt DI（Room + DAO）
+│   ├── DatabaseModule.kt             # Hilt DI（Room + DAO）
+│   └── ClassifierModule.kt            # KnowledgeClassifier Hilt 绑定
 └── ui/
     ├── navigation/
     │   └── NavGraph.kt               # 5屏导航（Home/Import/Review/Analysis/Browse?favorites=&mastered=）
@@ -67,7 +79,8 @@ app/src/main/java/com/mistakenotes/
     │   ├── BrowseScreen.kt           # 错题浏览/收藏夹：筛选 + 复习进度 + 收藏★/置顶↑
     │   ├── BrowseViewModel.kt        # 排序 + 收藏模式切换 + ebbinghausCount
     │   ├── AnalysisScreen.kt         # 分析：科目掌握度+章节分布(按科目分组)+薄弱知识点
-    │   └── AnalysisViewModel.kt      # 统计数据计算
+    │   ├── AnalysisViewModel.kt      # 统计数据计算
+    │   └── SettingsScreen.kt          # DeepSeek API Key 设置
     └── theme/
         ├── Color.kt                  # InkStoneBlack/AmberGold/CardDark/TextCream
         └── Theme.kt
@@ -75,6 +88,7 @@ app/src/main/java/com/mistakenotes/
 
 ## 核心功能
 
+- **AI 自动归类（会计）**：录入选图后自动跑 RAG（ML Kit OCR + 关键词召回 + DeepSeek 精排）→ 自动填科目/章节/知识点下拉；用户可手动覆盖；失败时 Snackbar 提示不影响保存。设置页填入 DeepSeek API Key 后启用。**当前仅限 CPA 会计 30 章**。
 - **主页**：科目筛选 Chip（显示有今日卡片+逾期卡片的科目，彩虹配色）、今日/逾期独立题型筛选 Chip（单选/多选/主观题）、今日待复习列表（已复习/未复习标签+科目/章节信息+复习进度）、逾期列表（按逾期天数分组展开→按题型二级分组→方块网格题号）、总错题/已掌握统计、快捷入口
 - **录入**：多图上传（水平滚动列表+添加/删除）、Compose原生裁剪（拖动定位+四角缩放）、拍照/选图（自动复制到本地）、标题（不填自动生成 `YYYY-MM-DD-NN`）、单选题/多选题/主观题切换、按钮式选项（A~H标签+✓标记正确+×删除）、三级分类（科目→章节→知识点）、**所有题型**答案/解析图片上传、**录入时间选择**（DatePickerDialog）、选项以`|`分隔存储、编辑模式+删除功能
 - **复习**：左右滑动HorizontalPager切换题目、多图翻页（题目/答案独立+页码指示器）、图片自适应比例显示不裁剪 + 点击全屏预览（双指缩放+双击放大）、单列布局、单选圆形/多选方形、提交后绿色正确/红色错误高亮+结果横幅、主观题自评（答对/答错/跳过）、**所有题型**查看答案/解析按钮（每题独立状态）、顶栏收藏★+**已掌握✓✓**按钮、顶栏📋选题底部弹窗（按题型分组+方块网格）、跳过安排到明天优先复习
@@ -136,6 +150,13 @@ HomeScreen 设置 → ReviewViewModel 读取后 clear → 后续循环用 ViewMo
 
 ## 注意事项
 
+- **RAG 知识库数据保护**：APK assets/json/accounting_knowledge_points.json 是只读资源；用户已录入错题 knowledgePointId 字段**绝不受 RAG 重跑影响**——RAG 只在 `addImageUri` 触发时填充；用户手动修改下拉后 RAG 不覆盖
+- **DeepSeek API Key 存储**：DataStore Preferences，仅本机保留，不上传任何服务器
+- **ML Kit 端侧 OCR**：首次使用需联网下载 ~5MB 中文模型，下载后完全离线
+- **RAG 触发只对第一张图**：多张题图时只对 `imageUris[0]` 触发一次，避免 token 浪费
+- **RAG 失败容错**：整链路（OCR → 召回 → LLM）任何异常不抛，返回 `ClassifyResult.failed(reason)`；UI 端识别后 Snackbar + 下拉留空 + 不阻塞保存
+- **RAG 与用户优先级**：RAG 回来时若 `chapterId != null`（用户已手动选），则丢弃 RAG 结果——用户优先
+- **KnowledgeBase 由 KnowledgeBaseLoader 通过 Hilt 单例加载**：`data/rag/KnowledgeBase` 类本身无 `@Inject constructor()`，必须通过 `ClassifierModule.provideKnowledgeBase` 注入
 - 图片存储在 `context.filesDir/question_images/`，不是原始 content:// URI
 - 多图路径用 `||` 分隔，通过 `Mistake.getQuestionImagePaths()` / `getAnswerImagePaths()` 解析
 - 录入时裁剪输出到 cacheDir，保存时 `copyImageToLocal` 复制到永久存储
@@ -176,7 +197,8 @@ HomeScreen 设置 → ReviewViewModel 读取后 clear → 后续循环用 ViewMo
 
 | 优先级 | 功能 | 说明 |
 |--------|------|------|
-| **高** | 知识点管理 | knowledge_points 表空，需 UI 增删改 |
+| **高** | RAG 扩展到其他科目 | 当前仅会计 30 章；后续扩展到审计/财管/税法/经济法/战略 |
+| 高 | 知识点评 UI 增删改 | knowledge_points 表已支持；RAG 自动 upsert 是主要入口 |
 | 中 | 搜索题目 | 关键词搜索功能 |
 | 中 | 解析字段 | Mistake.explanation 从未使用 |
 | v2 | OCR 识别 | Tesseract 拍照自动识别文字 |
