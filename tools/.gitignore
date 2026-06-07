@@ -1,5 +1,6 @@
 *
 !.gitignore
 !extract_pdf.py
+!extract_middle.py
 !gen_kb.py
 !merge_kb.py
