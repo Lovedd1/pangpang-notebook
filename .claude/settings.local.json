@@ -11,7 +11,14 @@
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(git checkout *)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Skill(claude-md-management:revise-claude-md)",
+      "Read(//c/Users/HP/.config/superpowers/worktrees/**)",
+      "Bash(git check-ignore *)",
+      "Bash(git worktree *)",
+      "Bash(git *)",
+      "Bash(python *)",
+      "Bash(PYTHONIOENCODING=utf-8 python -c ' *)"
     ]
   },
   "enabledPlugins": {

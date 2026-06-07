@@ -11,6 +11,13 @@ object ReviewSession {
     var preReviewedIndices: Set<Int> = emptySet()
     var preReviewedResults: Map<Int, Boolean?> = emptyMap()
 
+    /**
+     * Persists the user's selected option indices per mistake ID across
+     * review sessions so that re-entering a reviewed card still highlights
+     * both correct (green) and incorrect (red) choices.
+     */
+    var selectedOptionsByMistakeId: Map<Long, Set<Int>> = emptyMap()
+
     fun start(
         queue: List<Mistake>,
         startIndex: Int = 0,
@@ -30,6 +37,11 @@ object ReviewSession {
     fun clear() {
         queue = emptyList()
         startIndex = 0
+        isViewingResult = false
+        lastResult = null
+        preReviewedIndices = emptySet()
+        preReviewedResults = emptyMap()
+        // Keep selectedOptionsByMistakeId — needed for cross-session persistence
     }
 
     val isEmpty: Boolean get() = queue.isEmpty()

@@ -142,10 +142,6 @@ fun ReviewScreen(
                 }
             }
             uiState.currentMistake != null -> {
-                val mistake = reviewQueue[page]
-                val qState = uiState.perQuestionState[page]
-                val showResult = qState?.showAnswer ?: false
-
                 val pagerState = rememberPagerState(
                     initialPage = currentIndexValue,
                     pageCount = { viewModel.queueSize }
@@ -169,6 +165,9 @@ fun ReviewScreen(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize().padding(paddingValues)
                 ) { page ->
+                    val mistake = reviewQueue.getOrNull(page) ?: return@HorizontalPager
+                    val qState = uiState.perQuestionState[page]
+                    val showResult = qState?.showAnswer ?: false
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
