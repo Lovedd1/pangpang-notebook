@@ -40,7 +40,8 @@ fun HomeScreen(
     onNavigateToAnalysis: () -> Unit = {},
     onNavigateToBrowse: () -> Unit = {},
     onNavigateToFavorites: () -> Unit = {},
-    onNavigateToMastered: () -> Unit = {}
+    onNavigateToMastered: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showTodaySection by remember { mutableStateOf(true) }
@@ -53,7 +54,16 @@ fun HomeScreen(
                 title = {
                     Text("CPA 错题笔记", color = AmberGold, fontWeight = FontWeight.Bold)
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = InkStoneBlack)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = InkStoneBlack),
+                actions = {
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(
+                            Icons.Filled.Settings,
+                            contentDescription = "设置",
+                            tint = AmberGold
+                        )
+                    }
+                }
             )
         },
         containerColor = InkStoneBlack

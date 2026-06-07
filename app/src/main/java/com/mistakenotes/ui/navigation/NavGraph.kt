@@ -35,7 +35,8 @@ fun AppNavGraph(
                 onNavigateToAnalysis = { navController.navigate(Screen.Analysis.route) },
                 onNavigateToBrowse = { navController.navigate("browse?favorites=false&mastered=false") },
                 onNavigateToFavorites = { navController.navigate("browse?favorites=true&mastered=false") },
-                onNavigateToMastered = { navController.navigate("browse?favorites=false&mastered=true") }
+                onNavigateToMastered = { navController.navigate("browse?favorites=false&mastered=true") },
+                onNavigateToSettings = { navController.navigate("settings") }
             )
         }
 
