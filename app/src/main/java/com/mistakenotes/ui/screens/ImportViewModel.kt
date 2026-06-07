@@ -170,6 +170,9 @@ class ImportViewModel @Inject constructor(
                         _uiState.update { it.copy(ragStatus = RagStatus.DONE) }
                         return@launch
                     }
+                    // 通过章节反查科目（RAG 知识库只有会计 30 章，chapterId 1-30 → subjectId 1）
+                    val chapter = repository.getChapterById(result.chapterId)
+                    val subjectId = chapter?.subjectId
                     // 自动 upsert 知识点到 Room（自然键去重）
                     val kpName = lookupKnowledgePointName(result.knowledgePointId)
                     val roomKpId = if (kpName != null) {
@@ -177,12 +180,14 @@ class ImportViewModel @Inject constructor(
                     } else -1L
                     _uiState.update {
                         it.copy(
+                            subjectId = subjectId,
                             chapterId = result.chapterId,
                             knowledgePointId = if (roomKpId > 0) roomKpId else null,
                             ragStatus = RagStatus.DONE
                         )
                     }
-                    // 刷新下拉里的知识点列表
+                    // 刷新下拉列表
+                    if (subjectId != null) loadChapters(subjectId)
                     loadKnowledgePoints(result.chapterId)
                 }
             } catch (e: CancellationException) {
