@@ -5,3 +5,5 @@
 !gen_kb.py
 !merge_kb.py
 !rag_test.py
+!batch_rag_test.py
+!make_results_md.py
