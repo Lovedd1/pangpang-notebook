@@ -77,25 +77,38 @@ def recall(question, knowledge_points, idf=None, top_k=5):
     scores.sort(key=lambda x: x[0], reverse=True)
     return [kp for score, kp in scores[:top_k]]
 
+CHAPTER_NAMES_CN = {
+    1:"总论(会计信息质量/基本假设/要素)",2:"存货",3:"固定资产",4:"无形资产",5:"投资性房地产",
+    6:"长期股权投资",7:"资产减值",8:"负债",9:"职工薪酬",10:"股份支付",
+    11:"借款费用",12:"或有事项",13:"金融工具",14:"租赁",
+    15:"持有待售/终止经营",16:"所有者权益(含其他综合收益)",17:"收入/费用/利润",18:"政府补助",
+    19:"所得税",20:"非货币性资产交换",21:"债务重组",22:"外币折算",
+    23:"财务报告/现金流量表",24:"会计政策/估计变更",25:"资产负债表日后事项",
+    26:"企业合并",27:"合并财务报表",28:"每股收益",29:"公允价值计量",
+    30:"政府及民间非营利组织会计"
+}
+
 def build_prompt(question, candidates):
     cand_str = "\n".join([
-        f"[{i+1}] id={c['id']} ch{c['chapterId']} {c['name']}\n  关键词: {', '.join(c.get('keywords',[]))}"
+        f"[{i+1}] id={c['id']} 第{c['chapterId']}章({CHAPTER_NAMES_CN.get(c['chapterId'],'?')}) - {c['name']}\n  关键词: {', '.join(c.get('keywords',[]))}"
         for i, c in enumerate(candidates)
     ])
-    return f"""你是 CPA 会计老师。根据题目内容，从候选知识点里选最匹配的 1 个。
+    return f"""你是 CPA 会计老师。根据题目内容判断这道题**主要属于哪个章节**。
+若题目涉及跨章节，选占比>50%的章节作为 primary，另一章为 secondary。
 
 题目：
 {question}
 
+候选知识点：
 {cand_str}
 
-请用以下 JSON 格式回答（**只输出 JSON，不要其他内容**）：
-{{
-  "knowledgePointId": <候选 id, 整数>,
-  "chapterId": <候选 chapterId, 整数>,
-  "confidence": <0.0~1.0>,
-  "reasoning": "<为什么选这个，不超过 50 字>"
-}}"""
+JSON（只输出 JSON）：
+格式A（单章节>85%）：
+{{"primary":{{"knowledgePointId":<id>,"chapterId":<id>,"proportion":1.0}},"secondary":null,"confidence":<0.0~1.0>,"reasoning":"<主要章节>"}}
+
+格式B（跨章节）：
+{{"primary":{{"knowledgePointId":<主id>,"chapterId":<主ch>,"proportion":<0.50~0.85>}},"secondary":{{"knowledgePointId":<次id>,"chapterId":<次ch>,"proportion":<余>}},"confidence":<0.0~1.0>,"reasoning":"<主次占比依据>"}}
+"""
 
 def rerank(question, candidates, api_key):
     if not candidates:
@@ -119,18 +132,45 @@ def rerank(question, candidates, api_key):
                 return {"error": f"3次失败: {e}"}
 
 def process_one(q, kb, api_key, idf=None):
-    candidates = recall(q["question"], kb, idf=idf, top_k=5)
+    candidates = recall(q["question"], kb, idf=idf, top_k=7)  # 扩展到 7 个候选，给跨章节更多选择
     result = rerank(q["question"], candidates, api_key)
     if "error" in result:
         return {**q, "status": "ERROR", "error": result["error"], "candidates": [{"id": c["id"], "ch": c["chapterId"], "name": c["name"]} for c in candidates]}
-    kp_id = result.get("knowledgePointId")
+
+    # 兼容新旧两种 JSON 格式
+    primary = result.get("primary")
+    if primary is None:
+        # 旧格式：{knowledgePointId, chapterId, confidence, reasoning}
+        kp_id = result.get("knowledgePointId")
+        primary_ch = result.get("chapterId")
+        primary_prop = 1.0
+        secondary_info = None
+    else:
+        # 新格式：{primary: {..}, secondary: .., confidence, reasoning}
+        kp_id = primary.get("knowledgePointId")
+        primary_ch = primary.get("chapterId")
+        primary_prop = primary.get("proportion", 1.0)
+        secondary = result.get("secondary")
+        secondary_info = None
+        if secondary:
+            sec_kp = next((k for k in kb if k["id"] == secondary.get("knowledgePointId")), None)
+            secondary_info = {
+                "ch": secondary.get("chapterId"),
+                "name": sec_kp["name"] if sec_kp else "?",
+                "proportion": secondary.get("proportion", 0)
+            }
+
     kp = next((k for k in kb if k["id"] == kp_id), None)
+    # 校验：用知识库的实际 chapterId 覆盖 DeepSeek 可能的幻觉（如 chapterId=216）
+    actual_ch = kp["chapterId"] if kp else primary_ch
     return {
         "id": q["id"],
         "topic": q["topic"],
-        "rag_chapter": result.get("chapterId"),
+        "rag_chapter": actual_ch,           # ← 用知识库真实 chapterId
         "rag_kp_id": kp_id,
         "rag_kp_name": kp["name"] if kp else "(找不到)",
+        "primary_proportion": primary_prop,
+        "secondary": secondary_info,
         "confidence": result.get("confidence", 0),
         "reasoning": result.get("reasoning", ""),
         "candidates": [{"id": c["id"], "ch": c["chapterId"], "name": c["name"]} for c in candidates],
@@ -159,8 +199,10 @@ def main():
         for i, fut in enumerate(as_completed(futures), 1):
             r = fut.result()
             results.append(r)
-            mark = "✓" if r.get("status") == "OK" else "✗"
-            print(f"[{i:2d}/{len(questions)}] {mark} #{r['id']:2d} {r['topic']:30s} → ch{r.get('rag_chapter','?'):2} {r.get('rag_kp_name','?')[:30]:30s} ({r.get('confidence',0):.0%})")
+            mark = "✓" if r.get("status") == "OK" and r.get('rag_chapter') else "✗"
+            ch_str = str(r.get('rag_chapter') or '?')
+            kp_str = (r.get('rag_kp_name') or '?')[:30]
+            print(f"[{i:2d}/{len(questions)}] {mark} #{r['id']:2d} {r.get('topic','?')[:25]:25s} → ch{ch_str:>3s} {kp_str:30s} ({r.get('confidence',0):.0%})")
 
     results.sort(key=lambda x: x["id"])
     Path(sys.argv[2]).write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")

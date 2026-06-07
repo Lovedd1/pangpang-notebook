@@ -49,13 +49,24 @@ data class ChatChoice(
     val message: ChatMessage
 )
 
+/** 跨章节占比子项 */
+@Serializable
+data class ChapterProportion(
+    val knowledgePointId: Long,
+    val chapterId: Long,
+    val proportion: Double  // 0.0~1.0
+)
+
 /**
- * RAG 精排 prompt 让 LLM 输出的 JSON 结构
+ * RAG 精排 prompt 让 LLM 输出的 JSON 结构（方案B：主次章节+占比）
  */
 @Serializable
 data class RerankResult(
-    val chapterId: Long,
-    val knowledgePointId: Long,
-    val confidence: Float,
-    val reasoning: String = ""
+    val primary: ChapterProportion? = null,
+    val secondary: ChapterProportion? = null,
+    val confidence: Float = 0f,
+    val reasoning: String = "",
+    // 兼容旧格式
+    val chapterId: Long = -1,
+    val knowledgePointId: Long = -1
 )

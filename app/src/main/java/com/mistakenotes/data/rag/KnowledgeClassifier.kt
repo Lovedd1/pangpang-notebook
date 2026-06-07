@@ -23,24 +23,30 @@ interface KnowledgeClassifier {
 }
 
 /**
- * 分类结果
+ * 分类结果（方案B：支持跨章节占比）
  *
- * @param chapterId 章节 ID；`< 0` 表示失败（见 [isFailed]）
- * @param knowledgePointId 知识点 ID；失败时为 `-1`
+ * @param chapterId 主章节 ID；`< 0` 表示失败
+ * @param knowledgePointId 主知识点 ID
  * @param confidence 0~1；`< 0.5` 时 UI 高亮"建议复核"
- * @param reasoning 分类原因；空串表示"无推理"
+ * @param reasoning 分类原因
+ * @param secondaryChapterId 次章节 ID（跨章节时有值，null 表示纯单章）
+ * @param secondaryKpId 次知识点 ID
+ * @param chapterProportion 主章节占比 0.5~1.0（1.0=纯单章）
  */
 data class ClassifyResult(
     val chapterId: Long,
     val knowledgePointId: Long,
     val confidence: Float,
-    val reasoning: String = ""
+    val reasoning: String = "",
+    val secondaryChapterId: Long? = null,
+    val secondaryKpId: Long? = null,
+    val chapterProportion: Double = 1.0
 ) {
-    /** 分类是否失败（OCR 空 / 网络挂 / LLM 错 / API Key 无效） */
     val isFailed: Boolean get() = chapterId < 0
+    /** 是否为跨章节分类（有次章节且主章占比 < 0.85） */
+    val isCrossChapter: Boolean get() = secondaryChapterId != null && chapterProportion < 0.85
 
     companion object {
-        /** 构造一个失败结果（chapterId = -1 标识失败） */
         fun failed(reason: String): ClassifyResult = ClassifyResult(
             chapterId = -1,
             knowledgePointId = -1,
