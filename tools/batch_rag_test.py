@@ -13,21 +13,69 @@ from openai import OpenAI
 
 KB_PATH = Path(__file__).parent.parent / "app" / "src" / "main" / "assets" / "json" / "accounting_knowledge_points.json"
 
+import math
+
 def load_kb():
     data = json.loads(KB_PATH.read_text(encoding="utf-8"))
     return data["knowledgePoints"]
 
-def recall(question, knowledge_points, top_k=5):
+def build_idf(knowledge_points):
+    """预计算每个关键词的 IDF 权重（基于全文本频率，不是 keyword list 频率）
+
+    核心思路：在 name+desc+keywords 的全文里出现的 KP 数越多，该词越通用，IDF 越低。
+    '资产' 出现在 ~200 个 KP 的全文里 → 低 IDF；'谨慎性' 只出现在 ~3 个 → 高 IDF
+    """
+    N = len(knowledge_points)
+    # 合并每个 KP 的全文本（name + description + keywords，便于子串搜索）
+    full_texts = []
+    for kp in knowledge_points:
+        ft = kp.get("name", "") + " " + kp.get("description", "") + " " + " ".join(kp.get("keywords", []))
+        full_texts.append(ft)
+
+    # 收集所有独特关键词
+    all_kws = set()
+    for kp in knowledge_points:
+        for kw in kp.get("keywords", []):
+            all_kws.add(kw)
+
+    # 对每个关键词，统计它作为子串出现在多少个 KP 的 full_text 中
+    df = {}
+    for kw in all_kws:
+        count = sum(1 for ft in full_texts if kw in ft)
+        df[kw] = count
+
+    # IDF = log(N / df)，+0.5 平滑防止罕见词过拟合
+    return {kw: math.log((N + 0.5) / (df[kw] + 0.5)) for kw in df}, df
+
+def extract_ngrams(text, max_len=5):
+    """从文本提取 2-5 字符滑动窗口（子串匹配用）"""
+    ngrams = set()
+    for n in range(2, min(max_len + 1, len(text) + 1)):
+        for i in range(len(text) - n + 1):
+            ngrams.add(text[i:i+n])
+    return ngrams
+
+def recall(question, knowledge_points, idf=None, top_k=5):
+    """关键词召回 + IDF 权重"""
     text = question
     scores = []
     for kp in knowledge_points:
-        match_count = sum(1 for kw in kp.get("keywords", []) if kw in text)
-        formula_match = sum(1 for f in kp.get("formulas", []) if f and f in text)
-        pitfall_match = sum(1 for p in kp.get("commonPitfalls", []) if p and p in text)
-        score = match_count * 3.0 + formula_match * 2.0 + pitfall_match * 1.5
-        scores.append((score, kp))
+        score = 0.0
+        for kw in kp.get("keywords", []):
+            if kw in text:
+                # IDF 加权：罕见关键词（如'谨慎性'）得高分，通用词（如'资产'）得低分
+                w = idf.get(kw, 3.0) if idf else 3.0
+                score += w
+        for f in kp.get("formulas", []):
+            if f and f in text:
+                score += (idf.get(f, 2.0) if idf else 2.0) * 0.8
+        for p in kp.get("commonPitfalls", []):
+            if p and p in text:
+                score += (idf.get(p, 1.5) if idf else 1.5) * 0.6
+        if score > 0:
+            scores.append((score, kp))
     scores.sort(key=lambda x: x[0], reverse=True)
-    return [kp for score, kp in scores[:top_k] if score > 0]
+    return [kp for score, kp in scores[:top_k]]
 
 def build_prompt(question, candidates):
     cand_str = "\n".join([
@@ -70,8 +118,8 @@ def rerank(question, candidates, api_key):
             if attempt == 2:
                 return {"error": f"3次失败: {e}"}
 
-def process_one(q, kb, api_key):
-    candidates = recall(q["question"], kb, top_k=5)
+def process_one(q, kb, api_key, idf=None):
+    candidates = recall(q["question"], kb, idf=idf, top_k=5)
     result = rerank(q["question"], candidates, api_key)
     if "error" in result:
         return {**q, "status": "ERROR", "error": result["error"], "candidates": [{"id": c["id"], "ch": c["chapterId"], "name": c["name"]} for c in candidates]}
@@ -99,11 +147,15 @@ def main():
         sys.exit(1)
     questions = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
     kb = load_kb()
-    print(f"加载 {len(kb)} 知识点，并发跑 {len(questions)} 道题（max 10 workers）\n")
+    idf, df = build_idf(kb)
+    # 打印 IDF 横截面（验证权重合理性）
+    sample_kws = ['谨慎性', '权益法', '资产', '确认', '现值', '债务重组', '会计信息质量']
+    print(f"加载 {len(kb)} 知识点, IDF 横截面:", {k: round(idf.get(k, 0), 1) for k in sample_kws if k in idf})
+    print(f"并发跑 {len(questions)} 道题（max 10 workers）\n")
 
     results = []
     with ThreadPoolExecutor(max_workers=10) as ex:
-        futures = {ex.submit(process_one, q, kb, api_key): q for q in questions}
+        futures = {ex.submit(process_one, q, kb, api_key, idf): q for q in questions}
         for i, fut in enumerate(as_completed(futures), 1):
             r = fut.result()
             results.append(r)
