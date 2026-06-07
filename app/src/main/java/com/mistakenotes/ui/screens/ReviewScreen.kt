@@ -158,9 +158,9 @@ fun ReviewScreen(
                     }
                 }
 
-                // Sync ViewModel when user swipes pager — only after scroll settles
-                LaunchedEffect(pagerState.currentPage, pagerState.isScrollInProgress) {
-                    if (!pagerState.isScrollInProgress && pagerState.currentPage != currentIndexValue) {
+                // Sync ViewModel when user swipes pager — immediately on page change
+                LaunchedEffect(pagerState.currentPage) {
+                    if (pagerState.currentPage != currentIndexValue) {
                         viewModel.jumpTo(pagerState.currentPage)
                     }
                 }

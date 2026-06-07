@@ -71,43 +71,46 @@ class ReviewViewModel @Inject constructor(
     private fun loadReviewQueue() {
         viewModelScope.launch {
             if (!ReviewSession.isEmpty) {
-                // Use pre-set review session (from HomeScreen)
                 _reviewQueue.value = ReviewSession.queue.toMutableList()
                 _currentIndex.value = ReviewSession.startIndex.coerceIn(0, _reviewQueue.value.size - 1)
                 val viewResult = ReviewSession.isViewingResult
+                // Capture before clear() — clear() only resets queue/startIndex,
+                // but capture defensively in case that changes
+                val capturedLastResult = ReviewSession.lastResult
+                val capturedPreReviewedIndices = ReviewSession.preReviewedIndices
+                val capturedPreReviewedResults = ReviewSession.preReviewedResults
                 ReviewSession.clear()
 
                 if (_reviewQueue.value.isNotEmpty()) {
-                    val mistake = _reviewQueue.value[_currentIndex.value]
+                    val idx = _currentIndex.value
+                    val mistake = _reviewQueue.value[idx]
                     if (viewResult) {
                         // Show previous result — load actual user selection from DB
-                        viewModelScope.launch {
-                            val labelLetters = listOf("A", "B", "C", "D", "E", "F", "G", "H")
-                            val correctIndices = (mistake.correctAnswer ?: "").map { c ->
-                                labelLetters.indexOf(c.toString())
-                            }.filter { it >= 0 }.toSet()
-                            val resultIsCorrect = when (ReviewSession.lastResult) {
-                                ReviewResult.CORRECT -> true
-                                ReviewResult.WRONG -> false
-                                else -> null
-                            }
-                            // Load the actual user-selected options from DB (stored as bitmask in score)
-                            val records = repository.getReviewRecordsByMistake(mistake.id).first()
-                            val latestNonSkip = records.lastOrNull { it.result != ReviewResult.SKIP }
-                            val userSelected = decodeOptions(latestNonSkip?.score)
-                            val qState = QuestionState(
-                                selectedOptionIndices = userSelected.ifEmpty { correctIndices },
-                                showAnswer = true,
-                                isCorrect = resultIsCorrect,
-                                correctIndices = correctIndices
+                        val labelLetters = listOf("A", "B", "C", "D", "E", "F", "G", "H")
+                        val correctIndices = (mistake.correctAnswer ?: "").map { c ->
+                            labelLetters.indexOf(c.toString())
+                        }.filter { it >= 0 }.toSet()
+                        val resultIsCorrect = when (capturedLastResult) {
+                            ReviewResult.CORRECT -> true
+                            ReviewResult.WRONG -> false
+                            else -> null
+                        }
+                        // Load user's actual selected options from DB (bitmask in score)
+                        val records = repository.getReviewRecordsByMistake(mistake.id).first()
+                        val latestNonSkip = records.lastOrNull { it.result != ReviewResult.SKIP }
+                        val userSelected = decodeOptions(latestNonSkip?.score)
+                        val qState = QuestionState(
+                            selectedOptionIndices = userSelected.ifEmpty { correctIndices },
+                            showAnswer = true,
+                            isCorrect = resultIsCorrect,
+                            correctIndices = correctIndices
+                        )
+                        _uiState.update {
+                            it.copy(
+                                currentMistake = mistake,
+                                isLoading = false,
+                                perQuestionState = it.perQuestionState + (idx to qState)
                             )
-                            _uiState.update {
-                                it.copy(
-                                    currentMistake = mistake,
-                                    isLoading = false,
-                                    perQuestionState = it.perQuestionState + (_currentIndex.value to qState)
-                                )
-                            }
                         }
                     } else {
                         _uiState.update {
@@ -168,7 +171,7 @@ class ReviewViewModel @Inject constructor(
                 }.filter { it >= 0 }.toSet()
                 val isCorrect = reviewedResults[idx]
                     ?: ReviewSession.preReviewedResults[idx]
-                // Bug 2 fix: load user's actual selected options from DB (bitmask in score)
+                // Load user's actual selected options from DB (bitmask in score)
                 val records = repository.getReviewRecordsByMistake(mistake.id).first()
                 val latestNonSkip = records.lastOrNull { it.result != ReviewResult.SKIP }
                 val userSelected = decodeOptions(latestNonSkip?.score)
@@ -222,7 +225,7 @@ class ReviewViewModel @Inject constructor(
         val correctAnswer = mistake.correctAnswer ?: return
         val currentQs = state.perQuestionState[page] ?: QuestionState()
 
-        reviewedIndices.add(_currentIndex.value)
+        reviewedIndices.add(page)  // use page, not _currentIndex.value
 
         val labelLetters = listOf("A", "B", "C", "D", "E", "F", "G", "H")
         val correctIndices = correctAnswer.map { c ->
@@ -231,7 +234,7 @@ class ReviewViewModel @Inject constructor(
 
         val userIndices = currentQs.selectedOptionIndices
         val isCorrect = userIndices == correctIndices
-        reviewedResults[_currentIndex.value] = isCorrect
+        reviewedResults[page] = isCorrect  // use page, not _currentIndex.value
 
         val newQs = currentQs.copy(
             showAnswer = true,
@@ -242,7 +245,7 @@ class ReviewViewModel @Inject constructor(
             it.copy(perQuestionState = it.perQuestionState + (page to newQs))
         }
 
-        // Bug 2 fix: persist user's selected options in ReviewRecord.score
+        // Persist user's selected options in ReviewRecord.score (bitmask, no schema change)
         val userBitmap = encodeOptions(userIndices)
         updateReviewRecord(mistake.id, isCorrect, userBitmap)
     }
@@ -251,8 +254,8 @@ class ReviewViewModel @Inject constructor(
         val mistake = _reviewQueue.value.getOrNull(page) ?: return
         val currentQs = _uiState.value.perQuestionState[page] ?: QuestionState()
 
-        reviewedIndices.add(_currentIndex.value)
-        reviewedResults[_currentIndex.value] = isCorrect
+        reviewedIndices.add(page)  // use page
+        reviewedResults[page] = isCorrect  // use page
 
         val newQs = currentQs.copy(showAnswer = true, isCorrect = isCorrect)
         _uiState.update {
@@ -265,7 +268,8 @@ class ReviewViewModel @Inject constructor(
         val mistake = _reviewQueue.value.getOrNull(page) ?: return
         val currentQs = _uiState.value.perQuestionState[page] ?: QuestionState()
 
-        reviewedIndices.add(_currentIndex.value)
+        reviewedIndices.add(page)  // use page
+        reviewedResults[page] = false  // mark as reviewed (skip = not correct)
         val newQs = currentQs.copy(showAnswer = true, isCorrect = null)
         _uiState.update {
             it.copy(perQuestionState = it.perQuestionState + (page to newQs))
