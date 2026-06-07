@@ -9,7 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -52,7 +52,6 @@ fun ReviewScreen(
     val uiState by viewModel.uiState.collectAsState()
     val currentIndexValue by viewModel.currentIndexFlow.collectAsState()
     val reviewQueue by viewModel.reviewQueueFlow.collectAsState()
-    val scrollState = rememberScrollState()
     val maxImageHeight = (LocalConfiguration.current.screenHeightDp * 0.66f).dp
     // Per-question answer image visibility (independent per question)
     val answerImageVisible = remember { mutableStateMapOf<Int, Boolean>() }
@@ -143,8 +142,9 @@ fun ReviewScreen(
                 }
             }
             uiState.currentMistake != null -> {
-                val mistake = uiState.currentMistake!!
-                val showResult = uiState.showAnswer
+                val mistake = reviewQueue[page]
+                val qState = uiState.perQuestionState[page]
+                val showResult = qState?.showAnswer ?: false
 
                 val pagerState = rememberPagerState(
                     initialPage = currentIndexValue,
@@ -154,11 +154,11 @@ fun ReviewScreen(
                 // Sync pager when external navigation happens (bottom sheet, next btn)
                 LaunchedEffect(currentIndexValue) {
                     if (pagerState.currentPage != currentIndexValue) {
-                        pagerState.animateScrollToPage(currentIndexValue)
+                        pagerState.scrollToPage(currentIndexValue)
                     }
                 }
 
-                // Sync ViewModel when user swipes pager
+                // Sync ViewModel when user swipes pager — immediately on page change
                 LaunchedEffect(pagerState.currentPage) {
                     if (pagerState.currentPage != currentIndexValue) {
                         viewModel.jumpTo(pagerState.currentPage)
@@ -172,7 +172,7 @@ fun ReviewScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .verticalScroll(scrollState)
+                        .verticalScroll(remember(page) { ScrollState(0) })
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
@@ -242,8 +242,8 @@ fun ReviewScreen(
                             val label = LABELS.getOrElse(index) { "${index}" }
                             val displayText = if (optionText.isBlank()) label else "$label. $optionText"
 
-                            val isSelected = index in uiState.selectedOptionIndices
-                            val isCorrectAnswer = showResult && index in uiState.correctIndices
+                            val isSelected = index in (qState?.selectedOptionIndices ?: emptySet())
+                            val isCorrectAnswer = showResult && index in (qState?.correctIndices ?: emptySet())
                             val isWrongSelection = showResult && isSelected && !isCorrectAnswer
 
                             val bgColor = when {
@@ -265,7 +265,7 @@ fun ReviewScreen(
                                     .fillMaxWidth()
                                     .border(1.dp, borderColor, RoundedCornerShape(10.dp))
                                     .clip(RoundedCornerShape(10.dp))
-                                    .clickable(enabled = !showResult) { viewModel.toggleOption(index) },
+                                    .clickable(enabled = !showResult) { viewModel.toggleOption(page, index) },
                                 shape = RoundedCornerShape(10.dp),
                                 colors = CardDefaults.cardColors(containerColor = bgColor)
                             ) {
@@ -359,9 +359,9 @@ fun ReviewScreen(
                         // Submit button (before answer revealed)
                         if (!showResult) {
                             Button(
-                                onClick = { viewModel.submitAnswer() },
+                                onClick = { viewModel.submitAnswer(page) },
                                 modifier = Modifier.fillMaxWidth().height(52.dp),
-                                enabled = uiState.selectedOptionIndices.isNotEmpty(),
+                                enabled = (qState?.selectedOptionIndices?.isNotEmpty() ?: false),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = AmberGold,
                                     contentColor = InkStoneBlack
@@ -451,7 +451,7 @@ fun ReviewScreen(
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Button(
-                                onClick = { viewModel.submitEssaySelfEval(true) },
+                                onClick = { viewModel.submitEssaySelfEval(page, true) },
                                 modifier = Modifier.weight(1f).height(52.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = SuccessGreen,
@@ -463,7 +463,7 @@ fun ReviewScreen(
                             }
 
                             Button(
-                                onClick = { viewModel.submitEssaySelfEval(false) },
+                                onClick = { viewModel.submitEssaySelfEval(page, false) },
                                 modifier = Modifier.weight(1f).height(52.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = ErrorRed,
@@ -478,7 +478,7 @@ fun ReviewScreen(
 
                         if (!showResult) {
                             OutlinedButton(
-                                onClick = { viewModel.skipEssay() },
+                                onClick = { viewModel.skipEssay(page) },
                                 modifier = Modifier.fillMaxWidth(),
                                 border = BorderStroke(1.dp, TextCream.copy(alpha = 0.3f)),
                                 shape = RoundedCornerShape(12.dp)
@@ -490,7 +490,7 @@ fun ReviewScreen(
 
                     // Result banner (after submission)
                     if (showResult) {
-                        val isCorrect = uiState.isCorrect
+                        val isCorrect = qState?.isCorrect
 
                         Card(
                             modifier = Modifier.fillMaxWidth(),
