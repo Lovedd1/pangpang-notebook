@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 CPA 错题笔记应用 — 核心复习流程（录入→复习→分析）已完成。多图上传、图片裁剪、收藏夹、置顶、复习进度显示、7 个新功能（答案图片全题型、题号弹窗、已掌握按钮、已掌握复习、录入时间、题型筛选、图片自适应预览）已实现。功能稳定，可日常使用。
 
-**RAG 知识库状态（2026-06-07）**：会计 30 章共 **306 知识点**（PDF 三册抽取 + DeepSeek 辅助生成，已重抽 ch5/ch14/ch21/ch24/ch25）。PC 端 30 道真题测试准确率 **27/30 = 90%**（详见 `结果.md`）。剩余 3 题失败属召回算法局限（需加 IDF 权重/bigram）或跨章节边界（#5 ch5↔ch16）。
+**RAG 知识库状态（2026-06-07）**：会计 30 章共 **305 知识点**（PDF 三册抽取 + DeepSeek 辅助生成，已重抽 ch5/ch14/ch21/ch24/ch25）。PC 端 90 道真题测试准确率 **88/90 = 98%**（详见 `结果.md`）。剩余 2 题失败属召回算法局限（需加 IDF 权重/bigram）或跨章节边界（#5 ch5↔ch16）。
 
 ## 技术栈
 
@@ -43,13 +43,14 @@ app/src/main/java/com/mistakenotes/
 │   └── repository/
 │       └── MistakeRepository.kt      # 数据仓库（Entity↔Domain映射，含setFavorite/setTop）
 │   ├── rag/
-│   │   ├── KnowledgeClassifier.kt     # 分类器接口 + ClassifyResult
+│   │   ├── KnowledgeClassifier.kt     # 分类器接口 + ClassifyResult（含跨章节占比字段）
 │   │   ├── MockKnowledgeClassifier.kt # 无 API Key 时用
 │   │   ├── DeepSeekKnowledgeClassifier.kt # OCR + 召回 + DeepSeek 精排
+│   │   ├── DynamicClassifier.kt       # 动态切换 Mock/Real（每次调用检查 Key，填 Key 立即生效）
 │   │   ├── OcrEngine.kt               # ML Kit 端侧 OCR
-│   │   ├── KnowledgeBase.kt           # 内存知识库 + recall()
+│   │   ├── KnowledgeBase.kt           # 内存知识库 + IDF 加权 recall()
 │   │   ├── KnowledgeBaseLoader.kt     # 从 assets 加载
-│   │   ├── DeepSeekApi.kt             # Retrofit + DTOs
+│   │   ├── DeepSeekApi.kt             # Retrofit + DTOs（含主次章节占比结构）
 │   │   └── ApiKeyProvider.kt          # DataStore 包装
 ├── domain/model/
 │   ├── Subject.kt, Chapter.kt, KnowledgePoint.kt
@@ -68,6 +69,7 @@ app/src/main/java/com/mistakenotes/
     │   ├── AdaptiveImage.kt          # 按原图比例自适应大小 + 点击预览
     │   ├── EntryDateRow.kt           # 录入时间行 + DatePickerDialog
     │   ├── JumpToQuestionDialog.kt   # 题号网格弹窗（AlertDialog）
+    │   ├── CalculatorOverlay.kt      # 浮动科学计算器（sin/cos/tan/√/x²/xʸ/π/e）+拖动+贴边隐藏
     │   └── RescheduleDialog.kt       # 1~10 天滑动选择器
     ├── screens/
     │   ├── HomeScreen.kt             # 主页：科目筛选 + 今日待复习/逾期可展开列表 + 复习进度
@@ -75,9 +77,9 @@ app/src/main/java/com/mistakenotes/
     │   ├── ImportScreen.kt           # 录入：多图上传+裁剪 + 按钮式选项 + 三级分类
     │   ├── ImportViewModel.kt        # 多图管理(addImageUri/removeImageUri) + ||分隔存储
     │   ├── CropScreen.kt             # Compose原生裁剪：拖动裁剪框+四角调整大小
-    │   ├── ReviewScreen.kt           # 复习：HorizontalPager多图翻页 + 题目栏高度限制
-    │   ├── ReviewViewModel.kt        # 复习逻辑 + 5天间隔算法 + 队列管理
-    │   ├── ReviewSession.kt          # 跨Screen复习队列/状态传递
+    │   ├── ReviewScreen.kt           # 复习：每页独立渲染reviewQueue[page] + Pager为位置唯一源
+    │   ├── ReviewViewModel.kt        # 每题独立QuestionReviewState + jumpTrigger单向跳转 + 5天间隔
+    │   ├── ReviewSession.kt          # 跨Screen队列/状态 + selectedOptionsByMistakeId跨session保留选项
     │   ├── BrowseScreen.kt           # 错题浏览/收藏夹：筛选 + 复习进度 + 收藏★/置顶↑
     │   ├── BrowseViewModel.kt        # 排序 + 收藏模式切换 + ebbinghausCount
     │   ├── AnalysisScreen.kt         # 分析：科目掌握度+章节分布(按科目分组)+薄弱知识点
@@ -93,7 +95,7 @@ app/src/main/java/com/mistakenotes/
 - **AI 自动归类（会计）**：录入选图后自动跑 RAG（ML Kit OCR + 关键词召回 + DeepSeek 精排）→ 自动填科目/章节/知识点下拉；用户可手动覆盖；失败时 Snackbar 提示不影响保存。设置页填入 DeepSeek API Key 后启用。**当前仅限 CPA 会计 30 章**。
 - **主页**：科目筛选 Chip（显示有今日卡片+逾期卡片的科目，彩虹配色）、今日/逾期独立题型筛选 Chip（单选/多选/主观题）、今日待复习列表（已复习/未复习标签+科目/章节信息+复习进度）、逾期列表（按逾期天数分组展开→按题型二级分组→方块网格题号）、总错题/已掌握统计、快捷入口
 - **录入**：多图上传（水平滚动列表+添加/删除）、Compose原生裁剪（拖动定位+四角缩放）、拍照/选图（自动复制到本地）、标题（不填自动生成 `YYYY-MM-DD-NN`）、单选题/多选题/主观题切换、按钮式选项（A~H标签+✓标记正确+×删除）、三级分类（科目→章节→知识点）、**所有题型**答案/解析图片上传、**录入时间选择**（DatePickerDialog）、选项以`|`分隔存储、编辑模式+删除功能
-- **复习**：左右滑动HorizontalPager切换题目、多图翻页（题目/答案独立+页码指示器）、图片自适应比例显示不裁剪 + 点击全屏预览（双指缩放+双击放大）、单列布局、单选圆形/多选方形、提交后绿色正确/红色错误高亮+结果横幅、主观题自评（答对/答错/跳过）、**所有题型**查看答案/解析按钮（每题独立状态）、顶栏收藏★+**已掌握✓✓**按钮、顶栏📋选题底部弹窗（按题型分组+方块网格）、跳过安排到明天优先复习
+- **复习**：左右滑动HorizontalPager切换题目、多图翻页（题目/答案独立+页码指示器）、图片自适应比例显示不裁剪 + 点击全屏预览（双指缩放+双击放大）、单列布局、单选圆形/多选方形、提交后绿色正确/红色错误高亮+结果横幅、主观题自评（答对/答错/跳过）、**所有题型**查看答案/解析按钮（每题独立状态）、顶栏🧮计算器（可拖动浮动窗+贴边隐藏+拉出恢复）+收藏★+**已掌握✓✓**按钮、顶栏📋选题底部弹窗（按题型分组+方块网格）、跳过安排到明天优先复习
 - **错题浏览**：科目/章节双层筛选、**题型筛选 Chip**、列表按置顶>错误次数>录入时间排序、每条显示复习历史图标+正确/错误计数+复习进度+收藏★+置顶↑+编辑、点击进入单题复习
 - **已掌握**：复用错题浏览，路由参数 `mastered=true`，筛选 `correctCount≥3`，保留编辑/置顶/收藏按钮、**🕐重新安排复习**（1-10天滑动选择器），答错后归零回到复习循环
 - **收藏夹**：复用错题浏览页面，路由参数 `favorites=true`，数据源 `isFavorite=1`，取消收藏自动移出
@@ -129,9 +131,28 @@ app/src/main/java/com/mistakenotes/
 - `queue: List<Mistake>` — 当前复习队列
 - `startIndex: Int` — 起始位置
 - `isViewingResult: Boolean` — 是否查看已复习结果
+- `lastResult: ReviewResult?` — 上一轮结果
 - `preReviewedIndices: Set<Int>` / `preReviewedResults: Map<Int, Boolean?>` — 预审核卡片索引与结果
+- `selectedOptionsByMistakeId: Map<Long, Set<Int>>` — 跨 session 保留用户已选选项。**内存 + 文件双写**（`review_selections.json`），app 重启后仍能恢复错误选项红色高亮
 
-HomeScreen 设置 → ReviewViewModel 读取后 clear → 后续循环用 ViewModel 内部 `reviewedIndices`/`reviewedResults`。
+HomeScreen 设置 → ReviewViewModel 读取后 clear（**不会**清空 `selectedOptionsByMistakeId`，它跨 session 持久）。
+
+## ReviewViewModel 架构（每题独立状态）
+
+**不再使用单一 `ReviewUiState`**。改为：
+- `_reviewQueue: MutableStateFlow<List<Mistake>>` — 与旧版相同
+- `_perQuestionStates: MutableStateFlow<Map<Int, QuestionReviewState>>` — **每题独立**的 `selectedOptionIndices` / `showAnswer` / `isCorrect` / `correctIndices`
+- `_jumpTrigger: MutableStateFlow<Int?>` — 一次性跳转信号，Screen 消费后置 null；**Pager 是位置唯一真相源**，不再双向同步
+- `_currentIndex` 仅由 Pager 的 `LaunchedEffect(currentPage)` 单向更新，不再反向驱动 Pager
+- **文件持久化**：`submitAnswer` 时把 `selectedOptionIndices` 双写——内存 `ReviewSession.selectedOptionsByMistakeId` + 文件 `review_selections.json`（`context.filesDir` 下）。`loadReviewQueue` 启动时从文件回读合并，app 重启不会丢失选项状态
+
+## ReviewScreen 架构（每页独立渲染）
+
+HorizontalPager 的每个 page 直接渲染 `reviewQueue[page]`（而不是共用一个 `uiState.currentMistake`）：
+- 每页从 `perQuestionStates[page]` 读取自己的选项/答案状态
+- 每页有独立的 `rememberScrollState()`（不再共享全局 scrollState）
+- `jumpTo(index)` → `_jumpTrigger = index` → `LaunchedEffect` 消费并 `animateScrollToPage`，消除双向同步回路
+- 滑动到新页时内容立即可用，不会出现"旧题→新题"闪烁
 
 ## 自定义图标
 
@@ -147,6 +168,8 @@ HomeScreen 设置 → ReviewViewModel 读取后 clear → 后续循环用 ViewMo
 | `ic_edit.xml` | 编辑按钮（铅笔+纸张） | AmberGold + TextCream |
 | `ic_correct.xml` | 复习正确标记（绿色实心圆+白色对勾） | 绿色 #11AA66 |
 | `ic_wrong.xml` | 复习错误标记 | 红色 #F5222D |
+| `ic_mastered.xml` | 已掌握按钮（绿底圆角方框+对勾） | 绿色 #02C482 |
+| `ic_calculator.xml` | 计算器按钮（灰色机身+蓝屏+四则运算键） | 灰色 #7D8792 + 蓝 #BFEBFF |
 | `ic_flame.xml` | 收藏夹入口图标（火焰） | 红色 #fc5531 |
 | `ic_globe.xml` | 拍照录入入口图标（浏览器） | 多色原色 |
 
@@ -158,17 +181,21 @@ HomeScreen 设置 → ReviewViewModel 读取后 clear → 后续循环用 ViewMo
 - **RAG 触发只对第一张图**：多张题图时只对 `imageUris[0]` 触发一次，避免 token 浪费
 - **RAG 失败容错**：整链路（OCR → 召回 → LLM）任何异常不抛，返回 `ClassifyResult.failed(reason)`；UI 端识别后 Snackbar + 下拉留空 + 不阻塞保存
 - **RAG 与用户优先级**：RAG 回来时若 `chapterId != null`（用户已手动选），则丢弃 RAG 结果——用户优先
-- **RAG 知识库当前 299 知识点 / 30 章**（2026-06-07 commit `f19a32b`）；中册按物理页码硬编码切分（用 `extract_middle.py`），其它两册用 `extract_pdf.py` 按"第N章"正则
+- **RAG 知识库当前 305 知识点 / 30 章**（2026-06-08 commit `ccb66c6`）；中册按物理页码硬编码切分（用 `extract_middle.py`），其它两册用 `extract_pdf.py` 按"第N章"正则
 - **重抽章节时只需重跑 `gen_kb.py`**：自动跳过已生成的 28 章，只对 5 章重跑（断点续跑）。成本约 30K-50K tokens
-- **跨章节题目召回弱**：高频通用词（"现值/初始/应付账款/账面价值"）分散到多章关键词库，导致 ch14/ch21/ch24/ch25 召回错。修复：改 `KnowledgeBase.recall()` 加 IDF 权重 + bigram 匹配（待做）
-- **PC 端 RAG 测试不调 ML Kit OCR**（Android 端侧能力，PC 不可用）。用户须自己打字发题目或装 EasyOCR 跑识别
+- **IDF 加权召回**（已实现）：`KnowledgeBase.kt` 在 init 中预计算全文本 IDF 权重（name+desc+keywords），罕见关键词（如"谨慎性"=4.8）高权重，通用词（如"资产"=0.4）低权重
+- **方案B 跨章节占比**（已实现）：DeepSeek 返回 primary/secondary + proportion，APP 自动取主章节。`ClassifyResult` 含 `secondaryChapterId`/`chapterProportion`/`isCrossChapter`
+- **DynamicClassifier**（2026-06-08）：每次 `classify()` 调用时实时检查 Key，填 Key 后立即生效无需重启。解决原 `hasKeySync()` 只在 DI 初始化时检查一次的 bug
+- **kotlinx.serialization encodeDefaults**（2026-06-08）：`ClassifierModule` 中 Retrofit 的 Json 需 `encodeDefaults = true`，否则 `ChatRequest` 的 model/temperature 有默认值会被省略 → DeepSeek 返回 400
+- **PC 端 RAG 测试不调 ML Kit OCR**（Android 端侧能力，PC 不可用）。用户须自己打字发题目
 - **KnowledgeBase 由 KnowledgeBaseLoader 通过 Hilt 单例加载**：`data/rag/KnowledgeBase` 类本身无 `@Inject constructor()`，必须通过 `ClassifierModule.provideKnowledgeBase` 注入
+- **RAG 成功后自动填 3 个下拉**：通过 `chapterId` 反查 `subjectId`（`repository.getChapterById`），同时填入科目+章节+知识点
+- **主页设置入口**：TopAppBar 右侧齿轮图标 → SettingsScreen（DeepSeek API Key 增删改）
 - 图片存储在 `context.filesDir/question_images/`，不是原始 content:// URI
 - 多图路径用 `||` 分隔，通过 `Mistake.getQuestionImagePaths()` / `getAnswerImagePaths()` 解析
 - 录入时裁剪输出到 cacheDir，保存时 `copyImageToLocal` 复制到永久存储
 - 初始录入 `nextReviewDate = entryDate + 5天`——用用户选的错题日期起算，不是 now；回填 6/1 录入的题目首次复习落在 6/6，不是 today+5
 - **编辑模式 createdAt**：构造 `Mistake` 时 `createdAt` 直接用 `entryDateMs`（`loadMistakeForEditing` 已预填为原始 createdAt），不要用 `existingMistake?.createdAt` 兜底，否则 DatePicker 改动丢失
-- ReviewViewModel 用 `.first()` 快照加载队列，不响应数据库变更
 - HomeViewModel 用 `.collect()` 响应式更新列表状态
 - SKIP 结果的 ReviewRecord 不计入"已复习"
 - 无 gradlew：通过 Android Studio 构建，命令行编译不可用
@@ -182,7 +209,7 @@ HomeScreen 设置 → ReviewViewModel 读取后 clear → 后续循环用 ViewMo
 - **数据库迁移**：修改章节预置数据时必须同时写 Migration。策略：`PRAGMA foreign_keys = OFF` → DELETE 旧章节 → INSERT 新章节 → CASE 映射 mistakes.chapterId/knowledge_points.chapterId → `PRAGMA foreign_keys = ON`
 - **裁剪坐标映射**：确认裁剪时必须考虑 `ContentScale.Fit` 的图片偏移量（`imageLeft/Top/Right/Bottom`），用统一缩放比映射到原图像素，不能用分开的 scaleX/scaleY
 - **图片文件名唯一性**：`copyImageToLocal` 用 `System.nanoTime()` 而非 `Date()`（毫秒级时间戳在紧密循环中会冲突）
-- **跳过 vs 初始录入**：两者都产生 SKIP 记录，区别在 `nextReviewDate`——初始录入 = entryDate+5d，用户跳过 = 明天00:00。HomeViewModel 用 `nextReviewDate == tomorrowStart` + `reviewDate in today` + `result == SKIP` 三条件判用户主动跳过（`isSkippedToday`），满足时把 `skippedAt` 置为 reviewDate。**UI 渲染"已跳过" badge 必须用 `info.skippedAt > 0`，不能用 `lastResult == SKIP`**——录入/编辑也会写 SKIP 记录但 `nextReviewDate` 是 entryDate+5d，会被误判
+- **跳过 vs 初始录入**：两者都产生 SKIP 记录，区别在 `nextReviewDate`——初始录入 = entryDate+5d，用户跳过 = 明天00:00。HomeViewModel 用 `nextReviewDate == tomorrowStart` + `reviewDate in today` + `result == SKIP` + **`recordCount >= 2`** 四条件判用户主动跳过（`isSkippedToday`）。`recordCount >= 2` 是关键——初始录入只有 1 条记录，用户跳过才有 ≥2 条（初始 SKIP + 今日 SKIP），防止 entryDate+5d 碰巧等于 tomorrow 时误判。**UI 渲染"已跳过" badge 必须用 `info.skippedAt > 0`**，不能用 `lastResult == SKIP`。
 - **复习历史累积**：`ReviewViewModel.updateReviewRecord` 新记录必须 `id = 0`（Room 自增），否则 `OnConflictStrategy.REPLACE` 会覆盖旧记录导致只保留最新一条
 - **裁剪拖动边界**：四角/四边/中心拖动的约束边界是 `imageLeft/Right/Top/Bottom`（图片实际显示区域），不是 `0f`/`containerSize`
 - **复习页图片缩放**：用 `ContentScale.Fit` 完整显示，`FillWidth` 会导致竖长图被截断
@@ -198,18 +225,20 @@ HomeScreen 设置 → ReviewViewModel 读取后 clear → 后续循环用 ViewMo
 - **HorizontalPager page lambda 的 per-page state**：必须以 lambda 接收的 `page` 参数作 key（如 `mutableStateMapOf<Int, Boolean>()[page]`），不能用 ViewModel 的全局 `currentIndexValue`——后者在 swipe settle 后才更新，期间是滞后旧值；且 HorizontalPager 会预渲染相邻页，错误 key 会让相邻页共享 / 互相覆盖 state
 - **逾期复习按天分组**：点逾期题块时 `ReviewSession.queue = 当天 dayGroup.map { it.mistake }`（按 typeOrder：单选→多选→主观题 排序后的 dayMistakes），`startIndex = dayList.indexOf(card)`。**不是** `uiState.overdueCards.map { it.mistake }`（flatList），否则把不同逾期天数混在同一个复习队列
 - **可折叠区块的筛选 chips**：filter 控件放在 `AnimatedVisibility` 内的 `Column` 顶部（紧跟 header），**不要**作为独立 `item { ... }` 放在 `AnimatedVisibility` 外——否则折叠时 chips 不消失，且 LazyColumn 多一个永远可见的行
+- **ReviewScreen 每页独立渲染（强制）**：HorizontalPager 的每个 page 必须直接使用 `reviewQueue[page]` 和 `perQuestionStates[page]`，**严禁**共用全局 `currentMistake`。否则：滑动闪烁（新页先显示旧题）、跳转动画异常、相邻页状态互相覆盖
+- **jumpTrigger 单向跳转**：`jumpTo(index)` 设 `_jumpTrigger = index` → Screen `LaunchedEffect(jumpTrigger)` 消费并动画 → 完成后 `clearJumpTrigger()` 置 null。**不要**再从 ViewModel 的 `currentIndex` 变化反向驱动 Pager，否则形成双向同步回路
+- **每题独立状态**：`_perQuestionStates: Map<Int, QuestionReviewState>` 每题保存 `selectedOptionIndices` / `showAnswer` / `isCorrect` / `correctIndices`。提交答案时把 `selectedOptionIndices` 写入 `ReviewSession.selectedOptionsByMistakeId[mistakeId]`，退出重进后可恢复错误选项的红色高亮
+- **浮动科学计算器**：`CalculatorOverlay` 复习页浮动科学计算器。4×7 键位（sin/cos/tan/√/x²/xʸ/π/e/±/%），仅 ✕ 按钮关闭（点击外部不消失），`zIndex(Float.MAX_VALUE)` 置顶。可自由拖动，拖到屏幕边缘松手贴边隐藏露出金色拉片，拖曳拉片恢复。竖屏 250dp 宽 keyRatio=0.88，横屏自动缩至 210dp 宽 keyRatio=0.80，总高约 458dp/340dp，不占满屏高
 
 ## 待开发功能
 
 | 优先级 | 功能 | 说明 |
 |--------|------|------|
-| **高** | **RAG 重抽 5 章知识库** | 30 道题测试发现 5 章召回质量差：**ch5 投资性房地产 / ch14 租赁 / ch21 债务重组 / ch24 会计政策变更 / ch25 资产负债表日后事项**。需用 `gen_kb.py` 重抽这几章并人工 review |
 | **高** | RAG 扩展到其他科目 | 当前仅会计 30 章；后续扩展到审计/财管/税法/经济法/战略 |
-| **高** | 召回算法优化 | 加 IDF 权重 + bigram 匹配，解决"现值/初始/应付账款"等高频词分散问题。当前关键词召回在跨章节场景召回率偏低 |
 | 高 | 知识点评 UI 增删改 | knowledge_points 表已支持；RAG 自动 upsert 是主要入口 |
+| 中 | 真机 OCR 质量验证 | ML Kit 对手机拍照题目的识别质量未系统测试（PC 端测试跳过 OCR）|
 | 中 | 搜索题目 | 关键词搜索功能 |
 | 中 | 解析字段 | Mistake.explanation 从未使用 |
-| v2 | OCR 识别 | Tesseract 拍照自动识别文字 |
 | v2 | AI 评分 | DeepSeek API 主观题智能评分 |
 | v2 | AI 得分点 | AI 自动拆解参考答案得分点 |
 | 体验 | 通知提醒 | 每日待复习推送 |
