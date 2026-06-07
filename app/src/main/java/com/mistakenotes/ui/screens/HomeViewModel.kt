@@ -98,7 +98,8 @@ class HomeViewModel @Inject constructor(
                         ?.find { it.reviewDate in todayStart..todayEnd }
                     val isReviewed = todayRecord != null && todayRecord.result != ReviewResult.SKIP
                     val tomorrowStart = todayStart + 86400000L
-                    val isSkippedToday = rec?.result == ReviewResult.SKIP && rec?.reviewDate in todayStart..todayEnd && rec?.nextReviewDate == tomorrowStart
+                    val recordCount = reviewRecordMap[mistake.id]?.size ?: 0
+                    val isSkippedToday = rec?.result == ReviewResult.SKIP && rec?.reviewDate in todayStart..todayEnd && rec?.nextReviewDate == tomorrowStart && recordCount >= 2
                     val isSkipped = isSkippedToday
                     val isMastered = (rec?.correctCount ?: 0) >= 3
                     if ((isDueToday || isReviewed || isSkippedToday) && !isMastered) {
