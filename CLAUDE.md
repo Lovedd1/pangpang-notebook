@@ -8,6 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 CPA 错题笔记应用 — 核心复习流程（录入→复习→分析）已完成。多图上传、图片裁剪、收藏夹、置顶、复习进度显示、7 个新功能（答案图片全题型、题号弹窗、已掌握按钮、已掌握复习、录入时间、题型筛选、图片自适应预览）已实现。功能稳定，可日常使用。
 
+**RAG 知识库状态（2026-06-07）**：会计 30 章共 **306 知识点**（PDF 三册抽取 + DeepSeek 辅助生成，已重抽 ch5/ch14/ch21/ch24/ch25）。PC 端 30 道真题测试准确率 **27/30 = 90%**（详见 `结果.md`）。剩余 3 题失败属召回算法局限（需加 IDF 权重/bigram）或跨章节边界（#5 ch5↔ch16）。
+
 ## 技术栈
 
 - **Android 原生开发**：Kotlin 2.0.0 + Jetpack Compose
@@ -18,6 +20,8 @@ CPA 错题笔记应用 — 核心复习流程（录入→复习→分析）已�
 - **图片加载**：Coil 2.6.0
 - **导航**：Navigation Compose 2.8.0
 - **Compose BOM**：2025.02.00
+- **RAG 知识库**（CPA 会计）：Google ML Kit 端侧 OCR（中文）+ Retrofit 2.11.0 + kotlinx-serialization 1.7.3 + DeepSeek API
+- **Python 工具**（不入仓，工具链）：pdfplumber + openai + deepseek（gen_kb.py / rag_test.py / batch_rag_test.py）
 
 ## 构建与运行
 
@@ -38,12 +42,22 @@ app/src/main/java/com/mistakenotes/
 │   │   └── Entities.kt              # 数据库实体
 │   └── repository/
 │       └── MistakeRepository.kt      # 数据仓库（Entity↔Domain映射，含setFavorite/setTop）
+│   ├── rag/
+│   │   ├── KnowledgeClassifier.kt     # 分类器接口 + ClassifyResult
+│   │   ├── MockKnowledgeClassifier.kt # 无 API Key 时用
+│   │   ├── DeepSeekKnowledgeClassifier.kt # OCR + 召回 + DeepSeek 精排
+│   │   ├── OcrEngine.kt               # ML Kit 端侧 OCR
+│   │   ├── KnowledgeBase.kt           # 内存知识库 + recall()
+│   │   ├── KnowledgeBaseLoader.kt     # 从 assets 加载
+│   │   ├── DeepSeekApi.kt             # Retrofit + DTOs
+│   │   └── ApiKeyProvider.kt          # DataStore 包装
 ├── domain/model/
 │   ├── Subject.kt, Chapter.kt, KnowledgePoint.kt
 │   ├── Mistake.kt                    # 错题（含isFavorite/isTop、getQuestionImagePaths/getAnswerImagePaths）
 │   └── ReviewRecord.kt               # 复习记录（含correctCount）
 ├── di/
-│   └── DatabaseModule.kt             # Hilt DI（Room + DAO）
+│   ├── DatabaseModule.kt             # Hilt DI（Room + DAO）
+│   └── ClassifierModule.kt            # KnowledgeClassifier Hilt 绑定
 └── ui/
     ├── navigation/
     │   └── NavGraph.kt               # 5屏导航（Home/Import/Review/Analysis/Browse?favorites=&mastered=）
@@ -67,7 +81,8 @@ app/src/main/java/com/mistakenotes/
     │   ├── BrowseScreen.kt           # 错题浏览/收藏夹：筛选 + 复习进度 + 收藏★/置顶↑
     │   ├── BrowseViewModel.kt        # 排序 + 收藏模式切换 + ebbinghausCount
     │   ├── AnalysisScreen.kt         # 分析：科目掌握度+章节分布(按科目分组)+薄弱知识点
-    │   └── AnalysisViewModel.kt      # 统计数据计算
+    │   ├── AnalysisViewModel.kt      # 统计数据计算
+    │   └── SettingsScreen.kt          # DeepSeek API Key 设置
     └── theme/
         ├── Color.kt                  # InkStoneBlack/AmberGold/CardDark/TextCream
         └── Theme.kt
@@ -75,6 +90,7 @@ app/src/main/java/com/mistakenotes/
 
 ## 核心功能
 
+- **AI 自动归类（会计）**：录入选图后自动跑 RAG（ML Kit OCR + 关键词召回 + DeepSeek 精排）→ 自动填科目/章节/知识点下拉；用户可手动覆盖；失败时 Snackbar 提示不影响保存。设置页填入 DeepSeek API Key 后启用。**当前仅限 CPA 会计 30 章**。
 - **主页**：科目筛选 Chip（显示有今日卡片+逾期卡片的科目，彩虹配色）、今日/逾期独立题型筛选 Chip（单选/多选/主观题）、今日待复习列表（已复习/未复习标签+科目/章节信息+复习进度）、逾期列表（按逾期天数分组展开→按题型二级分组→方块网格题号）、总错题/已掌握统计、快捷入口
 - **录入**：多图上传（水平滚动列表+添加/删除）、Compose原生裁剪（拖动定位+四角缩放）、拍照/选图（自动复制到本地）、标题（不填自动生成 `YYYY-MM-DD-NN`）、单选题/多选题/主观题切换、按钮式选项（A~H标签+✓标记正确+×删除）、三级分类（科目→章节→知识点）、**所有题型**答案/解析图片上传、**录入时间选择**（DatePickerDialog）、选项以`|`分隔存储、编辑模式+删除功能
 - **复习**：左右滑动HorizontalPager切换题目、多图翻页（题目/答案独立+页码指示器）、图片自适应比例显示不裁剪 + 点击全屏预览（双指缩放+双击放大）、单列布局、单选圆形/多选方形、提交后绿色正确/红色错误高亮+结果横幅、主观题自评（答对/答错/跳过）、**所有题型**查看答案/解析按钮（每题独立状态）、顶栏收藏★+**已掌握✓✓**按钮、顶栏📋选题底部弹窗（按题型分组+方块网格）、跳过安排到明天优先复习
@@ -136,6 +152,17 @@ HomeScreen 设置 → ReviewViewModel 读取后 clear → 后续循环用 ViewMo
 
 ## 注意事项
 
+- **RAG 知识库数据保护**：APK assets/json/accounting_knowledge_points.json 是只读资源；用户已录入错题 knowledgePointId 字段**绝不受 RAG 重跑影响**——RAG 只在 `addImageUri` 触发时填充；用户手动修改下拉后 RAG 不覆盖
+- **DeepSeek API Key 存储**：DataStore Preferences，仅本机保留，不上传任何服务器
+- **ML Kit 端侧 OCR**：首次使用需联网下载 ~5MB 中文模型，下载后完全离线
+- **RAG 触发只对第一张图**：多张题图时只对 `imageUris[0]` 触发一次，避免 token 浪费
+- **RAG 失败容错**：整链路（OCR → 召回 → LLM）任何异常不抛，返回 `ClassifyResult.failed(reason)`；UI 端识别后 Snackbar + 下拉留空 + 不阻塞保存
+- **RAG 与用户优先级**：RAG 回来时若 `chapterId != null`（用户已手动选），则丢弃 RAG 结果——用户优先
+- **RAG 知识库当前 299 知识点 / 30 章**（2026-06-07 commit `f19a32b`）；中册按物理页码硬编码切分（用 `extract_middle.py`），其它两册用 `extract_pdf.py` 按"第N章"正则
+- **重抽章节时只需重跑 `gen_kb.py`**：自动跳过已生成的 28 章，只对 5 章重跑（断点续跑）。成本约 30K-50K tokens
+- **跨章节题目召回弱**：高频通用词（"现值/初始/应付账款/账面价值"）分散到多章关键词库，导致 ch14/ch21/ch24/ch25 召回错。修复：改 `KnowledgeBase.recall()` 加 IDF 权重 + bigram 匹配（待做）
+- **PC 端 RAG 测试不调 ML Kit OCR**（Android 端侧能力，PC 不可用）。用户须自己打字发题目或装 EasyOCR 跑识别
+- **KnowledgeBase 由 KnowledgeBaseLoader 通过 Hilt 单例加载**：`data/rag/KnowledgeBase` 类本身无 `@Inject constructor()`，必须通过 `ClassifierModule.provideKnowledgeBase` 注入
 - 图片存储在 `context.filesDir/question_images/`，不是原始 content:// URI
 - 多图路径用 `||` 分隔，通过 `Mistake.getQuestionImagePaths()` / `getAnswerImagePaths()` 解析
 - 录入时裁剪输出到 cacheDir，保存时 `copyImageToLocal` 复制到永久存储
@@ -176,7 +203,10 @@ HomeScreen 设置 → ReviewViewModel 读取后 clear → 后续循环用 ViewMo
 
 | 优先级 | 功能 | 说明 |
 |--------|------|------|
-| **高** | 知识点管理 | knowledge_points 表空，需 UI 增删改 |
+| **高** | **RAG 重抽 5 章知识库** | 30 道题测试发现 5 章召回质量差：**ch5 投资性房地产 / ch14 租赁 / ch21 债务重组 / ch24 会计政策变更 / ch25 资产负债表日后事项**。需用 `gen_kb.py` 重抽这几章并人工 review |
+| **高** | RAG 扩展到其他科目 | 当前仅会计 30 章；后续扩展到审计/财管/税法/经济法/战略 |
+| **高** | 召回算法优化 | 加 IDF 权重 + bigram 匹配，解决"现值/初始/应付账款"等高频词分散问题。当前关键词召回在跨章节场景召回率偏低 |
+| 高 | 知识点评 UI 增删改 | knowledge_points 表已支持；RAG 自动 upsert 是主要入口 |
 | 中 | 搜索题目 | 关键词搜索功能 |
 | 中 | 解析字段 | Mistake.explanation 从未使用 |
 | v2 | OCR 识别 | Tesseract 拍照自动识别文字 |
@@ -184,3 +214,29 @@ HomeScreen 设置 → ReviewViewModel 读取后 clear → 后续循环用 ViewMo
 | v2 | AI 得分点 | AI 自动拆解参考答案得分点 |
 | 体验 | 通知提醒 | 每日待复习推送 |
 | 体验 | 数据备份 | 错题数据导出 |
+
+## RAG PC 端测试工具（不入仓）
+
+`tools/` 目录下有 4 个 Python 工具（仅 `*.py` 入仓，中间产物 `tools/.tmp/` 排除）：
+
+| 脚本 | 用途 |
+|------|------|
+| `extract_pdf.py` | 用 `pdfplumber` 从单册 PDF 按"第N章"正则抽 30 章文本 |
+| `extract_middle.py` | 中册按硬编码物理页码精准切分（解决"第N章"页眉重复误切）|
+| `gen_kb.py` | 调 DeepSeek 把每章文本转 5-15 个知识点 JSON。**支持断点续跑**（已生成的章节跳过）+ 3 次重试 |
+| `merge_kb.py` | 合并 30 个 JSON 为单个 `accounting_knowledge_points.json` |
+| `rag_test.py` | PC 端 RAG 单题测试（跳过 OCR，直接输入题目文字 → 关键词召回 + DeepSeek 精排）|
+| `batch_rag_test.py` | 批量并发跑多道题（max 10 workers），输出 JSON |
+| `make_results_md.py` | 把 batch 结果转成可读 `结果.md` 表格 |
+
+**用法**：
+```bash
+# 单题测试
+DEEPSEEK_KEY=sk-xxx python tools/rag_test.py "题目文字"
+
+# 批量测试
+DEEPSEEK_KEY=sk-xxx python tools/batch_rag_test.py questions.json results.json
+python tools/make_results_md.py   # 生成 结果.md
+```
+
+**注意**：测试时设 `unset HISTFILE` 防止 Key 入 shell history；用完 **rotate** Key。

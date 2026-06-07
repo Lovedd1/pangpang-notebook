@@ -1,6 +1,7 @@
 package com.mistakenotes.data.local
 
 import androidx.room.Database
+import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
@@ -29,6 +30,12 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun reviewRecordDao(): ReviewRecordDao
 
     companion object {
+        /** 测试用：在内存中创建数据库（无预置 callback） */
+        fun createForTest(context: android.content.Context): AppDatabase =
+            Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+                .allowMainThreadQueries()
+                .build()
+
         val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("PRAGMA foreign_keys = OFF")

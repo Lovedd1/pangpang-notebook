@@ -35,6 +35,7 @@ import com.mistakenotes.domain.model.QuestionType
 import com.mistakenotes.domain.model.Subject
 import com.mistakenotes.ui.components.EntryDateRow
 import com.mistakenotes.ui.theme.*
+import com.mistakenotes.ui.screens.RagStatus
 
 private val LABELS = listOf("A", "B", "C", "D", "E", "F", "G", "H")
 
@@ -74,6 +75,13 @@ fun ImportScreen(
         uiState.errorMessage?.let { message ->
             snackbarHostState.showSnackbar(message)
             viewModel.clearError()
+        }
+    }
+
+    LaunchedEffect(uiState.ragErrorMessage) {
+        uiState.ragErrorMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            viewModel.clearRagError()
         }
     }
 
@@ -146,12 +154,24 @@ fun ImportScreen(
                 selectedSubjectId = uiState.subjectId,
                 onSubjectSelected = { viewModel.setSubject(it) }
             )
-            ChapterDropdown(
-                chapters = uiState.chapters,
-                selectedChapterId = uiState.chapterId,
-                enabled = uiState.subjectId != null,
-                onChapterSelected = { viewModel.setChapter(it) }
-            )
+            Box(modifier = Modifier.fillMaxWidth()) {
+                ChapterDropdown(
+                    chapters = uiState.chapters,
+                    selectedChapterId = uiState.chapterId,
+                    enabled = uiState.subjectId != null,
+                    onChapterSelected = { viewModel.setChapter(it) }
+                )
+                if (uiState.ragStatus == RagStatus.LOADING) {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .padding(end = 12.dp)
+                            .size(20.dp),
+                        color = AmberGold,
+                        strokeWidth = 2.dp
+                    )
+                }
+            }
             KnowledgePointDropdown(
                 knowledgePoints = uiState.knowledgePoints,
                 selectedKnowledgePointId = uiState.knowledgePointId,

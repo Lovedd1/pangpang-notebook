@@ -8,6 +8,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.mistakenotes.ui.screens.*
+import com.mistakenotes.ui.screens.SettingsScreen
 
 sealed class Screen(val route: String) {
     data object Home : Screen("home")
@@ -36,6 +37,10 @@ fun AppNavGraph(
                 onNavigateToFavorites = { navController.navigate("browse?favorites=true&mastered=false") },
                 onNavigateToMastered = { navController.navigate("browse?favorites=false&mastered=true") }
             )
+        }
+
+        composable("settings") {
+            SettingsScreen(onNavigateBack = { navController.popBackStack() })
         }
 
         composable(
