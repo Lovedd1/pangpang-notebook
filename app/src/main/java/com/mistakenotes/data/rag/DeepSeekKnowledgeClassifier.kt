@@ -1,8 +1,10 @@
 package com.mistakenotes.data.rag
 
 import android.net.Uri
+import android.util.Log
 import com.mistakenotes.domain.model.Subject
 import kotlinx.serialization.json.Json
+import retrofit2.HttpException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -43,18 +45,27 @@ class DeepSeekKnowledgeClassifier @Inject constructor(
             }
 
             // Step 3: 拼 prompt + 调 DeepSeek
+            val apiKey = apiKeyProvider.get().trim()
+            if (apiKey.isBlank()) {
+                return ClassifyResult.failed("未设置 API Key，请在设置页填入")
+            }
             val prompt = buildPrompt(text, candidates)
-            val apiKey = apiKeyProvider.get()
-            val response = deepSeekApi.chatCompletions(
-                authorization = "Bearer $apiKey",
-                request = ChatRequest(
-                    messages = listOf(
-                        ChatMessage("system", "你是 CPA 会计老师。给定题目和候选知识点，输出最相关的。"),
-                        ChatMessage("user", prompt)
+            Log.d("RAG", "调用 DeepSeek: ${apiKey.take(10)}... prompt=${prompt.take(100)}")
+            val response = try {
+                deepSeekApi.chatCompletions(
+                    authorization = "Bearer $apiKey",
+                    request = ChatRequest(
+                        messages = listOf(
+                            ChatMessage("system", "你是 CPA 会计老师。给定题目和候选知识点，输出最相关的。"),
+                            ChatMessage("user", prompt)
+                        )
                     )
-                    // 不设 response_format：prompt 里已要求"只输出 JSON"，且部分 DeepSeek 版本不支持会 400
                 )
-            )
+            } catch (e: HttpException) {
+                val errorBody = e.response()?.errorBody()?.string() ?: ""
+                Log.e("RAG", "DeepSeek HTTP ${e.code()}: $errorBody")
+                return ClassifyResult.failed("DeepSeek ${e.code()}: ${errorBody.take(100)}")
+            }
             val rawJson = response.choices.firstOrNull()?.message?.content
                 ?: return ClassifyResult.failed("DeepSeek 返回为空")
 
@@ -87,8 +98,12 @@ class DeepSeekKnowledgeClassifier @Inject constructor(
                 secondaryKpId = secKp,
                 chapterProportion = proportion
             )
+        } catch (e: HttpException) {
+            // 已在上面处理，这里兜底
+            ClassifyResult.failed("DeepSeek HTTP ${e.code()}")
         } catch (e: Exception) {
-            ClassifyResult.failed(e.message ?: e::class.simpleName ?: "未知错误")
+            Log.e("RAG", "分类异常", e)
+            ClassifyResult.failed("${e::class.simpleName}: ${e.message}".take(100))
         }
     }
 

@@ -52,14 +52,19 @@ object ClassifierModule {
 
     @Provides
     @Singleton
-    fun provideRetrofit(client: okhttp3.OkHttpClient): retrofit2.Retrofit =
-        retrofit2.Retrofit.Builder()
+    fun provideRetrofit(client: okhttp3.OkHttpClient): retrofit2.Retrofit {
+        val jsonConfig = Json {
+            encodeDefaults = true       // 必须：否则 model/temperature 默认值被省略 → DeepSeek 400
+            ignoreUnknownKeys = true    // 容错：忽略 DeepSeek 返回的未知字段
+        }
+        return retrofit2.Retrofit.Builder()
             .baseUrl("https://api.deepseek.com/")
             .client(client)
             .addConverterFactory(
-                kotlinx.serialization.json.Json.asConverterFactory("application/json".toMediaType())
+                jsonConfig.asConverterFactory("application/json".toMediaType())
             )
             .build()
+    }
 
     @Provides
     @Singleton
