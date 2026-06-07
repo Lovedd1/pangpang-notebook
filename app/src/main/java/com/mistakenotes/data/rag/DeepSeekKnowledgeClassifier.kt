@@ -51,8 +51,8 @@ class DeepSeekKnowledgeClassifier @Inject constructor(
                     messages = listOf(
                         ChatMessage("system", "你是 CPA 会计老师。给定题目和候选知识点，输出最相关的。"),
                         ChatMessage("user", prompt)
-                    ),
-                    responseFormat = ResponseFormat(type = "json_object")
+                    )
+                    // 不设 response_format：prompt 里已要求"只输出 JSON"，且部分 DeepSeek 版本不支持会 400
                 )
             )
             val rawJson = response.choices.firstOrNull()?.message?.content
