@@ -24,8 +24,7 @@ interface DeepSeekApi {
 data class ChatRequest(
     val model: String = "deepseek-chat",
     val messages: List<ChatMessage>,
-    val temperature: Double = 0.1,  // 低温度让分类更稳定
-    @SerialName("response_format") val responseFormat: ResponseFormat? = null
+    val temperature: Double = 0.1   // 低温度让分类更稳定
 )
 
 @Serializable
