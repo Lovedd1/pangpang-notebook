@@ -58,7 +58,7 @@ class DeepSeekKnowledgeClassifier @Inject constructor(
                     authorization = "Bearer $apiKey",
                     request = ChatRequest(
                         messages = listOf(
-                            ChatMessage("system", "你是 CPA 会计老师。给定题目和候选知识点，输出最相关的。"),
+                            ChatMessage("system", "你是 CPA 会计老师。根据候选知识点判断题目属于哪个章节。注意：优先股/永续债涉及分类为负债还是权益的判断→第13章（金融工具）；涉及分类后的股利处理/发行费用/重分类计量→第16章（所有者权益）。\n题目中出现\"所有者权益\"不代表属于第16章——如果核心是金融工具的分类和确认标准，仍属第13章。\n金融工具确认和计量（含重分类/权益工具回购/股利确认的具体规则）通常是第13章，而非第16章。"),
                             ChatMessage("user", prompt)
                         )
                     )
