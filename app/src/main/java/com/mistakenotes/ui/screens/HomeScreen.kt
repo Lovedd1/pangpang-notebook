@@ -514,8 +514,11 @@ private fun TodayCardItem(
             // NOT a system-generated SKIP record (from import / edit-reset). The
             // latter sets rec.result = SKIP too, so checking lastResult alone is
             // ambiguous. skippedAt > 0 is set only by HomeViewModel when
-            // isSkippedToday is true (rec.nextReviewDate == tomorrowStart, which
-            // is the unique signature of a user-initiated skip in review).
+            // isSkippedToday OR isSkippedCarryover is true. Both branches share
+            // the unique signature of a user-initiated skip: rec.nextReviewDate
+            // == tomorrowStart at the moment of skip (which is `todayStart + 1d`
+            // relative to the skip day) and recordCount >= 2 (filters out the
+            // initial-import SKIP record).
             if (info.skippedAt > 0) {
                 Box(
                     modifier = Modifier
