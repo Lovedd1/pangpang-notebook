@@ -84,6 +84,7 @@ class ImportViewModel @Inject constructor(
     val uiState: StateFlow<ImportUiState> = _uiState.asStateFlow()
     private val editingMistakeId: Long = savedStateHandle.get<Long>("mistakeId") ?: -1L
     private val _pendingClassifyJob = MutableStateFlow<Job?>(null)
+    private val _pendingAnswerOcrJob = MutableStateFlow<Job?>(null)
 
     /** 选项字母 A~H，与 OptionEntryRow 的 LABELS 对齐 */
     private companion object {
@@ -277,6 +278,31 @@ class ImportViewModel @Inject constructor(
         }
     }
 
+    /**
+     * 跑 OCR + 提取字母 + 应用推断。任何异常 fail-soft，仅写 snackbar 不抛。
+     */
+    private suspend fun runOcrAndInfer(uri: Uri) {
+        val text = try {
+            ocrEngine.recognizeText(uri)
+        } catch (e: CancellationException) {
+            throw e  // 协程取消正常传递
+        } catch (e: Exception) {
+            _uiState.update {
+                it.copy(answerOcrFeedback = "OCR 识别失败：${e.message ?: "未知错误"}，请手动设置")
+            }
+            return
+        }
+        if (text.isBlank()) {
+            _uiState.update {
+                it.copy(answerOcrFeedback = "OCR 识别为空，请手动设置")
+            }
+            return
+        }
+        val letters = AnswerLetterExtractor.extract(text)
+        applyAnswerInference(uri, letters, text)
+        _uiState.update { it.copy(answerInferredFromOcr = true) }
+    }
+
     fun removeImageUri(index: Int) {
         _uiState.update {
             it.copy(imageUris = it.imageUris.filterIndexed { i, _ -> i != index })
@@ -396,12 +422,59 @@ class ImportViewModel @Inject constructor(
     }
 
     fun addAnswerImageUri(uri: Uri) {
-        _uiState.update { it.copy(answerImageUris = it.answerImageUris + uri) }
+        val isFirst = _uiState.value.answerImageUris.isEmpty()
+        _uiState.update {
+            it.copy(
+                answerImageUris = it.answerImageUris + uri,
+                // 清掉上一次 OCR 反馈，避免新 OCR 前显示旧文
+                answerOcrFeedback = null
+            )
+        }
+        if (isFirst) {
+            // Snapshot 当前状态，OCR 跑完会改 state，删图时用此回滚
+            val current = _uiState.value
+            _uiState.update {
+                it.copy(
+                    preInferenceSnapshot = AnswerSnapshot(
+                        questionType = current.questionType,
+                        correctOptionIndices = current.correctOptionIndices
+                    )
+                )
+            }
+            // 异步 OCR（可被后续 add/remove 取消）
+            _pendingAnswerOcrJob.value?.cancel()
+            _pendingAnswerOcrJob.value = viewModelScope.launch {
+                runOcrAndInfer(uri)
+            }
+        }
     }
 
     fun removeAnswerImageUri(index: Int) {
-        _uiState.update {
-            it.copy(answerImageUris = it.answerImageUris.filterIndexed { i, _ -> i != index })
+        val current = _uiState.value
+        val newList = current.answerImageUris.filterIndexed { i, _ -> i != index }
+
+        // 回滚判定：仅当 list 变空 + 处于 OCR 推断态 + 有 snapshot
+        val shouldRollback = newList.isEmpty() &&
+                             current.answerInferredFromOcr &&
+                             current.preInferenceSnapshot != null
+
+        if (shouldRollback) {
+            val snap = current.preInferenceSnapshot!!
+            // 取消可能正在跑的 OCR 协程
+            _pendingAnswerOcrJob.value?.cancel()
+            _pendingAnswerOcrJob.value = null
+            _uiState.update {
+                it.copy(
+                    answerImageUris = newList,
+                    questionType = snap.questionType,
+                    correctOptionIndices = snap.correctOptionIndices,
+                    answerInferredFromOcr = false,
+                    preInferenceSnapshot = null,
+                    answerOcrFeedback = "已恢复题目类型"
+                )
+            }
+        } else {
+            _uiState.update { it.copy(answerImageUris = newList) }
         }
     }
 
