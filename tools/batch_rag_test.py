@@ -88,6 +88,17 @@ CHAPTER_NAMES_CN = {
     30:"政府及民间非营利组织会计"
 }
 
+SYSTEM_PROMPT = """你是 CPA 会计老师。根据候选知识点判断题目属于哪个章节。
+
+第13章（金融工具）的题型特征：题目在问"分类为/确认为/属于什么"或"表述是否正确（关于确认和计量规则）"。
+具体包括：金融资产三分类判断、金融负债vs权益工具的区分、优先股/永续债应分类为负债还是权益、金融工具减值（预期信用损失）、金融资产转移/终止确认、可转换债券初始拆分与转股处理（含转股时资本公积计算）、金融工具交易费用计入原则、金融资产重分类规则。
+
+第16章（所有者权益）的题型特征：题目在问"金额是多少/入什么科目"且涉及资本公积/其他综合收益/留存收益的核算。
+具体包括：权益工具股利分配的利润分配处理、库存股回购的权益变动、权益工具发行费用冲减资本公积、其他综合收益的类别和重分类。
+
+判别铁则：凡是问"应该分类为什么/确认为什么类型/是否正确（关于分类与确认规则）"→第13章。凡是问"金额如何计算/科目如何入账（关于权益类科目的核算）"→可能是第16章。题目中出现"所有者权益"≠第16章，出现"资本公积"≠一定是第16章，要看题目的核心是"判断"还是"计算"。
+"""
+
 def build_prompt(question, candidates):
     cand_str = "\n".join([
         f"[{i+1}] id={c['id']} 第{c['chapterId']}章({CHAPTER_NAMES_CN.get(c['chapterId'],'?')}) - {c['name']}\n  关键词: {', '.join(c.get('keywords',[]))}"
@@ -124,7 +135,10 @@ def rerank(question, candidates, api_key):
         try:
             resp = client.chat.completions.create(
                 model="deepseek-chat",
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt}
+                ],
                 temperature=0.1,
             )
             raw = resp.choices[0].message.content
