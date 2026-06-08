@@ -54,7 +54,19 @@ data class ImportUiState(
     val entryDate: Long? = null,
     // ====== 新增 RAG 状态 ======
     val ragStatus: RagStatus = RagStatus.IDLE,
-    val ragErrorMessage: String? = null
+    val ragErrorMessage: String? = null,
+    // ====== 新增 答案图 OCR 推断状态 ======
+    val answerOcrFeedback: String? = null,          // 单次 OCR 反馈文案，LaunchedEffect 消费后置 null
+    val answerInferredFromOcr: Boolean = false,     // 是否处于"OCR 推断态"（决定删图时是否回滚）
+    val preInferenceSnapshot: AnswerSnapshot? = null // OCR 前的状态快照，用于删图回滚
+)
+
+/**
+ * 答案图 OCR 推断前的状态快照，用于"删图回滚"
+ */
+data class AnswerSnapshot(
+    val questionType: QuestionType,
+    val correctOptionIndices: Set<Int>
 )
 
 @HiltViewModel
@@ -518,6 +530,10 @@ class ImportViewModel @Inject constructor(
 
     fun clearRagError() {
         _uiState.update { it.copy(ragStatus = RagStatus.IDLE, ragErrorMessage = null) }
+    }
+
+    fun clearAnswerOcrFeedback() {
+        _uiState.update { it.copy(answerOcrFeedback = null) }
     }
 
     /**
