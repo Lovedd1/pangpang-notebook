@@ -299,22 +299,20 @@ git commit -m "feat(import): 构造器注入 OcrEngine 用于答案图 OCR"
 ## Task 4: 实现 applyAnswerInference 私有方法
 
 **Files:**
-- Modify: `app/src/main/java/com/mistakenotes/ui/screens/ImportViewModel.kt`（在 `_pendingAnswerOcrJob` 字段之后、init 块之前插入新方法）
+- Modify: `app/src/main/java/com/mistakenotes/ui/screens/ImportViewModel.kt`（在 `triggerRagClassification` 之后、`removeImageUri` 之前插入新方法）
 
 - [ ] **Step 1: 加 LABELS 常量到 ImportViewModel 内部**
 
-在 `_pendingClassifyJob` 字段声明附近（73 行附近）后追加：
+如果文件已有 `companion object`，把 `LABELS` 加进那个；否则在 `_pendingClassifyJob` 字段声明附近（73 行附近）后追加：
 
 ```kotlin
-    private val _pendingAnswerOcrJob = MutableStateFlow<Job?>(null)
-
     /** 选项字母 A~H，与 OptionEntryRow 的 LABELS 对齐 */
     private companion object {
         private val LABELS = listOf("A", "B", "C", "D", "E", "F", "G", "H")
     }
 ```
 
-如果文件已有其他 `companion object`，把 `LABELS` 加进那个；否则新建。
+> 注：`_pendingAnswerOcrJob` 字段在 Task 6 第一次被使用时才引入（不在此 Task 加），保证字段声明和使用在同一 Task 出现。
 
 - [ ] **Step 2: 加 applyAnswerInference 私有方法**
 
@@ -446,9 +444,20 @@ git commit -m "feat(import): runOcrAndInfer 异步 OCR + 字母提取"
 ## Task 6: 改 addAnswerImageUri 触发 OCR + 写 snapshot
 
 **Files:**
-- Modify: `app/src/main/java/com/mistakenotes/ui/screens/ImportViewModel.kt:324-326`（addAnswerImageUri 方法）
+- Modify: `app/src/main/java/com/mistakenotes/ui/screens/ImportViewModel.kt:73`（新增 `_pendingAnswerOcrJob` 字段）
+- Modify: `app/src/main/java/com/mistakenotes/ui/screens/ImportViewModel.kt:324-326`（重写 addAnswerImageUri）
 
-- [ ] **Step 1: 重写 addAnswerImageUri**
+- [ ] **Step 1: 加 _pendingAnswerOcrJob 字段**
+
+在第 73 行附近，`_pendingClassifyJob` 字段声明之后追加：
+
+```kotlin
+    private val _pendingAnswerOcrJob = MutableStateFlow<Job?>(null)
+```
+
+`_pendingClassifyJob` 处理题目图 RAG；这个新字段处理答案图 OCR。两个 job 独立。
+
+- [ ] **Step 2: 重写 addAnswerImageUri**
 
 把第 324-326 行：
 
@@ -490,13 +499,13 @@ git commit -m "feat(import): runOcrAndInfer 异步 OCR + 字母提取"
     }
 ```
 
-- [ ] **Step 2: 编译检查**
+- [ ] **Step 3: 编译检查**
 
 操作：Build → Make Project
 
 Expected: BUILD SUCCESSFUL
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add app/src/main/java/com/mistakenotes/ui/screens/ImportViewModel.kt
