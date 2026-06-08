@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目状态
 
-CPA 错题笔记应用 — 核心复习流程（录入→复习→分析）已完成。多图上传、图片裁剪、收藏夹、置顶、复习进度显示、7 个新功能（答案图片全题型、题号弹窗、已掌握按钮、已掌握复习、录入时间、题型筛选、图片自适应预览）已实现。功能稳定，可日常使用。
+CPA 错题笔记应用 — 核心复习流程（录入→复习→分析）已完成。多图上传、图片裁剪、收藏夹、置顶、复习进度显示、7 个新功能（答案图片全题型、题号弹窗、已掌握按钮、已掌握复习、录入时间、题型筛选、图片自适应预览）、**答案图自动识别（OCR 提取字母 → 自动设题型+勾选项）**已实现。功能稳定，可日常使用。
 
 **RAG 知识库状态（2026-06-07）**：会计 30 章共 **305 知识点**（PDF 三册抽取 + DeepSeek 辅助生成，已重抽 ch5/ch14/ch21/ch24/ch25）。PC 端 90 道真题测试准确率 **88/90 = 98%**（详见 `结果.md`）。剩余 2 题失败属召回算法局限（需加 IDF 权重/bigram）或跨章节边界（#5 ch5↔ch16）。
 
@@ -94,7 +94,7 @@ app/src/main/java/com/mistakenotes/
 
 - **AI 自动归类（会计）**：录入选图后自动跑 RAG（ML Kit OCR + 关键词召回 + DeepSeek 精排）→ 自动填科目/章节/知识点下拉；用户可手动覆盖；失败时 Snackbar 提示不影响保存。设置页填入 DeepSeek API Key 后启用。**当前仅限 CPA 会计 30 章**。
 - **主页**：科目筛选 Chip（显示有今日卡片+逾期卡片的科目，彩虹配色）、今日/逾期独立题型筛选 Chip（单选/多选/主观题）、今日待复习列表（已复习/未复习标签+科目/章节信息+复习进度）、逾期列表（按逾期天数分组展开→按题型二级分组→方块网格题号）、总错题/已掌握统计、快捷入口
-- **录入**：多图上传（水平滚动列表+添加/删除）、Compose原生裁剪（拖动定位+四角缩放）、拍照/选图（自动复制到本地）、标题（不填自动生成 `YYYY-MM-DD-NN`）、单选题/多选题/主观题切换、按钮式选项（A~H标签+✓标记正确+×删除）、三级分类（科目→章节→知识点）、**所有题型**答案/解析图片上传、**录入时间选择**（DatePickerDialog）、选项以`|`分隔存储、编辑模式+删除功能
+- **录入**：多图上传（水平滚动列表+添加/删除）、Compose原生裁剪（拖动定位+四角缩放）、拍照/选图（自动复制到本地）、标题（不填自动生成 `YYYY-MM-DD-NN`）、单选题/多选题/主观题切换、按钮式选项（A~H标签+✓标记正确+×删除）、三级分类（科目→章节→知识点）、**所有题型**答案/解析图片上传、**录入时间选择**（DatePickerDialog）、**答案图自动识别**（上传第一张答案图时本地 OCR 提取 A-H 字母 → 1=单选+勾对应 / 2+=多选+多勾 / 0=主观题；超范围警告；删图回滚，详见 `docs/superpowers/specs/2026-06-08-answer-image-auto-fill-design.md`）、选项以`|`分隔存储、编辑模式+删除功能
 - **复习**：左右滑动HorizontalPager切换题目、多图翻页（题目/答案独立+页码指示器）、图片自适应比例显示不裁剪 + 点击全屏预览（双指缩放+双击放大）、单列布局、单选圆形/多选方形、提交后绿色正确/红色错误高亮+结果横幅、主观题自评（答对/答错/跳过）、**所有题型**查看答案/解析按钮（每题独立状态）、顶栏🧮计算器（可拖动浮动窗+贴边隐藏+拉出恢复）+收藏★+**已掌握✓✓**按钮、顶栏📋选题底部弹窗（按题型分组+方块网格）、跳过安排到明天优先复习
 - **错题浏览**：科目/章节双层筛选、**题型筛选 Chip**、列表按置顶>错误次数>录入时间排序、每条显示复习历史图标+正确/错误计数+复习进度+收藏★+置顶↑+编辑、点击进入单题复习
 - **已掌握**：复用错题浏览，路由参数 `mastered=true`，筛选 `correctCount≥3`，保留编辑/置顶/收藏按钮、**🕐重新安排复习**（1-10天滑动选择器），答错后归零回到复习循环
@@ -210,6 +210,9 @@ HorizontalPager 的每个 page 直接渲染 `reviewQueue[page]`（而不是共�
 - **裁剪坐标映射**：确认裁剪时必须考虑 `ContentScale.Fit` 的图片偏移量（`imageLeft/Top/Right/Bottom`），用统一缩放比映射到原图像素，不能用分开的 scaleX/scaleY
 - **图片文件名唯一性**：`copyImageToLocal` 用 `System.nanoTime()` 而非 `Date()`（毫秒级时间戳在紧密循环中会冲突）
 - **跳过 vs 初始录入**：两者都产生 SKIP 记录，区别在 `nextReviewDate`——初始录入 = entryDate+5d，用户跳过 = 明天00:00。HomeViewModel 用 `nextReviewDate == tomorrowStart` + `reviewDate in today` + `result == SKIP` + **`recordCount >= 2`** 四条件判用户主动跳过（`isSkippedToday`）。`recordCount >= 2` 是关键——初始录入只有 1 条记录，用户跳过才有 ≥2 条（初始 SKIP + 今日 SKIP），防止 entryDate+5d 碰巧等于 tomorrow 时误判。**UI 渲染"已跳过" badge 必须用 `info.skippedAt > 0`**，不能用 `lastResult == SKIP`。
+- **跳过 carryover（次日）**：用户昨日 SKIP 后那条 `nrd = 明天 00:00 = 绝对时间戳`。到了次日，HomeViewModel 计算 `todayStart = 该绝对时间戳`，于是 `isDueToday=TRUE`（因为 `nrd == todayStart`，端点包含）。但 `isSkippedToday` 要求 `reviewDate in today` 不满足（旧逻辑只认同日 SKIP），所以卡片会渲染成"未复习"——是 bug。HomeViewModel 加了 `isSkippedCarryover` 分支：`result==SKIP && reviewDate < todayStart && nrd in todayStart..todayEnd && recordCount >= 2`，把它识别成"昨日的跳过延续到今天"，沿用"已跳过"徽章。错过 Day N+1 后 Day N+2 会自然落入逾期列表（`nrd < todayStart`）。
+- **NonCancellable 保护复习记录写入（2026-06-08）**：`ReviewViewModel` 中 `updateReviewRecord` / `skipReviewRecord` / `markAsMastered` 三个 DB 写入方法原来用 `viewModelScope.launch {}`（异步），UI 同步更新后用户立即返回→ViewModel 销毁→协程取消→**记录永久丢失**。修复：全部改用 `viewModelScope.launch(NonCancellable) {}`，确保记录一定写入。旧数据可能已有损坏，HomeViewModel 启动时有一次性修复协程（见下条）。
+- **安全网过滤器 + 数据修复（2026-06-08）**：HomeViewModel 加了两个防御层——① `wasReviewedYesterday` 过滤器：昨天有 CORRECT/WRONG 记录 + 今天没有新记录的卡片直接排除出今日列表（补丁所有已知/未知的数据损坏场景）；② 启动时修复协程：遍历所有 `review_records`，找到昨天有 CORRECT/WRONG 记录但其 `nextReviewDate` 不正确（≠ reviewDate+5d）的条目，用 `INSERT OR REPLACE` 原地修复 `nextReviewDate`，确保卡片在正确日期（reviewDate+5d）回到复习队列。修复后 logcat 显示 `[REPAIR]`，过滤器排除时显示 `[FILTER]`。
 - **复习历史累积**：`ReviewViewModel.updateReviewRecord` 新记录必须 `id = 0`（Room 自增），否则 `OnConflictStrategy.REPLACE` 会覆盖旧记录导致只保留最新一条
 - **裁剪拖动边界**：四角/四边/中心拖动的约束边界是 `imageLeft/Right/Top/Bottom`（图片实际显示区域），不是 `0f`/`containerSize`
 - **复习页图片缩放**：用 `ContentScale.Fit` 完整显示，`FillWidth` 会导致竖长图被截断
@@ -219,7 +222,7 @@ HorizontalPager 的每个 page 直接渲染 `reviewQueue[page]`（而不是共�
 - **逾期列表分组**：逾期按天数降序分组，点击展开后按单选→多选→主观二级分组，方块网格显示题号
 - **左右滑动切题**：复习页用 `HorizontalPager` 包裹内容，左右滑动切换上/下一题，与底栏"下一题"按钮和选题弹窗协同
 - **录入时间语义**：`createdAt` = 用户选择的录入日期，`nextReviewDate` = entryDate + 5 天（从错题日期起算 5 天后首次复习），`reviewDate` = 当前保存时间
-- **已掌握按钮**：复习页顶栏金色 ✓✓ 始终可见（不依赖提交状态），点击弹出确认对话框
+- **已掌握按钮**：复习页顶栏 `ic_mastered` 图标（绿底圆角方框+对勾）始终可见（不依赖提交状态），点击弹出确认对话框
 - **选题弹窗**：顶栏 📋 按钮 → `ModalBottomSheet`，按题型分组显示方块网格，方块 100dp，未选中背景 `InkStoneBlack` 与弹窗 `CardDark` 区分
 - **RescheduleDialog**：已掌握列表 🕐 按钮 → `Slider` 滑动选择 1-10 天
 - **HorizontalPager page lambda 的 per-page state**：必须以 lambda 接收的 `page` 参数作 key（如 `mutableStateMapOf<Int, Boolean>()[page]`），不能用 ViewModel 的全局 `currentIndexValue`——后者在 swipe settle 后才更新，期间是滞后旧值；且 HorizontalPager 会预渲染相邻页，错误 key 会让相邻页共享 / 互相覆盖 state
@@ -228,13 +231,14 @@ HorizontalPager 的每个 page 直接渲染 `reviewQueue[page]`（而不是共�
 - **ReviewScreen 每页独立渲染（强制）**：HorizontalPager 的每个 page 必须直接使用 `reviewQueue[page]` 和 `perQuestionStates[page]`，**严禁**共用全局 `currentMistake`。否则：滑动闪烁（新页先显示旧题）、跳转动画异常、相邻页状态互相覆盖
 - **jumpTrigger 单向跳转**：`jumpTo(index)` 设 `_jumpTrigger = index` → Screen `LaunchedEffect(jumpTrigger)` 消费并动画 → 完成后 `clearJumpTrigger()` 置 null。**不要**再从 ViewModel 的 `currentIndex` 变化反向驱动 Pager，否则形成双向同步回路
 - **每题独立状态**：`_perQuestionStates: Map<Int, QuestionReviewState>` 每题保存 `selectedOptionIndices` / `showAnswer` / `isCorrect` / `correctIndices`。提交答案时把 `selectedOptionIndices` 写入 `ReviewSession.selectedOptionsByMistakeId[mistakeId]`，退出重进后可恢复错误选项的红色高亮
-- **浮动科学计算器**：`CalculatorOverlay` 复习页浮动科学计算器。4×7 键位（sin/cos/tan/√/x²/xʸ/π/e/±/%），仅 ✕ 按钮关闭（点击外部不消失），`zIndex(Float.MAX_VALUE)` 置顶。可自由拖动，拖到屏幕边缘松手贴边隐藏露出金色拉片，拖曳拉片恢复。竖屏 250dp 宽 keyRatio=0.88，横屏自动缩至 210dp 宽 keyRatio=0.80，总高约 458dp/340dp，不占满屏高
+- **浮动科学计算器**：复习页顶栏 `ic_calculator` 按钮（灰色机身+蓝屏+四则运算键）→ 点击切换 `CalculatorOverlay` 浮动科学计算器。4×7 键位（sin/cos/tan/√/x²/xʸ/π/e/±/%），仅 ✕ 按钮关闭（点击外部不消失），`zIndex(Float.MAX_VALUE)` 置顶。可自由拖动，拖到屏幕边缘松手贴边隐藏露出金色拉片，拖曳拉片恢复。竖屏 250dp 宽 keyRatio=0.88，横屏自动缩至 210dp 宽 keyRatio=0.80，总高约 458dp/340dp，不占满屏高
 
 ## 待开发功能
 
 | 优先级 | 功能 | 说明 |
 |--------|------|------|
-| **高** | RAG 扩展到其他科目 | 当前仅会计 30 章；后续扩展到审计/财管/税法/经济法/战略 |
+| **高（已设计-待实施）** | **经济法 RAG 知识库** | 2026-06-08 启动设计。源数据：东奥/中华等机构版 PDF（**分上/中/下多册**）。范围：12 章一趋走完（民事法律基础→涉外经济法律制度，AppDatabase 已预置 subjectId=5 / id 90-101）。预算 ≈ 60-120K tokens / 0.5-1 元 RMB。**架构已定（多文件 + JSON schema 加 subjectId 字段，老 JSON 0 改动、缺省填 1）**：① 工具改造：`extract_middle.py` 接受 `CHAPTER_PAGES` JSON 配置参数（不再硬编码会计 13~20）；`gen_kb.py` 接受 `--subject "经济法"` 注入 prompt（PROMPT 中"你是 CPA 会计老师"→参数化）；`merge_kb.py` 接受 `--subject-id 5` 给每个 KP 加 subjectId 字段。② 经济法中册用 `extract_middle.py` 新模式 + 硬编码页码（参照会计中册 `CHAPTER_PAGES` 字典做法）。③ 新增 `app/src/main/assets/json/economics_law_knowledge_points.json`（version=1 / chapterId 范围 90-101）。④ Android 端：`KnowledgePointJson` 加 `subjectId: Long = 1L` 字段（**有默认值，老 KP 自动填 1 兼容**）；`KnowledgeBaseLoader` 加载所有 `*_knowledge_points.json`（glob）；`KnowledgeBase` 不变（继续按 chapterId 召回，subject 过滤在 classifier 层做）。⑤ `DeepSeekKnowledgeClassifier` 改：a) `classify()` 已有 `subjectHint: Subject?`，`recall()` 增加 `subjectHint` 过滤（按 subjectHint 查章节表，限定 chapterId 范围）；b) `CHAPTER_NAMES` 改为按 subject 动态注入（`Map<Long, Map<Int, String>>`）；c) System message 改为"你是 CPA 老师"+ prompt 注入 subject 名称。⑥ **数据保护：Room 0 改动 / 老会计 JSON 0 改动 / user 录入数据 0 风险**。详细 design 见 `docs/superpowers/specs/2026-06-08-cpa-economics-law-rag-design.md`（待写） |
+| 高 | 知识点评 UI 增删改 | knowledge_points 表已支持；RAG 自动 upsert 是主要入口 |
 | 高 | 知识点评 UI 增删改 | knowledge_points 表已支持；RAG 自动 upsert 是主要入口 |
 | 中 | 真机 OCR 质量验证 | ML Kit 对手机拍照题目的识别质量未系统测试（PC 端测试跳过 OCR）|
 | 中 | 搜索题目 | 关键词搜索功能 |
