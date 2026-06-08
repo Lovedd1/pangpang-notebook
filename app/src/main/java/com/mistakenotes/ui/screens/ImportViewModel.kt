@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mistakenotes.data.rag.KnowledgeBase
 import com.mistakenotes.data.rag.KnowledgeClassifier
+import com.mistakenotes.data.rag.OcrEngine
 import com.mistakenotes.data.repository.MistakeRepository
 import com.mistakenotes.domain.model.Chapter
 import com.mistakenotes.domain.model.KnowledgePoint
@@ -73,8 +74,9 @@ data class AnswerSnapshot(
 class ImportViewModel @Inject constructor(
     private val repository: MistakeRepository,
     @ApplicationContext private val context: Context,
-    private val classifier: KnowledgeClassifier,  // ← 新增
-    private val knowledgeBase: KnowledgeBase,  // ← 新增
+    private val classifier: KnowledgeClassifier,  // RAG 分类器
+    private val knowledgeBase: KnowledgeBase,      // RAG 知识库
+    private val ocrEngine: OcrEngine,              // 答案图 OCR 用（复用 RAG 的 ML Kit 引擎）
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
