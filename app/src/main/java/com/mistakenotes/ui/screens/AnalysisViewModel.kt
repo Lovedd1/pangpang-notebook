@@ -54,7 +54,7 @@ class AnalysisViewModel @Inject constructor(
             ) { subjects, mistakes, reviewRecords ->
                 val subjectStats = calculateSubjectStats(subjects, mistakes, reviewRecords)
                 val chapterStats = calculateChapterStats(subjects, mistakes, reviewRecords)
-                val topWeakKnowledgePoints = calculateTopWeakKnowledgePoints(mistakes, reviewRecords)
+                val topWeakKnowledgePoints = calculateTopWeakKnowledgePoints(mistakes, reviewRecords, subjects)
 
                 AnalysisUiState(
                     subjectStats = subjectStats,
@@ -154,7 +154,8 @@ class AnalysisViewModel @Inject constructor(
 
     private suspend fun calculateTopWeakKnowledgePoints(
         mistakes: List<com.mistakenotes.domain.model.Mistake>,
-        reviewRecords: List<com.mistakenotes.domain.model.ReviewRecord>
+        reviewRecords: List<com.mistakenotes.domain.model.ReviewRecord>,
+        subjects: List<Subject>
     ): List<Pair<KnowledgePoint, Int>> {
         val mistakeCountByKp = mistakes.groupBy { it.knowledgePointId }
             .mapValues { it.value.size }
@@ -169,9 +170,14 @@ class AnalysisViewModel @Inject constructor(
             val kpIdNonNull = kpId ?: continue
             val mistake = mistakes.firstOrNull { it.knowledgePointId == kpIdNonNull }
             if (mistake != null && count > 0) {
-                // 从 Room 数据库查知识点名称
                 val kpName = repository.getKnowledgePointById(kpIdNonNull)?.name ?: ""
-                val kp = KnowledgePoint(id = kpIdNonNull, chapterId = mistake.chapterId, name = kpName)
+                val subjectName = subjects.find { it.id == mistake.subjectId }?.name ?: ""
+                val displayName = if (subjectName.isNotBlank() && kpName.isNotBlank()) {
+                    "$subjectName $kpName"
+                } else {
+                    kpName
+                }
+                val kp = KnowledgePoint(id = kpIdNonNull, chapterId = mistake.chapterId, name = displayName)
                 knowledgePoints.add(kp to count)
             }
         }
