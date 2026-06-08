@@ -85,6 +85,11 @@ class ImportViewModel @Inject constructor(
     private val editingMistakeId: Long = savedStateHandle.get<Long>("mistakeId") ?: -1L
     private val _pendingClassifyJob = MutableStateFlow<Job?>(null)
 
+    /** 选项字母 A~H，与 OptionEntryRow 的 LABELS 对齐 */
+    private companion object {
+        private val LABELS = listOf("A", "B", "C", "D", "E", "F", "G", "H")
+    }
+
     init {
         loadSubjects()
         if (editingMistakeId > 0) {
@@ -214,6 +219,61 @@ class ImportViewModel @Inject constructor(
                     )
                 }
             }
+        }
+    }
+
+    /**
+     * 把 OCR 提取的字母列表应用为 questionType + correctOptionIndices
+     * 守护：用户可能已经在 OCR 期间删除/替换了第一张答案图
+     */
+    private fun applyAnswerInference(uri: Uri, letters: List<Char>, rawText: String) {
+        val state = _uiState.value
+        // 守护：用户已经删了或换了第一张图
+        if (state.answerImageUris.firstOrNull() != uri) return
+
+        val (newType, newCorrect, feedback) = when {
+            letters.isEmpty() -> Triple(
+                QuestionType.ESSAY,
+                emptySet<Int>(),
+                "未识别到答案字母，标记为主观题"
+            )
+            letters.size == 1 -> {
+                val idx = LABELS.indexOf(letters[0].toString())
+                if (idx < 0) {
+                    Triple(QuestionType.ESSAY, emptySet(), "识别异常：${letters[0]}")
+                } else {
+                    Triple(
+                        QuestionType.SINGLE_CHOICE,
+                        setOf(idx),
+                        "已识别为单选题，答案：${letters[0]}"
+                    )
+                }
+            }
+            else -> {
+                val validIndices = letters.mapNotNull { c ->
+                    LABELS.indexOf(c.toString()).takeIf { it >= 0 }
+                }
+                val validLetters = validIndices.map { LABELS[it][0] }
+                val dropped = letters.filter { it !in validLetters }
+                val msg = buildString {
+                    append("已识别为多选题，答案：")
+                    append(validLetters.joinToString("、"))
+                    if (dropped.isNotEmpty()) {
+                        append("（")
+                        append(dropped.joinToString("、"))
+                        append(" 超出选项范围已忽略）")
+                    }
+                }
+                Triple(QuestionType.MULTI_CHOICE, validIndices.toSet(), msg)
+            }
+        }
+
+        _uiState.update {
+            it.copy(
+                questionType = newType,
+                correctOptionIndices = newCorrect,
+                answerOcrFeedback = feedback
+            )
         }
     }
 
