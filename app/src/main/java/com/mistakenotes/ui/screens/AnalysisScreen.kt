@@ -284,11 +284,7 @@ private fun WeakKnowledgePointCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = if (knowledgePoint.name.isNotBlank()) {
-                    "第${knowledgePoint.chapterId}章 ${knowledgePoint.name}"
-                } else {
-                    "第${knowledgePoint.chapterId}章 知识点#${knowledgePoint.id}"
-                },
+                text = "第${knowledgePoint.chapterId}章 ${knowledgePoint.name}",
                 color = TextCream,
                 fontSize = 14.sp,
                 modifier = Modifier.weight(1f)
