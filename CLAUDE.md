@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 CPA 错题笔记应用 — 核心复习流程（录入→复习→分析）已完成。多图上传、图片裁剪、收藏夹、置顶、复习进度显示、7 个新功能（答案图片全题型、题号弹窗、已掌握按钮、已掌握复习、录入时间、题型筛选、图片自适应预览）、**答案图自动识别（OCR 提取字母 → 自动设题型+勾选项）**已实现。功能稳定，可日常使用。
 
-**RAG 知识库状态（2026-06-08）**：会计 30 章共 **305 知识点**（PDF 三册抽取 + DeepSeek 辅助生成，已重抽 ch5/ch14/ch21/ch24/ch25）。PC 端 90 道真题测试准确率 **88/90 = 98%**（详见 `结果.md`）。剩余 2 题失败属召回算法局限（需加 IDF 权重/bigram）或跨章节边界（#5 ch5↔ch16）。2026-06-08 修复：Ch13↔Ch16 优先股分类判题误判——KP112 加"负债vs权益判断"等区分性关键词 + KP146 删"金融负债" + prompt 加跨章节陷阱提示。
+**RAG 知识库状态（2026-06-08）**：会计 30 章共 **305 知识点**（PDF 三册抽取 + DeepSeek 辅助生成，已重抽 ch5/ch14/ch21/ch24/ch25）。PC 端 90 道真题测试准确率 **88/90 = 98%**（详见 `结果.md`）。Ch13 金融工具专项 10 题 **100%**（详见 `结六.md`）。2026-06-08 系统性修复：① **KB**：KP[153]"可转换公司债券与权益工具" Ch16→Ch13（根除可转债跨章节误判）；KP[112] +12 题目实词（回售/赎回/优先股/利率重置等）；KP[146] 删"金融负债""优先股"；KP[118] +8 题目实词（股权转让/过户/表决权等）。② **Prompt**：system message 系统性重构，加"选项术语≠章节归属"核心原则 + Ch13/Ch16/Ch12 判别铁则。③ **答案图 OCR**：AnswerLetterExtractor v3——只认"正确答案："/"【答案】"/"答案："等明确标记，遇"解析"/"。" /换行截断，不再 fallback 全文扫字母。
 
 ## 技术栈
 
@@ -101,7 +101,7 @@ app/src/main/java/com/mistakenotes/
 - **收藏夹**：复用错题浏览页面，路由参数 `favorites=true`，数据源 `isFavorite=1`，取消收藏自动移出
 - **已掌握**：复用错题浏览页面，路由参数 `mastered=true`，筛选 `correctCount≥3`，隐藏复习历史和进度，仍有编辑/置顶/收藏按钮，答错后归零回到复习循环
 - **置顶**：错题浏览和收藏夹均支持，置顶项排最前+橙色图标+置顶标签
-- **分析**：科目掌握度（进度条+百分比+科目配色）、章节错题分布（按科目分组）、薄弱知识点排行
+- **分析**：科目掌握度（进度条+百分比+科目配色）、章节错题分布（按科目分组）、薄弱知识点排行（`会计 第13章 金融资产终止确认` 格式——科目+章号+知识点名）
 - **算法**：5天间隔重复（错一次归零→5天→5天→5天→掌握，共3次正确）；跳过保留 correctCount、安排到明天优先；已掌握题目不加入今日/逾期列表
 - **复习进度**：列表项显示"第N次复习·还差X次掌握"或"已掌握"
 
@@ -232,6 +232,8 @@ HorizontalPager 的每个 page 直接渲染 `reviewQueue[page]`（而不是共�
 - **jumpTrigger 单向跳转**：`jumpTo(index)` 设 `_jumpTrigger = index` → Screen `LaunchedEffect(jumpTrigger)` 消费并动画 → 完成后 `clearJumpTrigger()` 置 null。**不要**再从 ViewModel 的 `currentIndex` 变化反向驱动 Pager，否则形成双向同步回路
 - **每题独立状态**：`_perQuestionStates: Map<Int, QuestionReviewState>` 每题保存 `selectedOptionIndices` / `showAnswer` / `isCorrect` / `correctIndices`。提交答案时把 `selectedOptionIndices` 写入 `ReviewSession.selectedOptionsByMistakeId[mistakeId]`，退出重进后可恢复错误选项的红色高亮
 - **浮动科学计算器**：复习页顶栏 `ic_calculator` 按钮（灰色机身+蓝屏+四则运算键）→ 点击切换 `CalculatorOverlay` 浮动科学计算器。4×7 键位（sin/cos/tan/√/x²/xʸ/π/e/±/%），仅 ✕ 按钮关闭（点击外部不消失），`zIndex(Float.MAX_VALUE)` 置顶。可自由拖动，拖到屏幕边缘松手贴边隐藏露出金色拉片，拖曳拉片恢复。竖屏 250dp 宽 keyRatio=0.88，横屏自动缩至 210dp 宽 keyRatio=0.80，总高约 458dp/340dp，不占满屏高
+- **答案图 OCR 字母提取**（AnswerLetterExtractor v3）：只认 `正确答案：` / `【答案】` / `答案：` / `答案 ` 等明确标记后的 A-H 字母；遇"解析"/"。" / 换行立即截断，防止解析区的字母混入；找不到标记→返回空（不 fallback 全文扫字母）。详见 `app/src/main/java/com/mistakenotes/ui/screens/AnswerLetterExtractor.kt`
+- **删除题目图重置分类**：`removeImageUri(0)` 时取消 pending RAG + 清空 subjectId/chapterId/knowledgePointId 及下拉列表。上传新图后 RAG 重新触发不受影响
 
 ## 待开发功能
 
