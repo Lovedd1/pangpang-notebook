@@ -307,11 +307,21 @@ class ImportViewModel @Inject constructor(
         _uiState.update {
             it.copy(imageUris = it.imageUris.filterIndexed { i, _ -> i != index })
         }
-        // 如果删的是第一张图且当前有 pending RAG 任务，取消
+        // 如果删的是第一张图→取消 RAG + 清空三级分类
         if (index == 0) {
             _pendingClassifyJob.value?.cancel()
             _pendingClassifyJob.value = null
-            _uiState.update { it.copy(ragStatus = RagStatus.IDLE, ragErrorMessage = null) }
+            _uiState.update {
+                it.copy(
+                    ragStatus = RagStatus.IDLE,
+                    ragErrorMessage = null,
+                    subjectId = null,
+                    chapterId = null,
+                    knowledgePointId = null,
+                    chapters = emptyList(),
+                    knowledgePoints = emptyList()
+                )
+            }
         }
     }
 
