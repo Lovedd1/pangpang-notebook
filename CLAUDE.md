@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目状态
 
-CPA 错题笔记应用 — 核心复习流程（录入→复习→分析）已完成。多图上传、图片裁剪、收藏夹、置顶、复习进度显示、7 个新功能（答案图片全题型、题号弹窗、已掌握按钮、已掌握复习、录入时间、题型筛选、图片自适应预览）、**答案图自动识别（OCR 提取字母 → 自动设题型+勾选项）**已实现。功能稳定，可日常使用。
+CPA 错题笔记应用 — 核心复习流程（录入→复习→分析）已完成。多图上传、图片裁剪、收藏夹、置顶、复习进度显示、7 个新功能（答案图片全题型、题号弹窗、已掌握按钮、已掌握复习、录入时间、题型筛选、图片自适应预览）、**答案图自动识别（OCR 提取字母 → 自动设题型+勾选项）**已实现。**选题弹窗对/错颜色可视化**（做对=绿底 / 做错=红底 / 其他=原色）、**滑动到做过的题自动回放历史选项+对错高亮** 已修复（2026-06-08）。功能稳定，可日常使用。
 
 **RAG 知识库状态（2026-06-08）**：会计 30 章共 **305 知识点**（PDF 三册抽取 + DeepSeek 辅助生成，已重抽 ch5/ch14/ch21/ch24/ch25）。PC 端 90 道真题测试准确率 **88/90 = 98%**（详见 `结果.md`）。Ch13 金融工具专项 10 题 **100%**（详见 `结六.md`）。2026-06-08 系统性修复：① **KB**：KP[153]"可转换公司债券与权益工具" Ch16→Ch13（根除可转债跨章节误判）；KP[112] +12 题目实词（回售/赎回/优先股/利率重置等）；KP[146] 删"金融负债""优先股"；KP[118] +8 题目实词（股权转让/过户/表决权等）。② **Prompt**：system message 系统性重构，加"选项术语≠章节归属"核心原则 + Ch13/Ch16/Ch12 判别铁则。③ **答案图 OCR**：AnswerLetterExtractor v3——只认"正确答案："/"【答案】"/"答案："等明确标记，遇"解析"/"。" /换行截断，不再 fallback 全文扫字母。
 
@@ -95,7 +95,7 @@ app/src/main/java/com/mistakenotes/
 - **AI 自动归类（会计）**：录入选图后自动跑 RAG（ML Kit OCR + 关键词召回 + DeepSeek 精排）→ 自动填科目/章节/知识点下拉；用户可手动覆盖；失败时 Snackbar 提示不影响保存。设置页填入 DeepSeek API Key 后启用。**当前仅限 CPA 会计 30 章**。
 - **主页**：科目筛选 Chip（显示有今日卡片+逾期卡片的科目，彩虹配色）、今日/逾期独立题型筛选 Chip（单选/多选/主观题）、今日待复习列表（已复习/未复习标签+科目/章节信息+复习进度）、逾期列表（按逾期天数分组展开→按题型二级分组→方块网格题号）、总错题/已掌握统计、快捷入口
 - **录入**：多图上传（水平滚动列表+添加/删除）、Compose原生裁剪（拖动定位+四角缩放）、拍照/选图（自动复制到本地）、标题（不填自动生成 `YYYY-MM-DD-NN`）、单选题/多选题/主观题切换、按钮式选项（A~H标签+✓标记正确+×删除）、三级分类（科目→章节→知识点）、**所有题型**答案/解析图片上传、**录入时间选择**（DatePickerDialog）、**答案图自动识别**（上传第一张答案图时本地 OCR 提取 A-H 字母 → 1=单选+勾对应 / 2+=多选+多勾 / 0=主观题；超范围警告；删图回滚，详见 `docs/superpowers/specs/2026-06-08-answer-image-auto-fill-design.md`）、选项以`|`分隔存储、编辑模式+删除功能
-- **复习**：左右滑动HorizontalPager切换题目、多图翻页（题目/答案独立+页码指示器）、图片自适应比例显示不裁剪 + 点击全屏预览（双指缩放+双击放大）、单列布局、单选圆形/多选方形、提交后绿色正确/红色错误高亮+结果横幅、主观题自评（答对/答错/跳过）、**所有题型**查看答案/解析按钮（每题独立状态）、顶栏🧮计算器（可拖动浮动窗+贴边隐藏+拉出恢复）+收藏★+**已掌握✓✓**按钮、顶栏📋选题底部弹窗（按题型分组+方块网格）、跳过安排到明天优先复习
+- **复习**：左右滑动HorizontalPager切换题目、多图翻页（题目/答案独立+页码指示器）、图片自适应比例显示不裁剪 + 点击全屏预览（双指缩放+双击放大）、单列布局、单选圆形/多选方形、提交后绿色正确/红色错误高亮+结果横幅、主观题自评（答对/答错/跳过）、**所有题型**查看答案/解析按钮（每题独立状态）、**滑动到做过的题自动回放历史选项+正确/错误高亮**（preReviewed 信息从 ReviewSession 提升到 ViewModel 字段）、**选题弹窗方块按对/错上色**（做对=绿底 / 做错=红底 / 其他=原色，含历史与当前 session 合并）、顶栏🧮计算器（可拖动浮动窗+贴边隐藏+拉出恢复）+收藏★+**已掌握✓✓**按钮、顶栏📋选题底部弹窗（按题型分组+方块网格）、跳过安排到明天优先复习
 - **错题浏览**：科目/章节双层筛选、**题型筛选 Chip**、列表按置顶>错误次数>录入时间排序、每条显示复习历史图标+正确/错误计数+复习进度+收藏★+置顶↑+编辑、点击进入单题复习
 - **已掌握**：复用错题浏览，路由参数 `mastered=true`，筛选 `correctCount≥3`，保留编辑/置顶/收藏按钮、**🕐重新安排复习**（1-10天滑动选择器），答错后归零回到复习循环
 - **收藏夹**：复用错题浏览页面，路由参数 `favorites=true`，数据源 `isFavorite=1`，取消收藏自动移出
@@ -145,6 +145,9 @@ HomeScreen 设置 → ReviewViewModel 读取后 clear（**不会**清空 `select
 - `_jumpTrigger: MutableStateFlow<Int?>` — 一次性跳转信号，Screen 消费后置 null；**Pager 是位置唯一真相源**，不再双向同步
 - `_currentIndex` 仅由 Pager 的 `LaunchedEffect(currentPage)` 单向更新，不再反向驱动 Pager
 - **文件持久化**：`submitAnswer` 时把 `selectedOptionIndices` 双写——内存 `ReviewSession.selectedOptionsByMistakeId` + 文件 `review_selections.json`（`context.filesDir` 下）。`loadReviewQueue` 启动时从文件回读合并，app 重启不会丢失选项状态
+- **`_reviewedResults: MutableStateFlow<Map<Int, Boolean>>`**（2026-06-08）— 替代原 `mutableMapOf`，三个写入点（`submitAnswer` / `submitEssaySelfEval` / `skipEssay`）通过 `_reviewedResults.value = _reviewedResults.value + (page to result)` 触发 emit，供 `combinedResultsFlow` 响应式合并
+- **`combinedResultsFlow: StateFlow<Map<Int, ReviewResult>>`**（2026-06-08）— `combine(_reviewedResults, _reviewQueue, repository.getAllReviewRecords())`，按 reviewQueue 索引 keyed。优先级：当前 session in-memory 结果 > 该 mistakeId 在 DB 中最新一条非 SKIP 记录；SKIP/无记录 → 不上色。供选题弹窗（按方块对/错颜色）订阅
+- **`preReviewedIndices: Set<Int>` / `preReviewedResults: Map<Int, Boolean?>`**（2026-06-08）— 提升自 `ReviewSession` 的同名字段。**必须在 `ReviewSession.clear()` 之前**把 captured 值赋给这两个 ViewModel 字段；`loadMistakeAtCurrentIndex` 滑动时读它们来判断"该题是否在 HomeScreen 已被标记为 isReviewed"
 
 ## ReviewScreen 架构（每页独立渲染）
 
@@ -153,6 +156,7 @@ HorizontalPager 的每个 page 直接渲染 `reviewQueue[page]`（而不是共�
 - 每页有独立的 `rememberScrollState()`（不再共享全局 scrollState）
 - `jumpTo(index)` → `_jumpTrigger = index` → `LaunchedEffect` 消费并 `animateScrollToPage`，消除双向同步回路
 - 滑动到新页时内容立即可用，不会出现"旧题→新题"闪烁
+- **选题弹窗着色**（2026-06-08）— 📋 选题底部弹窗 + 点标题跳转 AlertDialog 都 `collectAsState` ViewModel 的 `combinedResultsFlow`，按 `ReviewResult.CORRECT/WRONG/null` 渲染方块背景：CORRECT = `SuccessGreen.copy(alpha = 0.3f)`、WRONG = `ErrorRed.copy(alpha = 0.3f)`、其他 = `InkStoneBlack`（原色）。当前题 `isCurrent` 仍优先 `AmberGold`
 
 ## 自定义图标
 
@@ -234,6 +238,9 @@ HorizontalPager 的每个 page 直接渲染 `reviewQueue[page]`（而不是共�
 - **浮动科学计算器**：复习页顶栏 `ic_calculator` 按钮（灰色机身+蓝屏+四则运算键）→ 点击切换 `CalculatorOverlay` 浮动科学计算器。4×7 键位（sin/cos/tan/√/x²/xʸ/π/e/±/%），仅 ✕ 按钮关闭（点击外部不消失），`zIndex(Float.MAX_VALUE)` 置顶。可自由拖动，拖到屏幕边缘松手贴边隐藏露出金色拉片，拖曳拉片恢复。竖屏 250dp 宽 keyRatio=0.88，横屏自动缩至 210dp 宽 keyRatio=0.80，总高约 458dp/340dp，不占满屏高
 - **答案图 OCR 字母提取**（AnswerLetterExtractor v3）：只认 `正确答案：` / `【答案】` / `答案：` / `答案 ` 等明确标记后的 A-H 字母；遇"解析"/"。" / 换行立即截断，防止解析区的字母混入；找不到标记→返回空（不 fallback 全文扫字母）。详见 `app/src/main/java/com/mistakenotes/ui/screens/AnswerLetterExtractor.kt`
 - **删除题目图重置分类**：`removeImageUri(0)` 时取消 pending RAG + 清空 subjectId/chapterId/knowledgePointId 及下拉列表。上传新图后 RAG 重新触发不受影响
+- **选题弹窗对/错颜色**（2026-06-08）：弹窗方块颜色来源于 `ReviewViewModel.combinedResultsFlow: StateFlow<Map<Int, ReviewResult>>`，`combine` 三个源：① 当前 session in-memory 结果（`_reviewedResults: MutableStateFlow<Map<Int, Boolean>>`）② `_reviewQueue` ③ `repository.getAllReviewRecords()`（Room 全量）。优先级：当前 session > 该 mistakeId 最新一条非 SKIP DB 记录；SKIP/无记录 → 原色。**当前 session 提交瞬间 StateFlow 即时 emit**，弹窗 collectAsState 重组即可见色，不依赖 DB 异步写入完成——这是把 `_reviewedResults` 从 `mutableMapOf` 升级为 `MutableStateFlow` 的核心收益
+- **`_reviewedResults` 必须用 MutableStateFlow 而非 mutableMapOf**（2026-06-08）：三个写入点（`submitAnswer` / `submitEssaySelfEval` / `skipEssay`）必须用 `_reviewedResults.value = _reviewedResults.value + (page to result)` 触发 emit。`mutableMapOf[page] = result` 不会触发任何订阅者，是"弹窗不立即变色"类 bug 的常见根因
+- **preReviewed 信息必须存到 ViewModel 字段，不能依赖 ReviewSession**（2026-06-08）：`loadReviewQueue` 在 `clear()` 之前必须把 `ReviewSession.preReviewedIndices` / `preReviewedResults` 的 captured 值赋给 ViewModel 的 `preReviewedIndices: Set<Int>` / `preReviewedResults: Map<Int, Boolean?>` 字段。原因：`ReviewSession.clear()` 会清空这些字段，但 `loadMistakeAtCurrentIndex` 在用户滑动到其他题时仍需要读它们判断"该题是否在 HomeScreen 被标记为 isReviewed"——若继续读 `ReviewSession.*`，else "Fresh card" 分支永远命中、滑动到做过的题永远显示空白。`reviewedResultsMap` getter 保留作 backward compat 但实际已无引用，可清理
 
 ## 待开发功能
 
