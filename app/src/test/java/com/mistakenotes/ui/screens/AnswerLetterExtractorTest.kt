@@ -89,10 +89,36 @@ class AnswerLetterExtractorTest {
 
     @Test
     fun `marker with trailing text after letters`() {
-        // "答案：AC 解析：详见教材" → 只取 A、C，不取后面的
+        // "答案：AC 解析：详见教材" → 只取 A、C，解析里的字母不取
         assertEquals(
             listOf('A', 'C'),
             AnswerLetterExtractor.extract("答案：AC 解析：详见教材P123")
+        )
+    }
+
+    @Test
+    fun `letters in analysis section are excluded`() {
+        // "答案：A 解析：选项B不正确" → B 在解析区，不取
+        assertEquals(
+            listOf('A'),
+            AnswerLetterExtractor.extract("答案：A 解析：选项B不正确，因为C不符合题意")
+        )
+    }
+
+    @Test
+    fun `period truncates before analysis letters`() {
+        // "答案：A。选项B不正确" → "。" 截断，B 在截断后，不取
+        assertEquals(
+            listOf('A'),
+            AnswerLetterExtractor.extract("答案：A。选项B不正确，选项C也不对")
+        )
+    }
+
+    @Test
+    fun `newline truncates answer area`() {
+        assertEquals(
+            listOf('D'),
+            AnswerLetterExtractor.extract("答案：D\n解析：选项A错误，因为...")
         )
     }
 }
