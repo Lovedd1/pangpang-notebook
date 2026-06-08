@@ -36,10 +36,12 @@ class DeepSeekKnowledgeClassifier @Inject constructor(
         return try {
             // Step 1: OCR
             val text = ocr.recognizeText(questionImage)
+            Log.d("RAG", "OCR 提取: $text")
             if (text.isBlank()) return ClassifyResult.failed("OCR 提取为空")
 
             // Step 2: 召回（topK=7 给跨章节更多候选）
             val candidates = knowledgeBase.recall(text, topK = 7, chapterHint = subjectHint?.id?.toLong())
+            Log.d("RAG", "召回 top-${candidates.size}: ${candidates.joinToString { "${it.name}(Ch${it.chapterId})" }}")
             if (candidates.isEmpty()) {
                 return ClassifyResult.failed("知识库未匹配到候选")
             }
@@ -50,7 +52,7 @@ class DeepSeekKnowledgeClassifier @Inject constructor(
                 return ClassifyResult.failed("未设置 API Key，请在设置页填入")
             }
             val prompt = buildPrompt(text, candidates)
-            Log.d("RAG", "调用 DeepSeek: ${apiKey.take(10)}... prompt=${prompt.take(100)}")
+            Log.d("RAG", "DeepSeek 调用 (prompt=${text.length}字, cand=${candidates.size})")
             val response = try {
                 deepSeekApi.chatCompletions(
                     authorization = "Bearer $apiKey",
@@ -68,6 +70,7 @@ class DeepSeekKnowledgeClassifier @Inject constructor(
             }
             val rawJson = response.choices.firstOrNull()?.message?.content
                 ?: return ClassifyResult.failed("DeepSeek 返回为空")
+            Log.d("RAG", "DeepSeek 返回: $rawJson")
 
             // Step 4: 解析 JSON（方案B：primary/secondary + 占比 + 兼容旧格式）
             val cleanJson = extractJsonBlock(rawJson)
