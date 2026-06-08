@@ -8,6 +8,7 @@ import com.mistakenotes.domain.model.QuestionType
 import com.mistakenotes.domain.model.ReviewRecord
 import com.mistakenotes.domain.model.ReviewResult
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -40,10 +41,49 @@ class ReviewViewModel @Inject constructor(
     val reviewQueueFlow: StateFlow<List<Mistake>> = _reviewQueue.asStateFlow()
     val currentIndexFlow: StateFlow<Int> = _currentIndex.asStateFlow()
     val queueSize: Int get() = _reviewQueue.value.size
-    val reviewedResultsMap: Map<Int, Boolean> get() = reviewedResults.toMap()
 
     private val reviewedIndices = mutableSetOf<Int>()
-    private val reviewedResults = mutableMapOf<Int, Boolean>() // index -> isCorrect
+    // 改为 StateFlow，便于和 DB 历史合并成响应式的 combinedResultsFlow，
+    // 让选题弹窗在用户提交时立即反映新的对/错颜色。
+    private val _reviewedResults = MutableStateFlow<Map<Int, Boolean>>(emptyMap())
+    val reviewedResultsMap: Map<Int, Boolean> get() = _reviewedResults.value
+
+    // HomeScreen 在用户点进复习时传进来的"队列中已复习过的题"信息。
+    // 必须存在 ViewModel 字段里——因为 loadReviewQueue 会 clear() 掉
+    // ReviewSession 里的 preReviewedIndices，导致后续 loadMistakeAtCurrentIndex
+    // 读不到这个集合，滑动到做过的题时会落入"Fresh card"分支、永远显示空白。
+    private var preReviewedIndices: Set<Int> = emptySet()
+    private var preReviewedResults: Map<Int, Boolean?> = emptyMap()
+
+    /**
+     * 合并"当前 session 已提交"和"DB 历史最近一次"的结果。
+     * - 当前 session 结果优先级最高（用户刚提交就要立刻反映）
+     * - 历史取该 mistakeId 最新一条记录；SKIP/无记录 → 不上色（弹窗用原色）
+     * 输出按 reviewQueue 索引 keyed，方便弹窗按原 index 查色。
+     */
+    val combinedResultsFlow: StateFlow<Map<Int, ReviewResult>> = combine(
+        _reviewedResults,
+        _reviewQueue,
+        repository.getAllReviewRecords()
+    ) { sessionMap, queue, allRecords ->
+        val byMistakeId = allRecords.groupBy { it.mistakeId }
+        val resultMap = mutableMapOf<Int, ReviewResult>()
+        queue.forEachIndexed { idx, mistake ->
+            when (sessionMap[idx]) {
+                true -> resultMap[idx] = ReviewResult.CORRECT
+                false -> resultMap[idx] = ReviewResult.WRONG
+                null -> {
+                    val latest = byMistakeId[mistake.id]?.maxByOrNull { it.reviewDate }
+                    when (latest?.result) {
+                        ReviewResult.CORRECT -> resultMap[idx] = ReviewResult.CORRECT
+                        ReviewResult.WRONG -> resultMap[idx] = ReviewResult.WRONG
+                        else -> { /* SKIP / 无记录 → 不上色 */ }
+                    }
+                }
+            }
+        }
+        resultMap
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
     init {
         loadReviewQueue()
@@ -79,6 +119,10 @@ class ReviewViewModel @Inject constructor(
                 val capturedLastResult = ReviewSession.lastResult
                 val capturedPreReviewedIndices = ReviewSession.preReviewedIndices
                 val capturedPreReviewedResults = ReviewSession.preReviewedResults
+                // 提升到 ViewModel 字段，否则后续滑动 loadMistakeAtCurrentIndex
+                // 读不到队列里其他"已复习"题的状态
+                preReviewedIndices = capturedPreReviewedIndices
+                preReviewedResults = capturedPreReviewedResults
                 ReviewSession.clear()
 
                 if (_reviewQueue.value.isNotEmpty()) {
@@ -161,7 +205,9 @@ class ReviewViewModel @Inject constructor(
         if (_reviewQueue.value.isEmpty()) return
         val idx = _currentIndex.value
         val mistake = _reviewQueue.value[idx]
-        val isPreReviewed = idx in ReviewSession.preReviewedIndices
+        // 用 ViewModel 字段而不是 ReviewSession.preReviewedIndices——
+        // 后者已在 loadReviewQueue 里 clear() 掉，滑动到这里时永远为 emptySet。
+        val isPreReviewed = idx in preReviewedIndices
         if (idx in reviewedIndices || isPreReviewed) {
             // Already reviewed — load actual user selection from DB
             viewModelScope.launch {
@@ -169,8 +215,8 @@ class ReviewViewModel @Inject constructor(
                 val correctIndices = (mistake.correctAnswer ?: "").map { c ->
                     labelLetters.indexOf(c.toString())
                 }.filter { it >= 0 }.toSet()
-                val isCorrect = reviewedResults[idx]
-                    ?: ReviewSession.preReviewedResults[idx]
+                val isCorrect = _reviewedResults.value[idx]
+                    ?: preReviewedResults[idx]
                 // Load user's actual selected options from DB (bitmask in score)
                 val records = repository.getReviewRecordsByMistake(mistake.id).first()
                 val latestNonSkip = records.lastOrNull { it.result != ReviewResult.SKIP }
@@ -234,7 +280,7 @@ class ReviewViewModel @Inject constructor(
 
         val userIndices = currentQs.selectedOptionIndices
         val isCorrect = userIndices == correctIndices
-        reviewedResults[page] = isCorrect  // use page, not _currentIndex.value
+        _reviewedResults.value = _reviewedResults.value + (page to isCorrect)  // use page, not _currentIndex.value
 
         val newQs = currentQs.copy(
             showAnswer = true,
@@ -255,7 +301,7 @@ class ReviewViewModel @Inject constructor(
         val currentQs = _uiState.value.perQuestionState[page] ?: QuestionState()
 
         reviewedIndices.add(page)  // use page
-        reviewedResults[page] = isCorrect  // use page
+        _reviewedResults.value = _reviewedResults.value + (page to isCorrect)  // use page
 
         val newQs = currentQs.copy(showAnswer = true, isCorrect = isCorrect)
         _uiState.update {
@@ -269,7 +315,7 @@ class ReviewViewModel @Inject constructor(
         val currentQs = _uiState.value.perQuestionState[page] ?: QuestionState()
 
         reviewedIndices.add(page)  // use page
-        reviewedResults[page] = false  // mark as reviewed (skip = not correct)
+        _reviewedResults.value = _reviewedResults.value + (page to false)  // mark as reviewed (skip = not correct)
         val newQs = currentQs.copy(showAnswer = true, isCorrect = null)
         _uiState.update {
             it.copy(perQuestionState = it.perQuestionState + (page to newQs))
@@ -278,7 +324,11 @@ class ReviewViewModel @Inject constructor(
     }
 
     private fun skipReviewRecord(mistakeId: Long) {
-        viewModelScope.launch {
+        // NonCancellable: ensure the DB write survives ViewModel teardown when
+        // the user navigates back before the coroutine completes. Without this,
+        // a race condition can silently drop review records, causing reviewed
+        // cards to reappear in the home list the next day with stale schedule.
+        viewModelScope.launch(NonCancellable) {
             val records = repository.getReviewRecordsByMistake(mistakeId).first()
             val latestRecord = records.maxByOrNull { it.reviewDate }
 
@@ -314,7 +364,9 @@ class ReviewViewModel @Inject constructor(
     }
 
     private fun updateReviewRecord(mistakeId: Long, isCorrect: Boolean, userAnswerBitmap: Int?) {
-        viewModelScope.launch {
+        // NonCancellable: same rationale as skipReviewRecord — the review
+        // result MUST be persisted even if the user immediately navigates away.
+        viewModelScope.launch(NonCancellable) {
             val records = repository.getReviewRecordsByMistake(mistakeId).first()
             val latestRecord = records.maxByOrNull { it.reviewDate }
 
@@ -360,7 +412,9 @@ class ReviewViewModel @Inject constructor(
     }
 
     fun markAsMastered(mistakeId: Long) {
-        viewModelScope.launch {
+        // NonCancellable: same rationale as above — the "mastered" record
+        // must be written regardless of navigation timing.
+        viewModelScope.launch(NonCancellable) {
             val cal = java.util.Calendar.getInstance().apply {
                 set(java.util.Calendar.HOUR_OF_DAY, 0)
                 set(java.util.Calendar.MINUTE, 0)

@@ -14,7 +14,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -36,6 +35,7 @@ import com.mistakenotes.domain.model.ReviewResult
 import com.mistakenotes.domain.model.getAnswerImagePaths
 import com.mistakenotes.domain.model.getQuestionImagePaths
 import com.mistakenotes.ui.components.AdaptiveImage
+import com.mistakenotes.ui.components.CalculatorOverlay
 import com.mistakenotes.ui.components.ImagePreviewDialog
 import com.mistakenotes.ui.components.JumpToQuestionDialog
 import com.mistakenotes.ui.theme.*
@@ -52,12 +52,15 @@ fun ReviewScreen(
     val uiState by viewModel.uiState.collectAsState()
     val currentIndexValue by viewModel.currentIndexFlow.collectAsState()
     val reviewQueue by viewModel.reviewQueueFlow.collectAsState()
+    // 历史 + 当前 session 的合并结果，用于选题弹窗按对/错上色
+    val combinedResults by viewModel.combinedResultsFlow.collectAsState()
     val maxImageHeight = (LocalConfiguration.current.screenHeightDp * 0.66f).dp
     // Per-question answer image visibility (independent per question)
     val answerImageVisible = remember { mutableStateMapOf<Int, Boolean>() }
     var showJumpDialog by remember { mutableStateOf(false) }
     var showQuestionList by remember { mutableStateOf(false) }
     var showMasteredConfirm by remember { mutableStateOf(false) }
+    var showCalculator by remember { mutableStateOf(false) }
     var previewFile by remember { mutableStateOf<java.io.File?>(null) }
 
     Scaffold(
@@ -102,11 +105,18 @@ fun ReviewScreen(
                         }
                         // Mastered button — always visible
                         IconButton(onClick = { showMasteredConfirm = true }) {
-                            Icon(
-                                Icons.Default.CheckCircle,
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_mastered),
                                 contentDescription = "已掌握",
-                                tint = AmberGold,
                                 modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        // Calculator button — toggle floating calculator overlay
+                        IconButton(onClick = { showCalculator = !showCalculator }) {
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_calculator),
+                                contentDescription = "计算器",
+                                modifier = Modifier.size(22.dp)
                             )
                         }
                     }
@@ -576,9 +586,7 @@ fun ReviewScreen(
         JumpToQuestionDialog(
             total = viewModel.queueSize,
             currentIndex = currentIndexValue,
-            results = viewModel.reviewedResultsMap.mapValues {
-                if (it.value) ReviewResult.CORRECT else ReviewResult.WRONG
-            },
+            results = combinedResults,
             onJump = { viewModel.jumpTo(it) },
             onDismiss = { showJumpDialog = false }
         )
@@ -664,13 +672,13 @@ fun ReviewScreen(
                                     val idx = row * columns + col
                                     if (idx < group.size) {
                                         val (originalIndex, _) = group[idx]
-                                        val result = viewModel.reviewedResultsMap[originalIndex]
+                                        val result = combinedResults[originalIndex]
                                         val isCurrent = originalIndex == currentIndexValue
 
                                         val (bg, fg) = when {
                                             isCurrent -> AmberGold to InkStoneBlack
-                                            result == true -> SuccessGreen.copy(alpha = 0.3f) to SuccessGreen
-                                            result == false -> ErrorRed.copy(alpha = 0.3f) to ErrorRed
+                                            result == ReviewResult.CORRECT -> SuccessGreen.copy(alpha = 0.3f) to SuccessGreen
+                                            result == ReviewResult.WRONG -> ErrorRed.copy(alpha = 0.3f) to ErrorRed
                                             else -> InkStoneBlack to TextCream.copy(alpha = 0.5f)
                                         }
 
@@ -705,6 +713,11 @@ fun ReviewScreen(
     // Fullscreen image preview
     previewFile?.let { file ->
         ImagePreviewDialog(file = file, onDismiss = { previewFile = null })
+    }
+
+    // Calculator overlay
+    if (showCalculator) {
+        CalculatorOverlay(onDismiss = { showCalculator = false })
     }
 }
 
