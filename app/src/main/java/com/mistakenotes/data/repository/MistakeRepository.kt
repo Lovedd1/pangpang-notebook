@@ -34,6 +34,8 @@ class MistakeRepository @Inject constructor(
     // KnowledgePoint
     fun getKnowledgePointsByChapter(chapterId: Long): Flow<List<KnowledgePoint>> =
         knowledgePointDao.getKnowledgePointsByChapter(chapterId).map { list -> list.map { it.toDomain() } }
+    suspend fun getKnowledgePointById(id: Long): KnowledgePoint? =
+        knowledgePointDao.getKnowledgePointById(id)?.toDomain()
     suspend fun insertKnowledgePoint(kp: KnowledgePoint): Long = knowledgePointDao.insertKnowledgePoint(kp.toEntity())
 
     /**

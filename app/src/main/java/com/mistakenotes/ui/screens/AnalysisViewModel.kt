@@ -152,7 +152,7 @@ class AnalysisViewModel @Inject constructor(
         return chapterStatsList.sortedByDescending { it.mistakeCount }
     }
 
-    private fun calculateTopWeakKnowledgePoints(
+    private suspend fun calculateTopWeakKnowledgePoints(
         mistakes: List<com.mistakenotes.domain.model.Mistake>,
         reviewRecords: List<com.mistakenotes.domain.model.ReviewRecord>
     ): List<Pair<KnowledgePoint, Int>> {
@@ -167,9 +167,11 @@ class AnalysisViewModel @Inject constructor(
 
         for ((kpId, count) in kpIdWithCounts) {
             val kpIdNonNull = kpId ?: continue
-            val mistake = mistakes.filter { it.knowledgePointId == kpIdNonNull }.firstOrNull()
+            val mistake = mistakes.firstOrNull { it.knowledgePointId == kpIdNonNull }
             if (mistake != null && count > 0) {
-                val kp = KnowledgePoint(id = kpIdNonNull, chapterId = mistake.chapterId, name = "")
+                // 从 Room 数据库查知识点名称
+                val kpName = repository.getKnowledgePointById(kpIdNonNull)?.name ?: ""
+                val kp = KnowledgePoint(id = kpIdNonNull, chapterId = mistake.chapterId, name = kpName)
                 knowledgePoints.add(kp to count)
             }
         }
