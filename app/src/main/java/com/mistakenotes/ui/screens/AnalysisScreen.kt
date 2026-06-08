@@ -145,13 +145,7 @@ fun AnalysisScreen(
                     }
 
                     items(uiState.topWeakKnowledgePoints) { (kp, count) ->
-                        val chapterName = uiState.chapterStats
-                            .find { it.chapter.id == kp.chapterId }?.chapter?.name ?: ""
-                        WeakKnowledgePointCard(
-                            knowledgePoint = kp,
-                            chapterName = chapterName,
-                            mistakeCount = count
-                        )
+                        WeakKnowledgePointCard(knowledgePoint = kp, mistakeCount = count)
                     }
                 }
             }
@@ -275,15 +269,8 @@ private fun ChapterStatCard(stat: ChapterStat) {
 @Composable
 private fun WeakKnowledgePointCard(
     knowledgePoint: KnowledgePoint,
-    chapterName: String,
     mistakeCount: Int
 ) {
-    val displayText = if (knowledgePoint.name.isNotBlank()) {
-        "第${knowledgePoint.chapterId}章 $chapterName（${knowledgePoint.name}）"
-    } else {
-        "第${knowledgePoint.chapterId}章 $chapterName"
-    }
-
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -297,7 +284,11 @@ private fun WeakKnowledgePointCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = displayText,
+                text = if (knowledgePoint.name.isNotBlank()) {
+                    "第${knowledgePoint.chapterId}章 ${knowledgePoint.name}"
+                } else {
+                    "第${knowledgePoint.chapterId}章 知识点#${knowledgePoint.id}"
+                },
                 color = TextCream,
                 fontSize = 14.sp,
                 modifier = Modifier.weight(1f)
