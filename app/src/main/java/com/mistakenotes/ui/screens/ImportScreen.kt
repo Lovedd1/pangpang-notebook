@@ -85,6 +85,13 @@ fun ImportScreen(
         }
     }
 
+    LaunchedEffect(uiState.answerOcrFeedback) {
+        uiState.answerOcrFeedback?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            viewModel.clearAnswerOcrFeedback()
+        }
+    }
+
     LaunchedEffect(uiState.saveSuccess) {
         if (uiState.saveSuccess) {
             onNavigateBack()
