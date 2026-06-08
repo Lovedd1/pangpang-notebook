@@ -172,10 +172,10 @@ class AnalysisViewModel @Inject constructor(
             if (mistake != null && count > 0) {
                 val kpName = repository.getKnowledgePointById(kpIdNonNull)?.name ?: ""
                 val subjectName = subjects.find { it.id == mistake.subjectId }?.name ?: ""
-                val displayName = if (subjectName.isNotBlank() && kpName.isNotBlank()) {
-                    "$subjectName $kpName"
+                val displayName = if (kpName.isNotBlank()) {
+                    "$subjectName 第${mistake.chapterId}章 $kpName"
                 } else {
-                    kpName
+                    "$subjectName 第${mistake.chapterId}章"
                 }
                 val kp = KnowledgePoint(id = kpIdNonNull, chapterId = mistake.chapterId, name = displayName)
                 knowledgePoints.add(kp to count)

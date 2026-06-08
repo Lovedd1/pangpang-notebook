@@ -284,7 +284,7 @@ private fun WeakKnowledgePointCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "第${knowledgePoint.chapterId}章 ${knowledgePoint.name}",
+                text = knowledgePoint.name,
                 color = TextCream,
                 fontSize = 14.sp,
                 modifier = Modifier.weight(1f)
