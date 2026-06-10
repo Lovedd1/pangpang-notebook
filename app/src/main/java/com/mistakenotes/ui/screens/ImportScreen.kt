@@ -186,6 +186,29 @@ fun ImportScreen(
                 onKnowledgePointSelected = { viewModel.setKnowledgePoint(it) }
             )
 
+            // "重新 AI 识别"按钮——编辑模式 + 有题目图时显示
+            if (uiState.isEditMode && uiState.imageUris.isNotEmpty()) {
+                OutlinedButton(
+                    onClick = { viewModel.reclassifyFromCurrentImage() },
+                    modifier = Modifier.fillMaxWidth().height(44.dp),
+                    enabled = uiState.ragStatus != RagStatus.LOADING,
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, AmberGold.copy(alpha = 0.35f))
+                ) {
+                    if (uiState.ragStatus == RagStatus.LOADING) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = AmberGold,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("AI 识别中…", color = AmberGold.copy(alpha = 0.7f), fontSize = 14.sp)
+                    } else {
+                        Text("🔄 重新 AI 识别章节/知识点", color = AmberGold, fontSize = 14.sp)
+                    }
+                }
+            }
+
             // Entry date
             EntryDateRow(
                 entryDate = uiState.entryDate,

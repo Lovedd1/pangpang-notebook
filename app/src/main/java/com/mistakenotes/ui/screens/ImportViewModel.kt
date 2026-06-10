@@ -160,7 +160,7 @@ class ImportViewModel @Inject constructor(
         }
     }
 
-    private fun triggerRagClassification(uri: Uri) {
+    private fun triggerRagClassification(uri: Uri, forceOverride: Boolean = false) {
         // 取消上一个未完成的任务
         _pendingClassifyJob.value?.cancel()
 
@@ -171,8 +171,10 @@ class ImportViewModel @Inject constructor(
                 val result = classifier.classify(uri)
                 // 守护：用户可能已经删除/替换了这张图
                 if (_uiState.value.imageUris.firstOrNull() != uri) return@launch
-                // 守护：用户可能已经手动选了下拉
-                if (_uiState.value.chapterId != null || _uiState.value.knowledgePointId != null) {
+                // 守护：用户可能已经手动选了下拉（forceOverride 时跳过，允许覆盖）
+                if (!forceOverride &&
+                    (_uiState.value.chapterId != null || _uiState.value.knowledgePointId != null)
+                ) {
                     _uiState.update { it.copy(ragStatus = RagStatus.DONE) }
                     return@launch
                 }
@@ -185,8 +187,8 @@ class ImportViewModel @Inject constructor(
                         )
                     }
                 } else {
-                    // 守护：用户可能已经手动改了下拉
-                    if (_uiState.value.chapterId != null) {
+                    // 守护：用户可能已经手动改了下拉（forceOverride 时跳过）
+                    if (!forceOverride && _uiState.value.chapterId != null) {
                         _uiState.update { it.copy(ragStatus = RagStatus.DONE) }
                         return@launch
                     }
@@ -221,6 +223,21 @@ class ImportViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    /**
+     * 用当前第一张题目图重新触发 RAG 分类，覆盖用户已选的下拉值。
+     * 编辑页"重新 AI 识别"按钮专用。
+     */
+    fun reclassifyFromCurrentImage() {
+        val firstUri = _uiState.value.imageUris.firstOrNull()
+        if (firstUri == null) {
+            _uiState.update {
+                it.copy(ragErrorMessage = "请先上传题目图片")
+            }
+            return
+        }
+        triggerRagClassification(firstUri, forceOverride = true)
     }
 
     /**
@@ -555,21 +572,28 @@ class ImportViewModel @Inject constructor(
                     "$dateStr-${todayCount.toString().padStart(2, '0')}"
                 } else state.title
 
-                // Preserve existing images if not replaced
-                val localImagePaths = if (state.imageUris.isNotEmpty()) {
-                    state.imageUris.mapNotNull { copyImageToLocal(it) }
-                } else if (isEdit) {
-                    existingMistake?.getQuestionImagePaths() ?: emptyList()
-                } else {
-                    emptyList()
+                // Preserve existing images if not replaced.
+                // loadMistakeForEditing 把原图通过 Uri.fromFile(file) 加进 state.imageUris，
+                // 用户没动图时 Uri 的 path 仍指向 existingMistake 原路径——此时复用旧路径，
+                // 不调 copyImageToLocal 重写文件名，否则下面 isOnlyClassificationChanged 的
+                // questionImagePath 比对会永远失败（new nanoTime ≠ 旧路径）。
+                val imagesUnchanged = isEdit && existingMistake != null &&
+                        state.imageUris.map { it.path.orEmpty() } == existingMistake.getQuestionImagePaths()
+                val answerImagesUnchanged = isEdit && existingMistake != null &&
+                        state.answerImageUris.map { it.path.orEmpty() } == existingMistake.getAnswerImagePaths()
+
+                val localImagePaths = when {
+                    imagesUnchanged -> existingMistake?.getQuestionImagePaths() ?: emptyList()
+                    state.imageUris.isNotEmpty() -> state.imageUris.mapNotNull { copyImageToLocal(it) }
+                    isEdit -> existingMistake?.getQuestionImagePaths() ?: emptyList()
+                    else -> emptyList()
                 }
 
-                val localAnswerPaths = if (state.answerImageUris.isNotEmpty()) {
-                    state.answerImageUris.mapNotNull { copyImageToLocal(it, "answer") }
-                } else if (isEdit) {
-                    existingMistake?.getAnswerImagePaths() ?: emptyList()
-                } else {
-                    emptyList()
+                val localAnswerPaths = when {
+                    answerImagesUnchanged -> existingMistake?.getAnswerImagePaths() ?: emptyList()
+                    state.answerImageUris.isNotEmpty() -> state.answerImageUris.mapNotNull { copyImageToLocal(it, "answer") }
+                    isEdit -> existingMistake?.getAnswerImagePaths() ?: emptyList()
+                    else -> emptyList()
                 }
 
                 val questionImagePathStr = localImagePaths.joinToString("||").takeIf { it.isNotBlank() }
@@ -598,17 +622,31 @@ class ImportViewModel @Inject constructor(
 
                 if (isEdit) {
                     repository.updateMistake(mistake)
-                    // Reset review schedule — delete old records and create fresh one
-                    repository.deleteReviewRecordsByMistakeId(editingMistakeId)
-                    repository.insertReviewRecord(
-                        ReviewRecord(
-                            mistakeId = editingMistakeId,
-                            reviewDate = now,
-                            result = ReviewResult.SKIP,
-                            nextReviewDate = finalNextReviewDate,
-                            correctCount = 0
+                    // 仅当 subjectId/chapterId/knowledgePointId 之外的字段都没变时，
+                    // 视为"只改了分类"，保留复习计划（不删历史、不重置 correctCount/nextReviewDate）。
+                    // 任何内容字段（标题、题型、图片、题目文字、选项、答案、录入日期）有变，
+                    // 仍按旧行为刷新计划。
+                    val isOnlyClassificationChanged = existingMistake != null &&
+                            existingMistake.title == finalTitle &&
+                            existingMistake.questionType == state.questionType &&
+                            existingMistake.questionImagePath == questionImagePathStr &&
+                            existingMistake.questionText == state.questionText.takeIf { it.isNotBlank() } &&
+                            existingMistake.options == optionsStr &&
+                            existingMistake.correctAnswer == correctAnswerStr &&
+                            existingMistake.referenceAnswer == answerImagePathStr &&
+                            existingMistake.createdAt == entryDateMs
+                    if (!isOnlyClassificationChanged) {
+                        repository.deleteReviewRecordsByMistakeId(editingMistakeId)
+                        repository.insertReviewRecord(
+                            ReviewRecord(
+                                mistakeId = editingMistakeId,
+                                reviewDate = now,
+                                result = ReviewResult.SKIP,
+                                nextReviewDate = finalNextReviewDate,
+                                correctCount = 0
+                            )
                         )
-                    )
+                    }
                 } else {
                     val mistakeId = repository.insertMistake(mistake)
                     // Create initial review record — first review due 5 days from today
